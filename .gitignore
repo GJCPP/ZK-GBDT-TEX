@@ -1,0 +1,20 @@
+task___25___ZK Decision Tree.md
+task___25___ZKGBDT___AI Prompt.md
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.nav
+*.out
+*.run.xml
+*.snm
+*.synctex.gz
+*.toc
+*.xdv
+*.pdf
+build/

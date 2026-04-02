@@ -1,0 +1,52 @@
+\documentclass[11pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage[nameinlink,noabbrev]{cleveref}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=blue!50!black,
+  urlcolor=blue!50!black
+}
+
+\title{ZK-GBDT: Working Draft}
+\author{Author Name}
+\date{\today}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{definition}{Definition}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This document is an initial writing scaffold for a paper on zero-knowledge
+gradient boosted decision trees. Replace this abstract with a concise summary
+of the problem, technique, and main contributions.
+\end{abstract}
+
+\tableofcontents
+
+\input{sections/01_introduction}
+\input{sections/02_background}
+\input{sections/03_problem_statement}
+\input{sections/04_protocol}
+\input{sections/05_evaluation}
+\input{sections/06_related_work}
+\input{sections/07_conclusion}
+
+\bibliographystyle{plain}
+\bibliography{bibliography/references}
+
+\end{document}
