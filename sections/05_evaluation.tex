@@ -1,14 +1,21 @@
 \section{Evaluation}
 
-Record the concrete questions you want experiments to answer, for example:
-\begin{itemize}
-  \item proof size,
-  \item proving time,
-  \item verification time,
-  \item scalability in tree depth, tree count, and feature dimension,
-  \item comparison against baselines.
-\end{itemize}
+The empirical evaluation is intended to measure the cost of the primitive layer
+and the end-to-end protocol separately. At the primitive level, the most
+relevant metrics are the prover time, verifier time, and proof size of domain
+lifting, replication, tensor sums, aggregation, and histogram construction. At
+the application level, the evaluation reports the cost of batched inference and
+end-to-end training proofs as functions of the number of trees, the maximum
+depth, the feature dimension, the number of bins, and the batch size.
 
-\subsection{Experimental Setup}
+\subsection{Experimental Methodology}
 
-Describe hardware, implementation choices, datasets, and parameter settings.
+The experiments compare the proposed protocol against the most relevant
+baselines suggested by the literature and by the proof architecture itself.
+Natural baselines include direct reuse of decision-tree-oriented lookup systems
+\cite{cq++24}, data-parallel zkSNARK approaches to tree proving
+\cite{sparrow24}, and recent training-oriented baselines such as
+\cite{zkboost26}. Of particular interest is whether the histogram and
+aggregation layer yields the intended improvement over proof strategies that
+explicitly sort, compare, or RAM-simulate candidate splits inside a generic
+backend.

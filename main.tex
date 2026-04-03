@@ -18,25 +18,41 @@
   urlcolor=blue!50!black
 }
 
-\title{ZK-GBDT: Working Draft}
+\title{Zero-Knowledge Proofs for Gradient Boosted Decision Trees}
 \author{Author Name}
-\date{\today}
+\date{}
 
-\newtheorem{theorem}{Theorem}
-\newtheorem{lemma}{Lemma}
-\newtheorem{definition}{Definition}
+\numberwithin{equation}{section}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
 
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-This document is an initial writing scaffold for a paper on zero-knowledge
-gradient boosted decision trees. Replace this abstract with a concise summary
-of the problem, technique, and main contributions.
+We study zero-knowledge proofs for quantized gradient boosted decision trees
+(GBDTs). The main bottleneck is not tree inference itself, but proving that each
+boosting round uses the split that maximizes the training objective without
+reducing the entire algorithm to a large generic circuit. Our approach keeps the
+tree-specific structure explicit. We use a common batched zero-check template to
+combine polynomial identities across heterogeneous subgroup sizes, together with
+replication and interleaving operators for reshaping committed tensors. On top
+of this compatibility layer, we introduce aggregation and histogram relations
+that expose split search as algebra over per-node, per-feature, and per-bin
+statistics. This leads to a training proof organized around a small catalog of
+relations: lookup, tensor sums, aggregation, histogram construction, prefix
+sums, zero-safe division, and max selection. The resulting architecture is
+aimed at security-focused systems venues: it preserves the structure of GBDT
+training, cleanly separates imported subroutines from new primitives, and
+supports both batched inference and end-to-end training proofs.
 \end{abstract}
-
-\tableofcontents
 
 \input{sections/01_introduction}
 \input{sections/02_background}

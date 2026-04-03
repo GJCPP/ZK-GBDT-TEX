@@ -1,14 +1,118 @@
-\section{Background}
+\section{Preliminaries}
 
-This section can collect preliminaries on:
-\begin{itemize}
-  \item gradient boosted decision trees,
-  \item arithmetic and boolean circuit representations,
-  \item zero-knowledge proof systems,
-  \item any polynomial commitment or lookup machinery used later.
-\end{itemize}
+\subsection{Notation and Polynomial Encoding}
 
-\subsection{Notation}
+We work over a finite field $\mathbb{F}$. All vectors, matrices, and tensors are
+flattened in row-major order before commitment. For $n \in \mathbb{N}$, we write
+$[n] := \{0,1,\ldots,n-1\}$.
 
-Define symbols, security parameters, field notation, and dataset/model
-notation here.
+All committed lengths are assumed to be powers of two. To make this precise, we
+fix an integer $L \ge 1$ such that every committed object is padded to a length
+dividing $2^L$. We also fix a primitive $2^L$-th root of unity $\omega \in
+\mathbb{F}$. For every power of two $n$ with $n \mid 2^L$, we define
+\[
+\omega_n := \omega^{2^L/n}
+\qquad\text{and}\qquad
+\mathbb{H}_n := \langle \omega_n \rangle.
+\]
+Thus $\mathbb{H}_n$ is the multiplicative subgroup of size $n$ used as the
+evaluation domain for length-$n$ vectors. Its vanishing polynomial is
+\[
+\nu_n(X) := \prod_{a \in \mathbb{H}_n}(X-a) = X^n-1.
+\]
+Because all domains are derived from the same ambient root $\omega$, we have
+$\omega_{nm}^m=\omega_n$ whenever $n$, $m$, and $nm$ are powers of two dividing
+$2^L$. This compatibility is used later when we align objects of different
+shapes.
+
+Let $\lambda_n^{(i)}(X)$ denote the $i$-th Lagrange basis polynomial on
+$\mathbb{H}_n$.
+
+For a vector $\mathbf{v}=(v_0,\ldots,v_{n-1})\in\mathbb{F}^n$, its polynomial
+encoding over $\mathbb{H}_n$ is
+\[
+v(X) := \sum_{i \in [n]} v_i \lambda_n^{(i)}(X).
+\]
+If $\mathbf{V}$ is a matrix or higher-order tensor, we flatten it into a vector
+and use the same convention.
+
+\subsection{Polynomial Commitments}
+
+We use KZG commitments \cite{kzg10} as the underlying polynomial commitment
+scheme. A commitment to a vector or tensor always means a commitment to its
+encoding polynomial. We rely on standard KZG properties only: succinct openings,
+linear homomorphism, and the ability to open prover-derived expressions at a
+random verifier challenge.
+
+Later, some checks will involve polynomials that are derived from committed
+objects but are not themselves committed. We refer to these as \emph{virtual
+polynomials}. Typical examples include products with public masks, ratios of
+vanishing polynomials such as $\nu_N(X)/\nu_n(X)$, or arithmetic combinations
+of several committed polynomials.
+
+\subsection{Gradient Boosted Decision Trees}
+
+We consider quantized multi-class GBDT training in the style of
+\cite{friedman01,xgboost16}. Let $\mathbf{D}\in[B]^{M\times d}$ be the
+quantized training dataset, where $M$ is the number of samples, $d$ is the
+number of features, and each feature value lies in one of $B$ bins. Let
+$\mathbf{Y}\in\{0,1\}^{M\times K}$ be the one-hot label matrix for a $K$-class
+task.
+
+Training proceeds for $T$ boosting rounds with public learning rate $\mu$. At
+round $t$, the learner maintains a score matrix
+$\mathbf{S}^{(t)} \in \mathbb{F}^{M\times K}$ for the current ensemble
+prediction on the training set. It first computes the \emph{pseudo-residual}
+matrix $\mathbf{G}^{(t)}$, which measures how much the current prediction
+deviates from the target label. It then trains $K$ regression trees, one per
+class, against the corresponding column of $\mathbf{G}^{(t)}$. The leaf values
+of these trees are added back to the score matrix, producing
+$\mathbf{S}^{(t+1)}$.
+
+The proof-critical step is the training of each regression tree. Consider a node
+$u$, a feature $j$, and a threshold bin $b$. Splitting node $u$ on feature $j$
+at threshold $b$ partitions the samples reaching $u$ into a left child
+$L_{u,j,b}$ and a right child $R_{u,j,b}$. If each such sample carries a target
+value $g_r$, then the standard residual-sum-of-squares objective is
+\begin{equation}\label{eq:rss-plain}
+\operatorname{RSS}(u,j,b)
+=
+\sum_{r \in L_{u,j,b}} \left(g_r-\bar{g}_{L}\right)^2
++
+\sum_{r \in R_{u,j,b}} \left(g_r-\bar{g}_{R}\right)^2,
+\end{equation}
+where $\bar{g}_{L}$ and $\bar{g}_{R}$ are the empirical means on the two sides.
+The trainer selects the feature-threshold pair that minimizes
+\eqref{eq:rss-plain}. In the proof, we will later rewrite this objective into a
+form that depends only on per-bin counts and sums, which is much more amenable
+to polynomial commitments.
+
+In standard plaintext training, this optimization is usually implemented by
+sorting the samples at a node according to one feature at a time and then
+scanning all candidate thresholds in that sorted order. In quantized systems
+such as XGBoost, the same scan is often expressed through per-bin histograms
+rather than explicit sorting on raw feature values. This is the gap we exploit:
+instead of proving a sorting procedure in zero knowledge, we prove the
+correctness of the histogram statistics from which the trainer derives the same
+split scores.
+
+\subsection{What Must Be Proved}
+
+At a high level, a proof of GBDT training must justify four kinds of steps:
+\begin{enumerate}
+  \item the forest is encoded correctly, and inference with the committed forest
+  is correct;
+  \item each boosting round computes the right pseudo-residuals from the current
+  score matrix;
+  \item for every node, feature, and threshold, the prover correctly derives the
+  statistics needed to evaluate the split objective;
+  \item the split committed in the tree is an optimizer of that objective.
+\end{enumerate}
+
+Our construction uses standard lookup arguments when rows or table values must be
+fetched \cite{cq22,cq++24,baloo25}. The new technical ingredients appear later,
+when we must align heterogeneous domains, aggregate sample contributions into
+histograms, and batch many polynomial identities into a small number of
+openings. We defer those mechanisms to the sections where they are first needed,
+which keeps the exposition closer to the style common in security systems
+papers.

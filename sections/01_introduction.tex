@@ -1,11 +1,67 @@
 \section{Introduction}
 
-Zero-knowledge proofs for machine learning systems are increasingly relevant
-when model correctness, privacy, and auditability must coexist. This section
- can introduce the motivation for proving correct GBDT inference or training,
-the limitations of prior approaches, and the high-level idea behind your
-construction.
+Zero-knowledge proofs for machine learning are useful when a model owner must
+demonstrate correct behavior without revealing either the model itself or the
+private data used to produce an output. Tree-based models are particularly
+appealing in practice because gradient boosted decision trees (GBDTs) are
+competitive on tabular data, easy to deploy, and widely used in settings where
+auditability matters \cite{xgboost16}. However, proving the correctness of a
+GBDT pipeline is more subtle than proving a static arithmetic circuit. Besides
+the branching logic of tree inference, a training proof must certify repeated
+boosting updates, softmax-based pseudo-residuals, and the correctness of the
+split selected at each internal node.
 
-\paragraph{Suggested questions to answer.}
-Why is ZK for GBDT important? What is technically difficult? What does your
-approach achieve that prior work does not?
+Recent work has shown that zero-knowledge proofs for decision-tree inference
+can avoid generic circuit overhead by exploiting tree structure directly
+\cite{zkdt20,cq++24,sparrow24}. Those ideas are a strong starting point, but
+GBDT training introduces a different bottleneck: one must prove the score of
+every candidate split while keeping prover work close to the cost of the
+underlying training algorithm. A naive proof strategy would either sort samples
+inside the proof for every feature, mirroring the standard plaintext
+feature-scan procedure, or encode split search as a large generic circuit. Both
+approaches are unattractive once the number of nodes, features, bins, and
+boosting rounds grows.
+
+Our approach follows a different viewpoint. We treat the node-wise
+\emph{histogram} and its induced \emph{aggregation} relations as first-class
+proof objects. Once the prover has committed correct count and sum histograms
+for every node, feature, and quantized bin, the split objective becomes an
+algebraic tensor relation. In particular, the regression-tree split search can
+be reduced to prefix sums, tensor aggregation, division checks, and maximum
+selection, instead of repeated sorting proofs. This turns histogram and
+aggregation from an implementation detail into a central technical primitive.
+
+\paragraph{Technical direction.}
+Our construction combines four ingredients. First, we encode the forest with
+the hyperbox-style representation used in zero-knowledge decision-tree
+inference \cite{cq++24}. Second, we use lookup-based techniques to fetch node
+data while keeping proofs short. Third, we introduce batching tools that let us
+combine relations living on different polynomial domains, including replication
+and interleaving arguments. Fourth, we design histogram and aggregation
+primitives that expose the quantities needed for split search in a form amenable
+to KZG-based zero checks \cite{kzg10}. The overall presentation is organized in
+the style of a systems paper: we isolate the minimal primitive catalog needed
+by the protocol, state which pieces come from prior work, and reserve the main
+technical novelty for the tree-specific training layer.
+
+\paragraph{Contributions.}
+\begin{itemize}
+  \item We formulate a proof architecture for quantized ZK-GBDT in which the
+  hard part of training is not sorting itself, but proving correct
+  histogram-style bookkeeping for every node and feature.
+  \item We treat histogram and aggregation as explicit primitives and as part
+  of the paper's contribution set. These primitives bridge leaf assignments,
+  per-bin statistics, prefix sums, and split scores.
+  \item We organize the remaining algebraic machinery around three reusable
+  tools: domain lifting for heterogeneous linear checks, replication for moving
+  information across shapes, and interleaving batch arguments for combining
+  nonlinear constraints.
+  \item We show how these ingredients fit together into proofs of batched
+  forest inference and iterative GBDT training.
+\end{itemize}
+
+\paragraph{Roadmap.}
+The next section introduces notation, the polynomial-commitment setting, and
+the GBDT training background. We then give a technical overview of forest
+encoding, inference, and training, before presenting the full construction and
+its soundness discussion.

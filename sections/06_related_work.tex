@@ -1,14 +1,33 @@
 \section{Related Work}
 
-Organize prior work by topic instead of paper-by-paper summary when possible:
-\begin{itemize}
-  \item verifiable machine learning,
-  \item zero-knowledge inference,
-  \item decision-tree and GBDT verification,
-  \item privacy-preserving tree-based learning.
-\end{itemize}
+\paragraph{Zero-knowledge proofs for tree models.}
+Early work on zero-knowledge proofs for tree inference focused on certifying
+predictions of decision trees and random forests without exposing the model
+\cite{zkdt20}. CQ++ \cite{cq++24} showed how to encode decision trees with
+hyperboxes and verify inference with lookup arguments over KZG commitments.
+Sparrow \cite{sparrow24} demonstrated that data-parallel zkSNARK techniques can
+also be effective for tree workloads. Our construction starts from the same
+high-level observation as these systems, namely that tree-specific structure
+should remain visible to the prover, but it targets a different bottleneck:
+proving GBDT training, and in particular proving optimal split selection in a
+way that scales with histogram size rather than with a large generic circuit.
 
-You can start this section with a short framing paragraph such as:
-recent work on verifiable machine learning and tree-based models provides
-useful baselines for positioning a ZK-GBDT system
-\cite{placeholder-zkml,placeholder-gbdt}.
+\paragraph{Lookup arguments and algebraic proof components.}
+At the proof-system layer, our construction uses KZG commitments \cite{kzg10},
+Aurora-style sum-checks \cite{aurora19}, and lookup protocols based on cached
+quotients and matrix lookup \cite{cq22,cq++24,baloo25}. These ingredients are
+not new individually. What is new here is the way they are assembled around a
+common batched zero-check template and a small primitive catalog tailored to
+GBDT training, with aggregation and histogram construction promoted from
+implementation details to explicit relations in the statement of the protocol.
+
+\paragraph{zkML inference and training.}
+The pseudo-residual part of our protocol is also related to the broader zkML
+literature on proving nonlinear inference and training updates. zkCNN
+\cite{zkcnn21} illustrates how to certify prediction-time neural computations,
+while Kaizen \cite{zkdnn24} studies zero-knowledge proofs of neural-network
+training. More recently, ZKBoost \cite{zkboost26} considers verifiable training
+for XGBoost. Our focus is different from these generic or semi-generic training
+systems: we isolate the tree-specific combinatorial core of GBDT training and
+optimize that layer directly, rather than compiling split search into a
+monolithic backend.
