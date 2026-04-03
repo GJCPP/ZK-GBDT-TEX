@@ -35,13 +35,14 @@ aggregation from an implementation detail into a central technical primitive.
 Our construction combines four ingredients. First, we encode the forest with
 the hyperbox-style representation used in zero-knowledge decision-tree
 inference \cite{cq++24}. Second, we use lookup-based techniques to fetch node
-data while keeping proofs short. Third, we introduce batching tools that let us
-combine relations living on different polynomial domains, including replication
-and interleaving arguments. Fourth, we design histogram and aggregation
-primitives that expose the quantities needed for split search in a form amenable
-to KZG-based zero checks \cite{kzg10}. The overall presentation is organized in
-the style of a systems paper: we isolate the minimal primitive catalog needed
-by the protocol, state which pieces come from prior work, and reserve the main
+data while keeping proofs short. Third, we introduce two batching tools:
+domain-lifted batching for heterogeneous linear identities and interleaved
+batching for same-form nonlinear checks, with replication used to align shapes
+before batching. Fourth, we design histogram and aggregation primitives that
+expose the quantities needed for split search in a form amenable to KZG-based
+zero checks \cite{kzg10}. The overall presentation is organized in the style of
+a systems paper: we isolate the minimal primitive catalog needed by the
+protocol, state which pieces come from prior work, and reserve the main
 technical novelty for the tree-specific training layer.
 
 \paragraph{Contributions.}
@@ -62,6 +63,8 @@ technical novelty for the tree-specific training layer.
 
 \paragraph{Roadmap.}
 The next section introduces notation, the polynomial-commitment setting, and
-the GBDT training background. We then give a technical overview of forest
-encoding, inference, and training, before presenting the full construction and
-its soundness discussion.
+the GBDT training background. We then give a technical overview of the proof
+pipeline and the split-objective rewriting. Section~\ref{sec:tools} presents
+the batching theorems used throughout the paper, and
+\cref{sec:zkgbdt-protocol} instantiates them in the ZK-GBDT protocol. We
+conclude with evaluation and discussion.

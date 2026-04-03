@@ -5,11 +5,15 @@
 \usepackage{lmodern}
 \usepackage[a4paper,margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsthm}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
 \usepackage{booktabs}
 \usepackage{graphicx}
+\usepackage{tikz}
 \usepackage{hyperref}
 \usepackage[nameinlink,noabbrev]{cleveref}
 \usepackage{xcolor}
+\usetikzlibrary{arrows.meta,positioning}
 
 \hypersetup{
   colorlinks=true,
@@ -31,6 +35,10 @@
 \newtheorem{definition}[theorem]{Definition}
 \theoremstyle{remark}
 \newtheorem{remark}[theorem]{Remark}
+\newcommand{\Flat}{\mathsf{Flat}}
+\makeatletter
+\providecommand*{\theHALG@line}{\thealgorithm.\arabic{ALG@line}}
+\makeatother
 
 \begin{document}
 
@@ -41,10 +49,10 @@ We study zero-knowledge proofs for quantized gradient boosted decision trees
 (GBDTs). The main bottleneck is not tree inference itself, but proving that each
 boosting round uses the split that maximizes the training objective without
 reducing the entire algorithm to a large generic circuit. Our approach keeps the
-tree-specific structure explicit. We use a common batched zero-check template to
-combine polynomial identities across heterogeneous subgroup sizes, together with
-replication and interleaving operators for reshaping committed tensors. On top
-of this compatibility layer, we introduce aggregation and histogram relations
+tree-specific structure explicit. We use a domain-lifted batch theorem to
+combine heterogeneous linear identities and an interleaving batch theorem to
+combine same-form nonlinear checks, with replication used to align witness
+shapes before batching. We then introduce aggregation and histogram relations
 that expose split search as algebra over per-node, per-feature, and per-bin
 statistics. This leads to a training proof organized around a small catalog of
 relations: lookup, tensor sums, aggregation, histogram construction, prefix
@@ -58,9 +66,12 @@ supports both batched inference and end-to-end training proofs.
 \input{sections/02_background}
 \input{sections/03_problem_statement}
 \input{sections/04_protocol}
+\input{sections/05_zkgbdt}
 \input{sections/05_evaluation}
 \input{sections/06_related_work}
 \input{sections/07_conclusion}
+\appendix
+\input{sections/08_appendix_protocol}
 
 \bibliographystyle{plain}
 \bibliography{bibliography/references}

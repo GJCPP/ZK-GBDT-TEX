@@ -1,20 +1,27 @@
 \section{Technical Overview}
 
-\subsection{Forest Representation}
+The proof system is easiest to read as a structured certification procedure for
+quantized GBDT training. The central challenge is not tree inference itself,
+but proving that each round derives the correct per-node split statistics and
+commits a split that optimizes the training objective. Two technical issues
+recur throughout this process. First, the proof naturally produces claims over
+different polynomial domains and tensor layouts. Second, the standard
+split-search objective is usually implemented through sorting or feature scans,
+which are awkward proof targets. Our overview therefore focuses on three
+questions: what the committed forest must support, how the split objective is
+rewritten into histogram statistics, and which batching tools let the resulting
+checks compose succinctly.
 
-We encode the trained ensemble using the hyperbox representation of
-\cite{cq++24}. In this representation, each node is associated with a
-feature-wise interval box, and a sample reaches a leaf exactly when its
-quantized feature vector lies inside that leaf's box. Each tree is represented
-by sparse left-child and right-child matrices together with node metadata. Let
-$N_{\mathrm{tot}}$ denote the total number of committed nodes across all
-trees, let $N_{\mathrm{int}}$ denote the number of internal nodes, and let
-$N_{\mathrm{ext}}$ denote the number of leaves. Concretely, the committed forest
-contains:
+\subsection{Forest Representation and Batched Inference}
+
+We encode the ensemble using the hyperbox representation of \cite{cq++24}. Each
+node carries a feature-wise half-open interval box, and a sample reaches a leaf
+exactly when its quantized feature vector lies inside that leaf's box. The
+committed forest contains:
 \begin{itemize}
-  \item routing matrices $\mathbf{L},\mathbf{R}\in
-  \{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}$;
-  \item lower and upper bounds
+  \item routing matrices
+  $\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}$;
+  \item lower and upper node bounds
   $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}\in[B+1]^{N_{\mathrm{tot}}\times d}$;
   \item a feature-selection matrix
   $\mathbf{E}\in\{0,1\}^{N_{\mathrm{tot}}\times d}$;
@@ -25,106 +32,140 @@ contains:
   \item a leaf-score vector $\mathbf{score}\in\mathbb{F}^{N_{\mathrm{tot}}}$.
 \end{itemize}
 
-This representation is well suited to both inference and training. Inference can
-be reduced to fetching the unique leaf whose hyperbox contains the input, while
-training can reuse the same routing information to determine which samples reach
-which leaves and internal nodes.
+This encoding supports both inference and training. For inference, the prover
+fetches, for each tree-sample pair, the tree identifier, the lower and upper
+box bounds, and the score stored at the accepting leaf, and then proves that
+the replicated input lies inside the fetched box. Because the same input batch
+is evaluated by all $TK$ trees, the protocol repeatedly needs to reinterpret one
+logical batch under larger shapes and then aggregate the fetched scores back
+into class scores.
 
-\subsection{Inference Overview}
+\subsection{Training Proof Pipeline}
 
-For a query batch $\mathbf{X}\in[B]^{b\times d}$, the prover first computes the
-accepting leaf of every sample in every tree. It then proves two facts. First,
-using matrix lookup, it fetches from the committed forest the lower and upper
-hyperbox bounds and the score stored at the selected leaf. Second, it proves the
-range check showing that the fetched hyperbox indeed contains the query input.
-
-Because the same query batch is evaluated on all $TK$ trees, the protocol
-conceptually replicates $\mathbf{X}$ once per tree and then aggregates the
-fetched leaf scores along the tree dimension. This produces a class-score vector
-for each sample. The only tree-specific complexity is the lookup into the forest
-encoding; after that, the remaining work is tensor reshaping and summation.
-
-\subsection{Training Overview}
-
-The training proof reuses the same inference machinery on the training set. For
-each round $t\in[T]$ and class $k\in[K]$, the prover obtains a leaf-index vector
+The training proof reuses the same committed forest but organizes the remaining
+steps around a small sequence of relations. For each round $t\in[T]$ and class
+$k\in[K]$, the prover obtains a global leaf-assignment vector
 \[
-\boldsymbol{\ell}^{(t,k)} \in [N_{\mathrm{ext}}]^M,
+\boldsymbol{\ell}^{(t,k)} \in
+\{N_{\mathrm{int}},\ldots,N_{\mathrm{tot}}-1\}^{M},
 \]
-where $\boldsymbol{\ell}^{(t,k)}[r]$ is the leaf reached by sample $r$ in the
-tree trained for class $k$ at round $t$.
+where $\boldsymbol{\ell}^{(t,k)}[r]$ is the global leaf index reached by sample
+$r$ in the tree trained for class $k$ at round $t$.
 
-\paragraph{Pseudo-residuals.}
-Given the current score matrix $\mathbf{S}^{(t)}$, the prover computes the
-pseudo-residuals $\mathbf{G}^{(t)}$. The exact softmax formula is deferred to
-\cref{sec:construction} because it is not the tree-specific part of the proof.
-At the overview level, what matters is that $\mathbf{G}^{(t)}[r,k]$ is the
-regression target used to train the next tree for class $k$.
-
-\paragraph{Leaf histograms.}
-Recall from \cref{eq:rss-plain} that plaintext training evaluates a candidate
-split by scanning thresholds after sorting samples by feature value, or
-equivalently, after aggregating them into feature histograms. The core idea of
-our proof is to use the second view. For each class $k$, node index $u$,
-feature $j$, and bin $b$, the prover constructs two tensors:
-\begin{align}
-\mathbf{C}^{(t,k)}[u,j,b]
-&=
-\#\{r : \boldsymbol{\ell}^{(t,k)}[r]=u \text{ and } \mathbf{D}[r,j]=b\}, \\
-\mathbf{H}^{(t,k)}[u,j,b]
-&=
-\sum_{r:\boldsymbol{\ell}^{(t,k)}[r]=u,\ \mathbf{D}[r,j]=b}
-\mathbf{G}^{(t)}[r,k].
-\end{align}
-Here $\mathbf{C}^{(t,k)}$ counts how many samples fall into each
-leaf-feature-bin triple, while $\mathbf{H}^{(t,k)}$ stores the corresponding sum
-of residual targets. We refer to these tensors as count and weighted
-histograms.
-
-\paragraph{Propagation to internal nodes.}
-Once leaf histograms are available, histograms for internal nodes are obtained
-by summing the histograms of their children. This uses the committed routing
-matrices $\mathbf{L}$ and $\mathbf{R}$ and avoids replaying branching logic from
-scratch for every node.
-
-\paragraph{From histograms to split scores.}
-For a fixed node $u$ and feature $j$, prefix sums along the bin axis give the
-statistics of sending all samples with feature value at most $b$ to the left
-child:
-\[
-\mathbf{C}^{(t,k)}_{\leq}[u,j,b]
-=
-\sum_{q=0}^{b}\mathbf{C}^{(t,k)}[u,j,q],
-\qquad
-\mathbf{H}^{(t,k)}_{\leq}[u,j,b]
-=
-\sum_{q=0}^{b}\mathbf{H}^{(t,k)}[u,j,q].
-\]
-Subtracting from the totals yields the corresponding right-child statistics
-$\mathbf{C}^{(t,k)}_{>}$ and $\mathbf{H}^{(t,k)}_{>}$. With these tensors, the
-regression-tree objective can be rewritten using only counts and sums; no sample
-sorting is needed at proof time.
-
-\paragraph{Selecting the committed split.}
-After computing the candidate score for every feature-threshold pair, the prover
-must show that the split recorded in $\mathbf{E}$ and $\boldsymbol{\Theta}$ is a
-maximizer. This is the final training-specific check: the committed tree
-structure must match the optimizer of the split objective implied by the
-committed histograms.
-
-\subsection{Why Histogram Matters}
-
-This histogram view is the main difference between our proof architecture and a
-generic-circuit treatment of GBDT training. The expensive combinatorial part of
-training is no longer ``prove the per-feature sorting step in zero knowledge.''
-Instead, the
-proof reduces split search to four structured tasks:
+The proof for one round then proceeds as follows.
 \begin{enumerate}
-  \item prove correct leaf assignment for each sample;
-  \item aggregate samples into per-bin histograms;
-  \item derive prefix statistics and candidate split scores;
-  \item prove that the committed split is the maximizer.
+  \item Update the cumulative score matrix and compute the pseudo-residuals.
+  \item Aggregate leaf-indexed sample contributions into count and weighted
+  histograms.
+  \item Propagate those histograms from leaves to internal nodes through the
+  committed routing matrices.
+  \item Derive prefix statistics and total statistics, and then compute the
+  candidate split score for every feature-threshold pair.
+  \item Prove that the split recorded in $\mathbf{E}$ and $\boldsymbol{\Theta}$
+  is a maximizer of the candidate score tensor.
+  \item Aggregate residuals at the leaves to form the next round's leaf values
+  and add them back into the score matrix.
 \end{enumerate}
 
-The rest of the paper turns this overview into concrete polynomial identities
-and commitment checks.
+The tree-specific novelty lies in the middle of this pipeline: the protocol does
+not try to prove a sorting procedure, but instead proves the statistics from
+which split search can be reconstructed algebraically.
+
+\subsection{Objective Rewriting for Split Search}
+
+Consider one node $u$, one feature $j$, and one threshold bin $b$. Let
+$I_u \subseteq [M]$ be the samples reaching node $u$, and let
+$L_{u,j,b},R_{u,j,b}$ be the induced left and right partitions. If each sample
+$r\in I_u$ carries target value $g_r$, then the residual-sum-of-squares
+objective is
+\[
+\operatorname{RSS}(u,j,b)
+=
+\sum_{r\in L_{u,j,b}}(g_r-\bar{g}_L)^2
++
+\sum_{r\in R_{u,j,b}}(g_r-\bar{g}_R)^2.
+\]
+Expanding the squares gives
+\begin{equation}\label{eq:rss-rewrite}
+\operatorname{RSS}(u,j,b)
+=
+\sum_{r\in I_u} g_r^2
+-
+\left(
+\frac{\left(\sum_{r\in L_{u,j,b}} g_r\right)^2}{|L_{u,j,b}|}
++
+\frac{\left(\sum_{r\in R_{u,j,b}} g_r\right)^2}{|R_{u,j,b}|}
+\right).
+\end{equation}
+For fixed node $u$, the first term in \eqref{eq:rss-rewrite} is independent of
+the candidate split. Therefore minimizing $\operatorname{RSS}(u,j,b)$ is
+equivalent to maximizing
+\begin{equation}\label{eq:split-objective}
+\Phi(u,j,b)
+:=
+\frac{\left(\sum_{r\in L_{u,j,b}} g_r\right)^2}{|L_{u,j,b}|}
++
+\frac{\left(\sum_{r\in R_{u,j,b}} g_r\right)^2}{|R_{u,j,b}|},
+\end{equation}
+subject to the validity condition that both children are nonempty.
+
+This rewriting explains why histograms are sufficient proof objects. Once the
+prover has committed, for every node $u$, feature $j$, and bin $q$, the sample
+count and residual sum associated with that bin, the quantities
+$|L_{u,j,b}|$, $|R_{u,j,b}|$,
+$\sum_{r\in L_{u,j,b}} g_r$, and $\sum_{r\in R_{u,j,b}} g_r$ become prefix- and
+total-sum expressions over the bin axis. The split objective is then reduced to
+tensor algebra over committed counts and sums.
+
+\subsection{Domain-Lifted and Interleaved Batching}
+
+The construction repeatedly needs to batch claims that are structurally similar
+but do not initially share one proof shape.
+
+\paragraph{Domain-lifted batch.}
+Suppose linear identities are expressed as divisibility claims
+\[
+F_i(X)=Q_i(X)\nu_{n_i}(X),
+\qquad i\in[m],
+\]
+where the domain sizes $n_i$ may differ. Let
+$N=\max_i n_i$ and define
+\[
+\widehat{F}_i(X):=F_i(X)\frac{\nu_N(X)}{\nu_{n_i}(X)}.
+\]
+Then every original claim holds if and only if every
+$\widehat{F}_i(X)$ is divisible by $\nu_N(X)$, so the verifier can batch them as
+\[
+\sum_{i=1}^{m}\eta^{i-1}\widehat{F}_i(X)=Q(X)\nu_N(X)
+\]
+for a random challenge $\eta$. This is the right tool for heterogeneous linear
+relations such as routing identities, padding-induced tensor equalities, and
+batched zero checks over histogram-derived objects.
+
+\paragraph{Interleaving batch.}
+Now suppose several nonlinear checks share one pointwise shape
+\[
+\Psi\!\left(
+f_i^{(1)}[x],\ldots,f_i^{(s)}[x]
+\right)=0,
+\qquad \forall x\in[n_i].
+\]
+If their domains differ, we first align them to a common size; in practice this
+alignment is often achieved by replication. Once aligned, we interleave the
+witness bundles coordinate-wise and obtain one larger bundle on which the same
+pointwise relation $\Psi$ is checked once. This pattern is useful when the
+protocol must prove several lookup-style table-difference checks or several
+same-form rounding relations, because it avoids introducing one separate batch
+for each local nonlinear subroutine.
+
+The construction will package these two ideas as two reusable batching theorems:
+one for heterogeneous linear claims and one for same-form nonlinear claims.
+
+\subsection{Organization of the Construction}
+
+The rest of the paper follows this decomposition. Section~\ref{sec:tools} states
+the two batching theorems and the replication lemma used inside the second one.
+Section~\ref{sec:zkgbdt-protocol} then instantiates these tools in the ZK-GBDT
+protocol, covering committed-forest well-formedness, batched inference,
+round-by-round training, and soundness composition. A full protocol skeleton is
+given in Appendix~\ref{app:pseudocode}.

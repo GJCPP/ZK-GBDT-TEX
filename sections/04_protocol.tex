@@ -1,14 +1,14 @@
-\section{Construction}\label{sec:construction}
+\section{Batched Proof Tools}\label{sec:tools}
 
-\subsection{Compatibility Layer}
+This section states the two batching tools used throughout the protocol. The
+first tool combines heterogeneous linear identities that initially live on
+different polynomial domains. The second combines many same-form nonlinear
+checks after their witness bundles have been aligned to a common shape.
 
-The protocol repeatedly needs to combine checks that live on different subgroup
-sizes or have incompatible tensor layouts. We therefore start with a small
-compatibility layer that explains how these objects are aligned before they are
-used in lookup, histogram, or split-selection checks.
+\subsection{Domain-Lifted Batch}
 
-\begin{lemma}[Domain lifting]
-\label{lem:domain-lifting}
+\begin{theorem}[Domain-lifted batch]
+\label{thm:domain-lifted-batch}
 Let
 \[
 1 \leq n_1 < n_2 < \cdots < n_m = N
@@ -35,7 +35,7 @@ Then:
   \item If at least one original claim is false, then
   \eqref{eq:domain-lifted-batch} holds for at most $m-1$ values of $\eta$.
 \end{enumerate}
-\end{lemma}
+\end{theorem}
 
 \begin{proof}
 The first item is immediate from
@@ -50,6 +50,16 @@ of degree at most $m-1$. If at least one original claim is false, this
 polynomial is nonzero, so a uniformly random $\eta$ causes accidental
 acceptance with probability at most $(m-1)/|\mathbb{F}|$.
 \end{proof}
+
+Theorem~\ref{thm:domain-lifted-batch} is the protocol's main tool for batching
+heterogeneous linear identities. Later we apply it to routing equations,
+padding-induced tensor equalities, and other zero-check-style relations whose
+natural domains are not identical.
+
+\subsection{Interleaved Batch}
+
+The interleaving theorem applies to same-form nonlinear checks, but first we
+need one alignment lemma.
 
 \begin{lemma}[Row replication]
 \label{lem:row-replication}
@@ -95,398 +105,77 @@ defined by
 \]
 \end{definition}
 
-Interleaving is used when several pointwise nonlinear checks should be proved as
-one relation on a shared domain. The most common example in our setting comes
-from lookup-based subprotocols. A lookup proof often produces several
-pointwise multiplicative constraints, such as reversal checks of the form
+\begin{theorem}[Interleaving batch]
+\label{thm:interleaving-batch}
+For each $\ell\in[m]$, let
 \[
-h[i]\cdot (\gamma-f[i]) = c[i]
-\qquad \forall i \in [n],
+\mathcal{U}_\ell=
+\bigl(
+\mathbf{u}^{(1)}_\ell,\ldots,\mathbf{u}^{(s)}_\ell
+\bigr)
 \]
-where $f$, $h$, and $c$ are committed vectors and $\gamma$ is a verifier
-challenge. If two such checks arise on different domain sizes, say
-$n_1<n_2$, proving them separately would require separate openings and separate
-quotient witnesses even though the pointwise pattern is identical.
-
-Interleaving removes this duplication. We first align the shorter bundle to the
-longer domain using row replication or domain lifting. We then form one larger
-bundle by alternating entries from the two aligned bundles. If the two bundles
-obey the same pointwise relation, the verifier now needs to check only one
-relation on the interleaved object. If several relation types are present, we
-interleave them together with public selector masks indicating which formula is
-active at each position.
-
-For example, suppose we must prove
+be a bundle of vectors over a domain of size $n_\ell$, and suppose all bundles
+must satisfy the same pointwise polynomial relation
 \[
-h_1[i](\gamma-f_1[i]) = c_1[i]
-\quad \forall i\in[n_1]
-\qquad\text{and}\qquad
-h_2[j](\gamma-f_2[j]) = c_2[j]
-\quad \forall j\in[n_2].
-\]
-After aligning the first triple $(h_1,f_1,c_1)$ to $\mathbb{H}_{n_2}$, we
-interleave the aligned triples and obtain vectors
-$\widehat{h},\widehat{f},\widehat{c}$ of length $2n_2$ satisfying
-\[
-\widehat{h}[z]\cdot(\gamma-\widehat{f}[z])=\widehat{c}[z]
-\qquad \forall z \in [2n_2].
-\]
-This is why interleaving is particularly useful for lookup-style checks: it
-turns many small nonlinear relations into one larger nonlinear relation whose
-shape is easier to batch with the rest of the protocol.
-
-\paragraph{Greedy interleaving scheduler.}
-In practice, we apply interleaving to bundles of polynomials rather than to
-single vectors. Each bundle contains all tensors that participate in one
-pointwise nonlinear relation. The scheduler below repeatedly merges the two
-smallest active bundles until only one remains.
-
-\begin{quote}
-\small
-\noindent\textbf{GreedyInterleave}$(\mathcal{B})$\\
-\textbf{Input:} a multiset of bundles $\mathcal{B}$, where each bundle stores
-its committed tensors and its domain size.\\
-\textbf{1.} Bucket all bundles by domain size.\\
-\textbf{2.} While more than one bundle remains active: \\
-\hspace*{1.5em}\textbf{a.} Remove two bundles with smallest domain sizes,
-say $(\mathcal{U}_1,n_1)$ and $(\mathcal{U}_2,n_2)$ with $n_1 \le n_2$.\\
-\hspace*{1.5em}\textbf{b.} If $n_1<n_2$, lift $\mathcal{U}_1$ to domain
-$n_2$ by replication or domain lifting.\\
-\hspace*{1.5em}\textbf{c.} Interleave the aligned bundles coordinate-wise to
-obtain one bundle $\mathcal{U}_{12}$ of length $n_1+n_2$; if needed, pad it to
-the next power of two.\\
-\hspace*{1.5em}\textbf{d.} Insert $\mathcal{U}_{12}$ back into the bucket
-corresponding to its new domain size.\\
-\textbf{3.} Output the final remaining bundle.
-\end{quote}
-
-This scheduler is deliberately greedy: by always merging the two smallest
-bundles first, it keeps intermediate domains close to the minimum required
-size. In the common case where all bundles are eventually padded to a power of
-two anyway, this heuristic avoids creating unnecessarily large intermediate
-objects.
-
-\subsection{Committed Forest Representation}
-
-We commit the forest using the hyperbox encoding of \cite{cq++24}. Nodes are
-indexed so that internal nodes lie in $[N_{\mathrm{int}}]$ and leaves lie in
-$\{N_{\mathrm{int}},\ldots,N_{\mathrm{tot}}-1\}$. Trees are ordered first by
-boosting round and then by class, so tree $(tK+k)$ is the tree trained for
-class $k$ in round $t$.
-
-The committed forest consists of the following objects.
-\begin{itemize}
-  \item Sparse routing matrices
-  $\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}$
-  encoding left and right children.
-  \item Lower and upper hyperbox bounds
-  $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}
-  \in [B+1]^{N_{\mathrm{tot}}\times d}$.
-  \item A feature-selection matrix
-  $\mathbf{E}\in\{0,1\}^{N_{\mathrm{tot}}\times d}$ whose support records the
-  split feature of each internal node.
-  \item A threshold tensor
-  $\boldsymbol{\Theta}\in\{0,1\}^{N_{\mathrm{tot}}\times d\times B}$ whose support
-  records the selected threshold for each internal node.
-  \item A tree-index vector
-  $\mathbf{tree}\in[TK]^{N_{\mathrm{tot}}}$ and a sparse root matrix
-  $\mathbf{Root}\in\{0,1\}^{TK\times N_{\mathrm{tot}}}$.
-  \item A leaf-score vector
-  $\mathbf{score}\in\mathbb{F}^{N_{\mathrm{tot}}}$.
-\end{itemize}
-
-The well-formedness relation includes the standard booleanity, padding, and
-single-selection checks, together with the geometric consistency constraints
-\begin{align}
-\mathbf{Root}\mathbf{N}^{\leftarrow} &= \mathbf{0}, &
-\mathbf{Root}\mathbf{N}^{\rightarrow} &= (B+1)\mathbf{1}, \label{eq:root-boxes}\\
-\mathbf{Root}\mathbf{tree} &= (0,1,\ldots,TK-1), \label{eq:root-tree}\\
-\mathbf{L}\mathbf{tree} &= \mathbf{R}\mathbf{tree}
-= \mathbf{tree}_{\mathrm{int}}. \label{eq:tree-consistency}
-\end{align}
-The remaining hyperbox equations are exactly the same as in \cite{cq++24}: the
-selected coordinate is split at the chosen threshold, while every non-selected
-coordinate is inherited unchanged by both children.
-
-\subsection{Batched Forest Inference}
-
-Let $\mathbf{X}\in[B]^{b\times d}$ be a batch of query inputs. We write
-$\mathbf{X}^{\mathrm{rep}}$ for the row-replicated tensor that repeats
-$\mathbf{X}$ once per tree. By \cref{lem:row-replication}, the verifier can
-reason about $\mathbf{X}^{\mathrm{rep}}$ through the replicated encoding
-obtained by the substitution $X \mapsto X^{TK}$ rather than asking for a
-separate commitment.
-
-The prover computes the accepting leaf of every sample in every tree and proves
-correctness in two steps.
-\begin{enumerate}
-  \item It proves a concatenated matrix lookup
-  \begin{equation}\label{eq:inference-lookup}
-  \mathbf{ind}\ \|\ \mathbf{U}^{\leftarrow}\ \|\ \mathbf{U}^{\rightarrow}
-  \ \|\ \mathbf{s}
-  \subseteq
-  \mathbf{tree}_{\mathrm{ext}}\ \|\ \mathbf{F}^{\leftarrow}\ \|\ 
-  \mathbf{F}^{\rightarrow}\ \|\ \mathbf{score},
-  \end{equation}
-  where each row on the left fetches, for one tree-sample pair, the tree index,
-  the lower and upper hyperbox bounds, and the leaf score.
-  \item It proves the range relation
-  \begin{equation}\label{eq:inference-range}
-  \mathbf{U}^{\leftarrow} \leq \mathbf{X}^{\mathrm{rep}} <
-  \mathbf{U}^{\rightarrow}.
-  \end{equation}
-\end{enumerate}
-
-The fetched scores are then summed across trees to obtain the final class-score
-vector for each sample. Operationally, this is aggregation along the tree
-dimension after the tensor is reshaped into round and class axes.
-
-\subsection{Training Proof}
-
-The training proof is best read as a proof graph rather than as one monolithic
-argument. Each round produces a small family of committed tensors, and each
-tensor is tied to earlier ones by a short list of recurring checks: lookup,
-aggregation, prefix sums, zero-safe divisions, and max-selection constraints.
-
-\paragraph{Round state.}
-For each round $t \in [T]$, we maintain:
-\begin{itemize}
-  \item the cumulative score matrix $\mathbf{S}^{(t)} \in \mathbb{F}^{M\times K}$;
-  \item the pseudo-residual matrix $\mathbf{G}^{(t)} \in \mathbb{F}^{M\times K}$;
-  \item for every class $k$, the leaf-index vector
-  $\boldsymbol{\ell}^{(t,k)} \in [N_{\mathrm{ext}}]^M$ induced by the tree
-  trained in round $t$ for class $k$;
-  \item the per-node histogram tensors derived from
-  $\boldsymbol{\ell}^{(t,k)}$ and $\mathbf{G}^{(t)}[\cdot,k]$;
-  \item the selected feature and threshold of every internal node.
-\end{itemize}
-
-The proof for one round is organized as follows.
-
-\paragraph{1. Score accumulation and pseudo-residuals.}
-For $t=0$, the protocol sets $\mathbf{S}^{(0)}=\mathbf{0}$. For every
-$t \geq 1$, let $\mathbf{W}^{(t-1)} \in \mathbb{F}^{N_{\mathrm{ext}}\times K}$
-be the matrix of leaf predictions from the previous round. The cumulative
-scores satisfy
-\begin{equation}\label{eq:score-update}
-\mathbf{S}^{(t)}[r,k]
-=
-\mathbf{S}^{(t-1)}[r,k]
-+ \mu \cdot \mathbf{W}^{(t-1)}[\boldsymbol{\ell}^{(t-1,k)}[r],k].
-\end{equation}
-The right-hand side is proved by a lookup from the leaf-index vector into
-$\mathbf{W}^{(t-1)}$, followed by a linear consistency check.
-
-To derive pseudo-residuals, the prover commits auxiliary matrices
-$\mathbf{P}^{(t)}, \mathbf{Z}^{(t)}, \mathbf{I}^{(t)}$ satisfying
-\begin{align}
-\mathbf{P}^{(t)}[r,k] &= \exp(\mathbf{S}^{(t)}[r,k]), \label{eq:softmax-exp}\\
-\mathbf{Z}^{(t)}[r] &= \sum_{c=0}^{K-1}\mathbf{P}^{(t)}[r,c], \label{eq:softmax-sum}\\
-\mathbf{I}^{(t)}[r] &= \big(\mathbf{Z}^{(t)}[r]\big)^{-1}, \label{eq:softmax-inv}
-\end{align}
-and then proves
-\begin{equation}\label{eq:residual-definition}
-\mathbf{G}^{(t)}[r,k]
-=
-\mathbf{Y}[r,k]-\mathbf{P}^{(t)}[r,k]\mathbf{I}^{(t)}[r].
-\end{equation}
-Equations \eqref{eq:softmax-exp} and \eqref{eq:softmax-inv} are handled by
-lookup-based nonlinear checks or an imported zkML subroutine such as
-\cite{zkcnn21,zkdnn24}. Equation \eqref{eq:softmax-sum} is a
-matrix-sum check over the class dimension after viewing $\mathbf{P}^{(t)}$ as a
-tensor of shape $M\times K$.
-
-\paragraph{2. Leaf-level histograms.}
-For each class $k$, define the address tensor
-\begin{equation}\label{eq:hist-address}
-\mathbf{addr}^{(t,k)}[r,j]
-:=
-(\boldsymbol{\ell}^{(t,k)}[r]d+j)B + \mathbf{D}[r,j].
-\end{equation}
-The prover commits a count histogram $\mathbf{C}^{(t,k)}$ and a weighted
-histogram $\mathbf{H}^{(t,k)}$ of shape $N_{\mathrm{ext}}\times d\times B$
-such that
-\begin{align}
-\mathbf{C}^{(t,k)}[u,j,b]
-&=
-\sum_{r=0}^{M-1}
-\mathbf{1}\!\left[
-\boldsymbol{\ell}^{(t,k)}[r]=u \wedge \mathbf{D}[r,j]=b
-\right], \label{eq:leaf-count-hist}\\
-\mathbf{H}^{(t,k)}[u,j,b]
-&=
-\sum_{r=0}^{M-1}
-\mathbf{G}^{(t)}[r,k]\,
-\mathbf{1}\!\left[
-\boldsymbol{\ell}^{(t,k)}[r]=u \wedge \mathbf{D}[r,j]=b
-\right]. \label{eq:leaf-weight-hist}
-\end{align}
-Equations \eqref{eq:leaf-count-hist} and \eqref{eq:leaf-weight-hist} are the
-two histogram constraints that drive the rest of the protocol: one for counts
-and one for weighted sums.
-
-\paragraph{3. Internal-node propagation.}
-Leaf histograms determine internal-node histograms. After flattening the last
-two dimensions, the internal tensors satisfy
-\begin{align}
-\mathbf{C}^{(t,k)}_{\mathrm{int}}
-&= \mathbf{L}\mathbf{C}^{(t,k)} + \mathbf{R}\mathbf{C}^{(t,k)},
-\label{eq:internal-C}\\
-\mathbf{H}^{(t,k)}_{\mathrm{int}}
-&= \mathbf{L}\mathbf{H}^{(t,k)} + \mathbf{R}\mathbf{H}^{(t,k)}.
-\label{eq:internal-H}
-\end{align}
-These are linear identities and are absorbed into the batched polynomial
-identity used for the round. If the tensors involved live on different subgroup
-sizes because of padding, \cref{lem:domain-lifting} lifts them to a common
-ambient domain first.
-
-\paragraph{4. Prefix statistics and candidate split scores.}
-For each class $k$, the prover next commits prefix tensors
-$\mathbf{C}^{(t,k)}_{\leq}, \mathbf{H}^{(t,k)}_{\leq}$ satisfying
-\begin{align}
-\mathbf{C}^{(t,k)}_{\leq}[u,j,b]
-&=
-\sum_{q=0}^{b}\mathbf{C}^{(t,k)}[u,j,q], \label{eq:prefix-count}\\
-\mathbf{H}^{(t,k)}_{\leq}[u,j,b]
-&=
-\sum_{q=0}^{b}\mathbf{H}^{(t,k)}[u,j,q]. \label{eq:prefix-weight}
-\end{align}
-These are prefix-sum checks along the bin axis. The
-corresponding totals
-\begin{align}
-\mathbf{C}^{(t,k)}_{\Sigma}[u,j]
-&=
-\sum_{q=0}^{B-1}\mathbf{C}^{(t,k)}[u,j,q], &
-\mathbf{H}^{(t,k)}_{\Sigma}[u,j]
-&=
-\sum_{q=0}^{B-1}\mathbf{H}^{(t,k)}[u,j,q]
-\end{align}
-are ordinary sums over the bin dimension. The right-side statistics are
-then derived by subtraction:
-\begin{align}
-\mathbf{C}^{(t,k)}_{>}[u,j,b]
-&=
-\mathbf{C}^{(t,k)}_{\Sigma}[u,j]-\mathbf{C}^{(t,k)}_{\leq}[u,j,b], \\
-\mathbf{H}^{(t,k)}_{>}[u,j,b]
-&=
-\mathbf{H}^{(t,k)}_{\Sigma}[u,j]-\mathbf{H}^{(t,k)}_{\leq}[u,j,b].
-\end{align}
-
-To avoid undefined divisions, the prover commits a validity mask
-$\boldsymbol{\chi}^{(t,k)} \in \{0,1\}^{N_{\mathrm{int}}\times d\times B}$ such that
-\[
-\boldsymbol{\chi}^{(t,k)}[u,j,b]=1
-\iff
-\mathbf{C}^{(t,k)}_{\leq}[u,j,b] > 0
-\ \wedge\
-\mathbf{C}^{(t,k)}_{>}[u,j,b] > 0.
-\]
-The candidate split-score tensor is then defined by the zero-safe identity
-\begin{equation}\label{eq:gain-tensor}
-\Gamma^{(t,k)}[u,j,b]
-=
-\boldsymbol{\chi}^{(t,k)}[u,j,b]
-\begin{aligned}[t]
-\Bigg(
-&\frac{\big(\mathbf{H}^{(t,k)}_{\leq}[u,j,b]\big)^2}
-{\mathbf{C}^{(t,k)}_{\leq}[u,j,b] + 1 - \boldsymbol{\chi}^{(t,k)}[u,j,b]} \\
-&+
-\frac{\big(\mathbf{H}^{(t,k)}_{>}[u,j,b]\big)^2}
-{\mathbf{C}^{(t,k)}_{>}[u,j,b] + 1 - \boldsymbol{\chi}^{(t,k)}[u,j,b]}
-\Bigg).
-\end{aligned}
-\end{equation}
-When the mask equals one, \eqref{eq:gain-tensor} is exactly the regression-tree
-split score. When the mask equals zero, the score is forced to zero and the
-division remains well defined.
-
-\paragraph{5. Optimal split selection.}
-For each internal node, the prover commits feature-wise maxima
-$\mathbf{R}^{(t,k)} \in \mathbb{F}^{N_{\mathrm{int}}\times d}$ and node-wise
-maxima $\mathbf{M}^{(t,k)} \in \mathbb{F}^{N_{\mathrm{int}}}$ satisfying
-\begin{align}
-\mathbf{R}^{(t,k)}[u,j] &= \max_{b \in [B]} \Gamma^{(t,k)}[u,j,b],
-\label{eq:feature-max}\\
-\mathbf{M}^{(t,k)}[u] &= \max_{j \in [d]} \mathbf{R}^{(t,k)}[u,j].
-\label{eq:node-max}
-\end{align}
-The selected feature matrix $\mathbf{E}$ and threshold tensor $\boldsymbol{\Theta}$
-must satisfy the following constraints for every internal node $u$ belonging to
-tree $(t,k)$:
-\begin{align}
-\sum_{j=0}^{d-1}\mathbf{E}[u,j] &= 1,
+\Psi\!\left(
+\mathbf{u}^{(1)}_\ell[x],\ldots,\mathbf{u}^{(s)}_\ell[x]
+\right)=0
 \qquad
-\sum_{b=0}^{B-1}\boldsymbol{\Theta}[u,j,b] = \mathbf{E}[u,j], \label{eq:selection-onehot}\\
-\mathbf{E}[u,j] = 1 &\Longrightarrow \mathbf{R}^{(t,k)}[u,j] = \mathbf{M}^{(t,k)}[u],
-\label{eq:feature-argmax}\\
-\boldsymbol{\Theta}[u,j,b] = 1 &\Longrightarrow \Gamma^{(t,k)}[u,j,b] = \mathbf{R}^{(t,k)}[u,j].
-\label{eq:threshold-argmax}
-\end{align}
-Equations \eqref{eq:feature-max}--\eqref{eq:threshold-argmax} can be discharged
-with standard max-selection gadgets over committed tensors. Their role is to
-show that the committed hyperboxes are updated using an actual maximizer of the
-candidate split-score tensor, rather than an arbitrary split.
-
-\paragraph{6. Leaf values and boosting update.}
-The same leaf-index vector also induces per-leaf counts and residual sums:
-\begin{align}
-\mathbf{n}^{(t,k)}[u]
-&=
-\sum_{r=0}^{M-1}\mathbf{1}\!\left[\boldsymbol{\ell}^{(t,k)}[r]=u\right],
-\label{eq:leaf-count}\\
-\mathbf{a}^{(t,k)}[u]
-&=
-\sum_{r=0}^{M-1}\mathbf{G}^{(t)}[r,k]\,
-\mathbf{1}\!\left[\boldsymbol{\ell}^{(t,k)}[r]=u\right]. \label{eq:leaf-sum}
-\end{align}
-Both are obtained by aggregating per-sample contributions according to the leaf
-index. The leaf-value vector
-$\mathbf{W}^{(t)}[\cdot,k]$ is then defined by
-\begin{equation}\label{eq:leaf-value}
-\mathbf{W}^{(t)}[u,k]
-=
-\frac{\mathbf{a}^{(t,k)}[u]}
-{\mathbf{n}^{(t,k)}[u]},
-\end{equation}
-again with the standard zero-safe masking on padded or unused leaves. Finally,
-the next-round score matrix is proved using \eqref{eq:score-update}.
-
-\paragraph{Why this decomposition helps.}
-The training proof avoids re-expressing split search as one large arithmetic
-circuit. The only nonlinear tensors that are specific to GBDT are
-\eqref{eq:gain-tensor} and the max-selection relations derived from it. The
-remaining pieces reduce to a small set of reusable checks: lookup,
-aggregation, histogram construction, prefix sums, and batched polynomial
-identities.
-
-\subsection{Soundness Composition}
-
-The soundness story follows the same decomposition. Any accepting proof for an
-incorrect statement must violate at least one of the following:
-\begin{itemize}
-  \item the soundness of KZG opening proofs;
-  \item the soundness of the imported lookup or max-selection subprotocols;
-  \item the random-linear-combination soundness of domain lifting and batching;
-  \item the random-evaluation soundness of aggregation.
-\end{itemize}
-For aggregation, the standard check is to compare
-\[
-\sum_{a=0}^{N-1}\mathbf{h}[a]\rho^a
-\quad\text{with}\quad
-\sum_{t=0}^{n-1}\mathbf{v}[t]\rho^{\mathbf{ind}[t]}
+\forall x\in[n_\ell].
 \]
-at a random challenge $\rho$. If the aggregation is incorrect, the difference is
-a nonzero polynomial of degree at most $N-1$, so the probability of accidental
-acceptance is at most $(N-1)/|\mathbb{F}|$.
-
-Likewise, if a round uses at most $s$ lifted identities under a shared batching
-challenge and aggregation range at most $N$, the algebraic contribution to the
-round soundness error is
+Assume that each bundle is first aligned to a common domain size $N$ by a
+shape-preserving transformation such as row replication. Let
 \[
-\frac{s-1}{|\mathbb{F}|} + \frac{N-1}{|\mathbb{F}|},
+\widetilde{\mathcal{U}}_\ell=
+\bigl(
+\widetilde{\mathbf{u}}^{(1)}_\ell,\ldots,
+\widetilde{\mathbf{u}}^{(s)}_\ell
+\bigr)
+\in (\mathbb{F}^N)^s
 \]
-plus the error terms of the imported subprotocols. Domain lifting does not
-introduce an additional soundness term beyond the random linear combination in
-\eqref{eq:domain-lifted-batch}; it only rewrites smaller-domain claims into the
-same ambient divisibility check.
+denote the aligned bundle, and define the interleaved bundle
+\[
+\operatorname{Int}(\widetilde{\mathcal{U}}_1,\ldots,\widetilde{\mathcal{U}}_m)
+:=
+\Bigl(
+\operatorname{Int}(\widetilde{\mathbf{u}}^{(1)}_1,\ldots,\widetilde{\mathbf{u}}^{(1)}_m),
+\ldots,
+\operatorname{Int}(\widetilde{\mathbf{u}}^{(s)}_1,\ldots,\widetilde{\mathbf{u}}^{(s)}_m)
+\Bigr).
+\]
+Then all original pointwise claims hold if and only if the interleaved bundle
+satisfies
+\[
+\Psi\!\left(
+\widehat{\mathbf{u}}^{(1)}[z],\ldots,\widehat{\mathbf{u}}^{(s)}[z]
+\right)=0
+\qquad
+\forall z\in[mN],
+\]
+where
+\[
+(\widehat{\mathbf{u}}^{(1)},\ldots,\widehat{\mathbf{u}}^{(s)})
+:=
+\operatorname{Int}(\widetilde{\mathcal{U}}_1,\ldots,\widetilde{\mathcal{U}}_m).
+\]
+\end{theorem}
+
+\begin{proof}
+For each aligned position $x\in[N]$ and each bundle index $\ell\in[m]$, the
+interleaved coordinate $z=xm+\ell-1$ stores exactly the tuple
+\[
+\bigl(
+\widetilde{\mathbf{u}}^{(1)}_\ell[x],\ldots,
+\widetilde{\mathbf{u}}^{(s)}_\ell[x]
+\bigr).
+\]
+Hence the interleaved pointwise claim is just a re-indexing of the $mN$ aligned
+pointwise claims. The equivalence follows immediately.
+\end{proof}
+
+Theorem~\ref{thm:interleaving-batch} is useful when the protocol produces many
+small nonlinear checks of the same form. Examples include several lookup-style
+table-difference checks and several same-form rounding relations of the form
+$n=qd+r$ with bounded remainder. Rather than assign a separate batch to each
+local check, the prover aligns the bundles and proves one larger pointwise
+relation on the interleaved object.

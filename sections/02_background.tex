@@ -36,6 +36,20 @@ v(X) := \sum_{i \in [n]} v_i \lambda_n^{(i)}(X).
 If $\mathbf{V}$ is a matrix or higher-order tensor, we flatten it into a vector
 and use the same convention.
 
+Throughout the paper, all trees share one global node namespace. We write
+$[N_{\mathrm{int}}]$ for internal nodes and
+$\{N_{\mathrm{int}},\ldots,N_{\mathrm{tot}}-1\}$ for leaves. Therefore, whenever
+$\boldsymbol{\ell}^{(t,k)}$ denotes a leaf-assignment vector, its entries are
+global leaf indices rather than local leaf offsets.
+
+For a tensor
+$\mathbf{A}\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$, we write
+$\Flat(\mathbf{A})\in\mathbb{F}^{N_{\mathrm{tot}}\times dB}$ for
+the row-major flattening of the last two axes. This notation is convenient when
+the routing matrices act on histogram tensors. We also distinguish, when
+necessary, between a compact leaf-only object and its padded version embedded
+back into the global node space with zeros on internal rows.
+
 \subsection{Polynomial Commitments}
 
 We use KZG commitments \cite{kzg10} as the underlying polynomial commitment
@@ -109,7 +123,7 @@ At a high level, a proof of GBDT training must justify four kinds of steps:
   \item the split committed in the tree is an optimizer of that objective.
 \end{enumerate}
 
-Our construction uses standard lookup arguments when rows or table values must be
+Our construction uses standard lookup arguments when rows or table values need to be
 fetched \cite{cq22,cq++24,baloo25}. The new technical ingredients appear later,
 when we must align heterogeneous domains, aggregate sample contributions into
 histograms, and batch many polynomial identities into a small number of

@@ -1,0 +1,58 @@
+\section{Protocol Pseudocode}\label{app:pseudocode}
+
+This appendix records the protocol skeleton used implicitly throughout
+\cref{sec:zkgbdt-protocol}. The first algorithm describes the quantized GBDT
+training trace that the prover must justify. The second describes the
+round-by-round proof obligations attached to that trace.
+
+\begin{algorithm}[t]
+\caption{Quantized multi-class GBDT training trace}
+\label{alg:gbdt-trace}
+\begin{algorithmic}
+\Require Quantized dataset $\mathbf{D}\in[B]^{M\times d}$, one-hot labels $\mathbf{Y}\in\{0,1\}^{M\times K}$, rounds $T$, learning rate $\mu$
+\Ensure Forest metadata, leaf values, and proof-facing round trace
+\State Initialize $\mathbf{S}^{(0)} \gets \mathbf{0}\in\mathbb{F}^{M\times K}$
+\For{$t=0$ to $T-1$}
+  \State Compute pseudo-residuals $\mathbf{G}^{(t)}$ from $\mathbf{S}^{(t)}$ and $\mathbf{Y}$
+  \For{$k=0$ to $K-1$}
+    \State Infer global leaf indices $\boldsymbol{\ell}^{(t,k)}$ for all samples under the current tree
+    \State Build leaf-supported count and weighted histograms from $\boldsymbol{\ell}^{(t,k)}$, $\mathbf{D}$, and $\mathbf{G}^{(t)}[\cdot,k]$
+    \State Propagate histograms to internal nodes through the routing matrices
+    \State Compute prefix statistics and candidate gain tensor $\Gamma^{(t,k)}$
+    \State Select the maximizing feature-threshold pair at each internal node
+    \State Compute padded leaf values $\widetilde{\mathbf{W}}^{(t)}[\cdot,k]$ from per-leaf counts and residual sums
+  \EndFor
+  \For{$r=0$ to $M-1$}
+    \For{$k=0$ to $K-1$}
+      \State $\mathbf{S}^{(t+1)}[r,k] \gets \mathbf{S}^{(t)}[r,k] + \mu\cdot \widetilde{\mathbf{W}}^{(t)}[\boldsymbol{\ell}^{(t,k)}[r],k]$
+    \EndFor
+  \EndFor
+\EndFor
+\State \Return committed forest, leaf values, and trace
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[t]
+\caption{Proof generation for quantized ZK-GBDT training}
+\label{alg:zkgbdt-proof}
+\begin{algorithmic}
+\Require Commitments to the forest, dataset, labels, and the training trace of \cref{alg:gbdt-trace}
+\Ensure Proof of correct batched inference and training
+\State Prove committed-forest well-formedness
+\For{$t=0$ to $T-1$}
+  \State Prove score update into $\mathbf{S}^{(t)}$ using lookup into $\widetilde{\mathbf{W}}^{(t-1)}$ when $t>0$
+  \State Prove pseudo-residual relations for $\mathbf{G}^{(t)}$
+  \For{$k=0$ to $K-1$}
+    \State Prove leaf assignments $\boldsymbol{\ell}^{(t,k)}$ by batched forest inference
+    \State Prove leaf-supported histograms using aggregation at addresses $\mathbf{addr}^{(t,k)}$
+    \State Prove propagation from leaf-supported histograms to all-node histograms
+    \State Prove prefix statistics, total statistics, and zero-safe gain tensor $\Gamma^{(t,k)}$
+    \State Prove feature and threshold selection against the maxima of $\Gamma^{(t,k)}$
+    \State Prove padded leaf values $\widetilde{\mathbf{W}}^{(t)}[\cdot,k]$
+  \EndFor
+\EndFor
+\State Batch heterogeneous linear identities with domain-lifted batching
+\State Batch same-form nonlinear checks with interleaving after alignment
+\State \Return the resulting proof transcript
+\end{algorithmic}
+\end{algorithm}
