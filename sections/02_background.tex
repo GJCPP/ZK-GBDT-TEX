@@ -7,7 +7,8 @@ flattened in row-major order before commitment. For $n \in \mathbb{N}$, we write
 $[n] := \{0,1,\ldots,n-1\}$.
 
 All committed lengths are assumed to be powers of two. To make this precise, we
-fix an integer $L \ge 1$ such that every committed object is padded to a length
+fix an integer $L \ge 1$ such that every committed object is smaller than $2^L$,
+and is padded to a length
 dividing $2^L$. We also fix a primitive $2^L$-th root of unity $\omega \in
 \mathbb{F}$. For every power of two $n$ with $n \mid 2^L$, we define
 \[
@@ -44,7 +45,7 @@ global leaf indices rather than local leaf offsets.
 
 For a tensor
 $\mathbf{A}\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$, we write
-$\Flat(\mathbf{A})\in\mathbb{F}^{N_{\mathrm{tot}}\times dB}$ for
+$\Flat(\mathbf{A})\in\mathbb{F}^{N_{\mathrm{tot}}dB}$ for
 the row-major flattening of the last two axes. This notation is convenient when
 the routing matrices act on histogram tensors. We also distinguish, when
 necessary, between a compact leaf-only object and its padded version embedded
@@ -127,6 +128,4 @@ Our construction uses standard lookup arguments when rows or table values need t
 fetched \cite{cq22,cq++24,baloo25}. The new technical ingredients appear later,
 when we must align heterogeneous domains, aggregate sample contributions into
 histograms, and batch many polynomial identities into a small number of
-openings. We defer those mechanisms to the sections where they are first needed,
-which keeps the exposition closer to the style common in security systems
-papers.
+openings.

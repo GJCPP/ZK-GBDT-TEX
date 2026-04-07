@@ -17,28 +17,75 @@ checks compose succinctly.
 We encode the ensemble using the hyperbox representation of \cite{cq++24}. Each
 node carries a feature-wise half-open interval box, and a sample reaches a leaf
 exactly when its quantized feature vector lies inside that leaf's box. The
+committed forest is organized over one global node namespace, so every row index
+$u \in [N_{\mathrm{tot}}]$ refers to the same node across all committed
+objects. The role of the committed state is twofold: it exposes enough metadata
+to support batched inference, and it exposes enough structure to certify later
+that the committed trees are well formed and were trained correctly. The
 committed forest contains:
 \begin{itemize}
   \item routing matrices
-  $\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}$;
+  $\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}$,
+  where an internal-node row has Hamming weight one and selects the left or
+  right child of that node, while leaf rows are zero; these matrices encode the
+  tree topology and are later used to propagate histogram statistics from
+  leaves to internal nodes;
   \item lower and upper node bounds
-  $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}\in[B+1]^{N_{\mathrm{tot}}\times d}$;
+  $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}\in[B+1]^{N_{\mathrm{tot}}\times d}$,
+  where row $u$ stores the $d$-dimensional half-open box of node $u$ and every
+  leaf row describes one accepting region of the tree; these are the main
+  geometric payload fetched during inference and checked against the query
+  point;
   \item a feature-selection matrix
-  $\mathbf{E}\in\{0,1\}^{N_{\mathrm{tot}}\times d}$;
+  $\mathbf{E}\in\{0,1\}^{N_{\mathrm{tot}}\times d}$,
+  whose internal-node rows are one-hot and indicate which feature is split at
+  each node, while leaf rows are zero; this ties each internal node to one
+  active coordinate and is mainly used in well-formedness and split
+  certification rather than in the online inference path itself;
   \item a threshold tensor
-  $\boldsymbol{\Theta}\in\{0,1\}^{N_{\mathrm{tot}}\times d\times B}$;
+  $\boldsymbol{\Theta}\in\{0,1\}^{N_{\mathrm{tot}}\times d\times B}$,
+  whose support records the selected threshold bin for each internal node and
+  is zero on padding and leaf rows; together with $\mathbf{E}$, it determines
+  how a parent box is split into two child boxes and is therefore used to bind
+  the committed geometry to the split selected in training;
   \item a tree-index vector $\mathbf{tree}\in[TK]^{N_{\mathrm{tot}}}$ and a
-  root matrix $\mathbf{Root}\in\{0,1\}^{TK\times N_{\mathrm{tot}}}$;
-  \item a leaf-score vector $\mathbf{score}\in\mathbb{F}^{N_{\mathrm{tot}}}$.
+  root matrix $\mathbf{Root}\in\{0,1\}^{TK\times N_{\mathrm{tot}}}$, which bind
+  each node to one tree and identify the root row of that tree; structurally,
+  every node belongs to exactly one tree and every tree has exactly one root;
+  in inference, the tree index is fetched together with the node box so the
+  verifier can check that every fetched row comes from the intended tree;
+  \item a leaf-score vector $\mathbf{score}\in\mathbb{F}^{N_{\mathrm{tot}}}$,
+  whose leaf entries store the scalar contribution returned by that tree and
+  whose internal-node entries are zero or padding; this is the numerical payload
+  returned by inference after the correct leaf row has been fetched.
 \end{itemize}
 
-This encoding supports both inference and training. For inference, the prover
-fetches, for each tree-sample pair, the tree identifier, the lower and upper
-box bounds, and the score stored at the accepting leaf, and then proves that
-the replicated input lies inside the fetched box. Because the same input batch
-is evaluated by all $TK$ trees, the protocol repeatedly needs to reinterpret one
-logical batch under larger shapes and then aggregate the fetched scores back
-into class scores.
+\Cref{fig:forest-encoding-inference} follows the exposition style of
+\cite{cq++24}: the left panel presents two concrete trees in the global node
+namespace, while the right panel shows the committed row view on which the
+proof operates. The committed columns record the tree index, split metadata,
+node box, and leaf score. The online fetch opens from this view only the tree
+index, node box, and score of the accepting leaf.
+
+\input{figures/forest_encoding_inference}
+
+This encoding supports both inference and training. On the inference path, the
+protocol follows the row-fetch pattern of \cite{cq++24}. Given a query batch
+$\mathbf{X}\in[B]^{b\times d}$, the prover conceptually replicates
+$\mathbf{X}$ once per tree, determines one accepting leaf row for every
+tree-sample pair, and proves a batched fetch of
+\[
+(\mathbf{tree},\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow},\mathbf{score})
+\]
+from those committed leaf rows. It then proves that the replicated query lies
+inside the fetched half-open box
+$[\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow})$ coordinate-wise, which
+certifies that the fetched row is exactly the accepting leaf of that tree on
+that sample. Finally, the fetched leaf scores are aggregated back along the
+tree axis to obtain the class scores. The remaining forest objects are not
+directly consumed by this inference check, but they are needed to certify that
+the committed rows really form a valid hyperbox forest and to connect the
+inference relation to the later training proof.
 
 \subsection{Training Proof Pipeline}
 

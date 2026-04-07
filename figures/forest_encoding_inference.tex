@@ -1,0 +1,187 @@
+\begin{figure}[t]
+  \centering
+  \resizebox{\linewidth}{!}{%
+  \begin{tikzpicture}[
+    >=Latex,
+    font=\small,
+    paneltitle/.style={font=\bfseries},
+    treelabel/.style={font=\bfseries\small},
+    internal/.style={
+      circle,
+      draw=blue!55!black,
+      line width=0.55pt,
+      fill=blue!5,
+      minimum size=10.2mm,
+      inner sep=1pt,
+      align=center
+    },
+    leaf/.style={
+      rounded corners=2pt,
+      draw=green!50!black,
+      line width=0.55pt,
+      fill=green!10,
+      minimum width=14mm,
+      minimum height=8.6mm,
+      inner sep=2pt,
+      align=center
+    },
+    note/.style={align=center, font=\scriptsize},
+    bigtable/.style={
+      matrix of nodes,
+      ampersand replacement=\&,
+      row sep=0.75mm,
+      column sep=\colgap,
+      nodes={
+        anchor=center,
+        inner xsep=2.5pt,
+        inner ysep=1.2pt,
+        minimum height=4.5mm,
+        text depth=.25ex,
+        outer sep=0pt
+      },
+      row 1/.style={nodes={font=\bfseries}},
+      column 1/.style={nodes={minimum width=7mm}},
+      column 2/.style={nodes={minimum width=11mm}},
+      column 3/.style={nodes={minimum width=7mm}},
+      column 4/.style={nodes={minimum width=9mm}},
+      column 5/.style={nodes={minimum width=18mm}},
+      column 6/.style={nodes={minimum width=24mm}},
+      column 7/.style={nodes={minimum width=12mm}}
+    },
+    colbg/.style={
+      draw=gray!70,
+      rounded corners=2pt,
+      line width=.5pt,
+      fill=white,
+      inner sep=2.8pt
+    },
+    meta/.style={
+      draw=gray!70,
+      rounded corners=2pt,
+      fill=gray!6,
+      align=center,
+      inner sep=6pt
+    },
+    fetchrow/.style={
+      draw=red!75!black,
+      rounded corners=2pt,
+      line width=.85pt,
+      inner xsep=4pt,
+      inner ysep=2pt
+    },
+    fetchtxt/.style={text=red!75!black, font=\bfseries},
+    outer/.style={
+      draw=gray!55,
+      dashed,
+      rounded corners=4pt,
+      inner sep=8pt
+    }
+  ]
+
+    \def\colgap{4.2mm}
+
+    % =========================
+    % Left panel: tree semantics
+    % =========================
+    \node[paneltitle] (ltitle) at (-4.8,3.12) {(a) Tree semantics};
+
+    % Tree t0
+    \node[treelabel] at (-7.55,2.42) {$t_0$};
+    \node[internal] (t0r) at (-7.55,1.72) {$0$\\[-1mm]\scriptsize$x_1<3$};
+    \node[internal] (t0l) at (-9.05,0.38) {$1$\\[-1mm]\scriptsize$x_2<4$};
+    \node[leaf]     (t0rleaf) at (-6.00,0.38) {$6$\\[-1mm]\scriptsize$w_2$};
+    \node[leaf]     (t0w0) at (-10.00,-1.02) {$4$\\[-1mm]\scriptsize$w_0$};
+    \node[leaf]     (t0w1) at (-8.35,-1.02) {$5$\\[-1mm]\scriptsize$w_1$};
+
+    \draw[->, line width=.75pt] (t0r) -- (t0l);
+    \draw[->, line width=.75pt] (t0r) -- (t0rleaf);
+    \draw[->, line width=.75pt] (t0l) -- (t0w0);
+    \draw[->, line width=.75pt] (t0l) -- (t0w1);
+
+    % Tree t1
+    \node[treelabel] at (-2.65,2.42) {$t_1$};
+    \node[internal] (t1r) at (-2.65,1.72) {$2$\\[-1mm]\scriptsize$x_1<2$};
+    \node[leaf]     (t1lleaf) at (-4.15,0.38) {$7$\\[-1mm]\scriptsize$w'_0$};
+    \node[internal] (t1rr) at (-1.15,0.38) {$3$\\[-1mm]\scriptsize$x_2<6$};
+    \node[leaf]     (t1w1) at (-2.05,-1.02) {$8$\\[-1mm]\scriptsize$w'_1$};
+    \node[leaf]     (t1w2) at (-0.40,-1.02) {$9$\\[-1mm]\scriptsize$w'_2$};
+
+    \draw[->, line width=.75pt] (t1r) -- (t1lleaf);
+    \draw[->, line width=.75pt] (t1r) -- (t1rr);
+    \draw[->, line width=.75pt] (t1rr) -- (t1w1);
+    \draw[->, line width=.75pt] (t1rr) -- (t1w2);
+
+    \node[note, text width=8.4cm] (treenote) at (-5.0,-2.00)
+      {Two trees share one global node namespace; all internal nodes are indexed before leaves.};
+
+    % =====================================
+    % Right panel: one unified committed table
+    % =====================================
+    \node[paneltitle] (rtitle) at (7.25,3.12) {(b) Committed row view used by the proof};
+
+    \matrix[bigtable, anchor=north west] (tbl) at (1.15,2.55) {
+      $\mathbf{u}$ \& $\mathit{tree}$ \& $\mathbf{E}$ \& $\boldsymbol{\Theta}$ \& $\mathbf{N}^{\leftarrow}$ \& $\mathbf{N}^{\rightarrow}$ \& $\mathbf{score}$ \\
+      $0$ \& $t_0$ \& $1$ \& $3$ \& $(0,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
+      $1$ \& $t_0$ \& $2$ \& $4$ \& $(0,0)$ \& $(3,B{+}1)$ \& $0$ \\
+      $2$ \& $t_1$ \& $1$ \& $2$ \& $(0,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
+      $3$ \& $t_1$ \& $2$ \& $6$ \& $(2,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
+      $4$ \& $t_0$ \& $0$ \& $0$ \& $(0,0)$ \& $(3,4)$ \& $w_0$ \\
+      $5$ \& $t_0$ \& $0$ \& $0$ \& $(0,4)$ \& $(3,B{+}1)$ \& $w_1$ \\
+      |[fetchtxt]| $6$ \& |[fetchtxt]| $t_0$ \& |[fetchtxt]| $0$ \& |[fetchtxt]| $0$ \& |[fetchtxt]| $(3,0)$ \& |[fetchtxt]| $(B{+}1,B{+}1)$ \& |[fetchtxt]| $w_2$ \\
+      $7$ \& $t_1$ \& $0$ \& $0$ \& $(0,0)$ \& $(2,B{+}1)$ \& $w'_0$ \\
+      |[fetchtxt]| $8$ \& |[fetchtxt]| $t_1$ \& |[fetchtxt]| $0$ \& |[fetchtxt]| $0$
+        \& |[fetchtxt]| $(2,0)$ \& |[fetchtxt]| $(B{+}1,6)$ \& |[fetchtxt]| $w'_1$ \\
+      $9$ \& $t_1$ \& $0$ \& $0$ \& $(2,6)$ \& $(B{+}1,B{+}1)$ \& $w'_2$ \\
+    };
+
+    % Column background boxes
+    \begin{scope}[on background layer]
+      \foreach \c in {1,...,7}{
+        \node[colbg, fit=(tbl-1-\c)(tbl-11-\c)] {};
+      }
+    \end{scope}
+
+    % Horizontal separators: after header and after internal rows
+    \foreach \r in {1,5}{
+      \draw[gray!60, line width=.4pt]
+        ([xshift=-2pt]tbl-\r-1.south west) -- ([xshift=2pt]tbl-\r-7.south east);
+    }
+
+    % Highlight fetched rows (one row per tree)
+    \node[fetchrow, fit=(tbl-8-1)(tbl-8-7)] (fetchA) {};
+    \node[fetchrow, fit=(tbl-10-1)(tbl-10-7)] (fetchB) {};
+
+    % Query box
+    \node[meta, anchor=north west, text width=3.35cm] (sample)
+      at ([xshift=6mm]tbl.north east)
+      {query $\mathbf{x}=(4,2)$\\[1mm]
+       fetch one row per tree:\\
+       $u=6,\;u=8$\\[1mm]
+       and prove, for any fetched row $u$,\\
+       $\mathbf{N}^{\leftarrow}[u]\le \mathbf{x}<\mathbf{N}^{\rightarrow}[u]$};
+
+    % Arrows to the two fetched rows
+    \draw[->, very thick, red!75!black]
+      ([yshift=7pt]sample.west) to[out=180,in=0] ([xshift=2pt]fetchA.east);
+    \draw[->, very thick, red!75!black]
+      ([yshift=-7pt]sample.west) to[out=180,in=0] ([xshift=2pt]fetchB.east);
+
+    % Outer frame
+    \node[
+      outer,
+      fit=(ltitle)(rtitle)
+          (t0r)(t0l)(t0rleaf)(t0w0)(t0w1)
+          (t1r)(t1lleaf)(t1rr)(t1w1)(t1w2)
+          (treenote)(tbl)(sample)
+    ] {};
+
+  \end{tikzpicture}%
+  }
+  \caption{A multi-tree explanation in the style of \cite{cq++24}, adapted to
+  our committed-forest setting. The left panel shows two compact trees with
+  global node identifiers, and the right panel shows the row-oriented committed
+  state used by inference. The highlighted entries are the fetched rows for one
+  query, one per tree. Batched inference performs this fetch for every
+  tree-sample pair in one shot and then aggregates leaf scores across trees.}
+  \label{fig:forest-encoding-inference}
+\end{figure}

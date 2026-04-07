@@ -561,6 +561,42 @@
   - 进一步压缩第 5 节各段首句，减少重复过渡；
   - 开始补 evaluation 里与新技术主线呼应的实验问题；
   - 或者补一张更偏“histogram to split-score” 的解释图，和当前 round-flow 图形成互补。
+
+## 2026-04-07 00:00:00 +0800
+
+### 用户本轮请求
+
+- 指出 `3.1` 中 forest objects 只有符号罗列，没有解释形状、性质和用途；
+- 要求加强该小节，并简要解释这些对象如何用于 inference，同时记得引用 `cq++24`。
+
+### 本轮修改与决定
+
+- 已更新 `sections/03_problem_statement.tex` 中的 `3.1 Forest Representation and Batched Inference`。
+- 修改方式不是增大篇幅式铺陈，而是直接对每个 committed object 补三类信息：
+  - shape；
+  - structural property；
+  - role in inference / later proof。
+- 具体补充如下：
+  - 对 `\mathbf{L},\mathbf{R}` 明确说明其 row-sparse selector 性质，并指出主要用于后续统计传播；
+  - 对 `\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}` 明确说明它们是 inference 中真正 fetch 的 hyperbox payload；
+  - 对 `\mathbf{E}, \boldsymbol{\Theta}` 明确说明它们主要服务于 well-formedness 与 split certification，而非 inference fetch path；
+  - 对 `\mathbf{tree}, \mathbf{Root}` 明确说明它们如何把 fetched row 绑定到正确树；
+  - 对 `\mathbf{score}` 明确说明它在 inference 中被 fetch 后再聚合。
+- 同时把这一小节最后一段改成更明确的 inference 描述：
+  - 直接写出 protocol fetch 的对象组
+    `(\mathbf{tree}, \mathbf{N}^{\leftarrow}, \mathbf{N}^{\rightarrow}, \mathbf{score})`；
+  - 并明确说明这沿用了 `cq++24` 的 hyperbox row-fetch 思路。
+
+### 当前编译 / 验证状态
+
+- 已运行 `latexmk -pdf main.tex`。
+- 编译成功，`main.pdf` 已更新。
+- 本轮改动未引入新的编译错误或版式问题。
+
+### 建议的下一步
+
+- 如果继续提升 overview，可考虑再补一张很小的“fetched row schema”示意图；
+- 但从信息密度上看，当前 `3.1` 已经比之前更像一个真正服务于后文的 overview，而不是符号清单。
   - leaf value update。
 
 ### 当前验证状态
@@ -733,3 +769,246 @@
 
 - `OVERVIEW.md` 的公式排版现在更适合 VS Code Markdown Preview。
 - 本轮仍未改动 LaTeX 主稿正文，也未重新编译论文。
+
+## 2026-04-07 20:22:41 +0800
+
+### 用户本轮请求
+
+- 加强 `3.1` 中 committed forest 符号的介绍。
+- 需要补清楚各对象的形状、结构性质和用途。
+- 需要简要说明这些对象如何用于 inference，并明确引用 `cq++24`。
+
+### 本轮修改
+
+- 重写了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中 `3.1 Forest Representation and Batched Inference` 的开头段和符号列表。
+- 对每个 committed object 都补上了三类信息：
+  - 形状；
+  - 关键结构约束；
+  - 在 inference 或后续 training proof 中的作用。
+- 具体上：
+  - `L,R` 现在明确写成 internal-row one-hot、leaf-row zero 的 routing selector，并点明其后续用于 histogram propagation；
+  - `N^{\leftarrow},N^{\rightarrow}` 明确写成 node-wise half-open hyperbox，强调 leaf row 对应 accepting region；
+  - `E,\Theta` 明确写成 split feature / threshold 的结构性见证，而不是 inference 主路径对象；
+  - `tree, Root` 明确写成 tree binding 元数据，并解释 inference 中为何要把 tree index 一起 fetch；
+  - `score` 明确写成 leaf payload。
+- 在列表后新增了一段更完整的 inference 说明：
+  - 明确说明沿用 `cq++24` 的 row-fetch pattern；
+  - 给出输入 batch `X \in [B]^{b \times d}`；
+  - 说明 prover 会对每个 tree-sample pair 选定 accepting leaf row，并批量 fetch
+    `(\mathbf{tree}, \mathbf{N}^{\leftarrow}, \mathbf{N}^{\rightarrow}, \mathbf{score})`；
+  - 说明随后验证 query 落在 fetched half-open box 中，并沿 tree 轴聚合 leaf score 得到 class scores。
+
+### 当前状态
+
+- `3.1` 现在更接近“overview but still formal”的写法，读者可以直接看出这些对象为什么存在，以及 inference 用到了哪一部分 committed state。
+- 已重新运行 `latexmk -pdf main.tex`，编译通过，`main.pdf` 已更新。
+
+## 2026-04-07 20:29:45 +0800
+
+### 用户本轮请求
+
+- 先参考 `cq++24` 论文中的 decision tree 示意图，再为论文 `3.1` 生成我们自己的版本。
+- 希望图的组织方式能借鉴对方如何解释 tree semantics 和 committed representation。
+
+### 本轮修改
+
+- 先查阅了 `cq++24` 的公开 PDF，并重点参考了其 decision-tree 相关示意部分：
+  - `Fig. 3` 用一棵小树解释 decision-tree 的语义；
+  - `Fig. 4` 紧接着把同一棵树翻译成 `N^{\leftarrow}, N^{\rightarrow}, E` 等矩阵对象。
+- 基于这个组织方式，为当前论文新增了一个原生 `TikZ` 图：
+  - 新文件 [figures/forest_encoding_inference.tex](figures/forest_encoding_inference.tex)；
+  - 左 panel 画单棵树的语义视图；
+  - 右 panel 画 row-oriented committed view；
+  - 明确突出 inference 真正 fetch 的列
+    `(\mathbf{tree}, \mathbf{N}^{\leftarrow}, \mathbf{N}^{\rightarrow}, \mathbf{score})`；
+  - 同时把 `L,R,E,\Theta,Root` 作为“also committed once”的结构性 metadata 单独标出。
+- 在 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 的 `3.1` 中插入了该图，并补了一小段承接文字，说明：
+  - 该图沿用了 `cq++24` 的讲法；
+  - 左边是 tree semantics；
+  - 右边是 proof 实际操作的 committed row view；
+  - inference payload 与其他 structural metadata 在功能上是分开的。
+- 为支持该图，在 [main.tex](main.tex) 中补充了 TikZ library：
+  - `matrix`
+  - `fit`
+
+### 当前状态
+
+- `3.1` 现在已经有一张可继续编辑的 `TikZ` 示意图，适合后续继续改节点文字、表格列、配色和版式。
+- 已重新运行 `latexmk -pdf main.tex`，`main.pdf` 已更新。
+- 当前图可正常编译；仍有一条轻微的 overfull warning，主要是图整体较宽，但不影响继续迭代。
+
+## 2026-04-07 20:53:46 +0800
+
+### 用户本轮请求
+
+- 修复 `3.1` 新图中的版式问题：
+  - 右侧若干 box 超出虚线边界；
+  - 右下角注释 node 与图主体挤在一起。
+
+### 本轮修改
+
+- 重排了 [figures/forest_encoding_inference.tex](figures/forest_encoding_inference.tex) 右侧说明区域：
+  - 将 query 说明框与 metadata 说明框整体右移；
+  - 缩小二者的文字宽度，避免与中间表格过于贴近。
+- 将原先单独悬在右下角的注释 node 改成跟随 metadata 框定位：
+  - 使用 `([yshift=-3mm]other.south west)` 放置；
+  - 增加固定 `text width`，避免文字自然伸展挤向图主体。
+- 将原先手写坐标的虚线边框改为自动 `fit` 包围框：
+  - 现在会根据树图、表格、说明框和注释框的实际边界自动扩展；
+  - 后续如果继续改内容，不需要再手工调矩形坐标。
+- 顺手把右侧标题 `Also committed once:` 收短成 `Also committed:`，消除了由窄栏文字断词引起的小 warning。
+
+### 当前状态
+
+- 右侧说明区域与主图已经明显分开，虚线边框也会完整包住所有图元。
+- 已重新运行 `latexmk -pdf main.tex`，`main.pdf` 已更新。
+- 当前这张图已干净通过编译，没有新增的图版式 warning。
+
+## 2026-04-07 20:59:54 +0800
+
+### 用户本轮请求
+
+- 当前图仍不符合预期：
+  - 左侧树图不满足“叶子都出现在最后一层”的要求；
+  - 右侧 `(b)` 中各元素还是小格子矩阵，不够正式；
+  - 希望每一列都是一个单独的大矩形框，而不是每个元素各自一个小矩形。
+
+### 本轮修改
+
+- 重画了 [figures/forest_encoding_inference.tex](figures/forest_encoding_inference.tex)：
+  - 左侧改为两层内部节点、最底层统一四个叶子的完整小树；
+  - 明确让所有叶子都落在最后一层；
+  - 同时把行索引也同步成内部节点在前、叶子在后：
+    `0,1,2` 为 internal rows，`3,4,5,6` 为 leaf rows。
+- 将右侧 committed view 从 cell-by-cell 的表格改成 column-by-column 的版式：
+  - `\mathbf{u}`
+  - `\mathbf{tree}`
+  - `\mathbf{N}^{\leftarrow}`
+  - `\mathbf{N}^{\rightarrow}`
+  - `\mathbf{score}`
+  每一列现在都是一个独立的大矩形框，顶部和底部对齐。
+- 用红色直接高亮 fetched row 的对应条目，而不是再给单独某一整行加外框：
+  - 例子里 query 改为 fetch row `u=5`；
+  - 在五个列框中对应把 `5`、`t`、`(3,0)`、`(B+1,5)`、`w_2` 标红。
+- 为避免整张图再次横向出界，最终把整幅 `tikzpicture` 用 `\resizebox{\linewidth}{!}{...}` 收进了版心。
+
+### 当前状态
+
+- 该图现在满足“叶子在最后一层”和“每列一个大矩形框”这两个结构要求。
+- 已重新运行 `latexmk -pdf main.tex`，`main.pdf` 已更新。
+- 当前图可正常编译，且本轮没有新增图版式 warning。
+
+## 2026-04-07 22:30:24 +0800
+
+### 用户本轮请求
+
+- 仓库里新增了一张参考图片，希望据此继续修改 `3.1` 的示意图。
+- 具体要求：
+  - 改成多棵树，而不是单棵树；
+  - 在树上明确标出节点编号；
+  - 右侧表格补入 `\mathbf{E}` 和 `\boldsymbol{\Theta}`；
+  - 删除图右下角那段解释性文字；
+  - 整体版式继续优化。
+
+### 本轮修改
+
+- 读取了用户新增的参考图 [image.png](image.png)，并据此重画了
+  [figures/forest_encoding_inference.tex](figures/forest_encoding_inference.tex)。
+- 左侧 `(a)` 改为两棵小树：
+  - 第一棵树使用节点 `0` 到 `6`；
+  - 第二棵树使用节点 `7` 到 `13`；
+  - 每个 internal node 与 leaf node 内部都直接标出其全局编号；
+  - 同时保留 split 条件或 leaf score，形成“编号 + 语义”的双层标注。
+- 右侧 `(b)` committed view 扩展为 7 列：
+  - `\mathbf{u}`
+  - `\mathbf{tree}`
+  - `\mathbf{E}`
+  - `\boldsymbol{\Theta}`
+  - `\mathbf{N}^{\leftarrow}`
+  - `\mathbf{N}^{\rightarrow}`
+  - `\mathbf{score}`
+- 表格内容也同步改成两棵树共享一个 global node namespace 的形式：
+  - 第一棵树为 `t_0`；
+  - 第二棵树为 `t_1`；
+  - 中间用水平分隔线将两棵树对应的行隔开。
+- 将高亮 fetch 的示例改为第二棵树中的 leaf row：
+  - query 仍为 `x=(4,2)`；
+  - 高亮改为 fetch row `u=12`；
+  - 在所有相关列中同步将该行元素标红。
+- 删除了右下角原有的解释性段落，只保留 query/fetch 的说明框。
+- 顺手更新了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中紧邻图的引导文字：
+  - 从 “one concrete tree” 改为 “two concrete trees”；
+  - 并简化了对列的说明，避免正文 overfull。
+
+### 当前状态
+
+- `3.1` 的图现在已经对齐到用户给的参考方向：多棵树、节点编号、扩展列、无右下角说明块。
+- 已重新运行 `latexmk -pdf main.tex`，`main.pdf` 已更新。
+- 当前编译通过，且本轮结束时没有新的正文或图版式 warning。
+
+## 2026-04-07 22:30:24 +0800
+
+### 用户本轮请求
+
+- 用户更新了参考图片，希望继续修图：
+  - 修复箭头与图片元素重叠的问题；
+  - `(a)` 中使用更小的树，并去掉一个叶子；
+  - `(b)` 中的矩阵列排得更紧一些。
+
+### 本轮修改
+
+- 调整了 [figures/forest_encoding_inference.tex](figures/forest_encoding_inference.tex) 左侧树图区：
+  - 将两棵树都改成 3 叶的小树；
+  - 第一棵树保留节点 `0,1,2,3,4,5`；
+  - 第二棵树保留节点 `7,8,9,10,11,12`；
+  - 删除了原先每棵树最右侧的第四个叶子，使树更紧凑。
+- 重新摆放了叶子坐标，避免树边与叶节点或相邻树叶重叠。
+- 将右侧 committed view 的列整体压紧：
+  - 所有列左移；
+  - 减少列间横向空隙；
+  - 保持 `u/tree/E/Theta/N^left/N^right/score` 的顺序不变。
+- 将 query 框同步左移，并将红色指示箭头改成折线路径：
+  - 先向下，再向左接近 `score` 列；
+  - 避开 query 框、表格列和虚线边界内的主体图元。
+- 图注第一句从 `A single-tree explanation` 改为 `A multi-tree explanation`，与当前多树版式保持一致。
+
+### 当前状态
+
+- 箭头与图主体不再重叠，左侧树也更小更紧凑。
+- `(b)` 的矩阵列现在更紧，整张图更接近用户更新后的参考图。
+- 已重新运行 `latexmk -pdf main.tex`，`main.pdf` 已更新。
+- 当前图编译通过，未引入新的版式 warning。
+
+## 2026-04-07 22:38:38 +0800
+
+### 用户本轮请求
+
+- 用户指出上一版仍有两个实质问题：
+  - 左侧森林视觉上仍像是在共享叶子；
+  - 树的节点编号不满足“叶子编号大于内部节点编号”。
+
+### 本轮修改
+
+- 重新设计了左侧森林的全局编号体系，使其满足
+  `internal id < leaf id`：
+  - 第一棵树 internal nodes 改为 `0,1,2`，leaf nodes 改为 `6,7,8`；
+  - 第二棵树 internal nodes 改为 `3,4,5`，leaf nodes 改为 `9,10,11`。
+- 右侧 committed view 的所有列同步改成新的全局编号顺序：
+  - `u` 列现在是 `0..5` 的 internal rows 在前，`6..11` 的 leaf rows 在后；
+  - `tree / E / Theta / N^left / N^right / score` 六列内容都按新顺序重排。
+- 将 query/fetch 示例也同步更新：
+  - 原先 fetch `u=12`；
+  - 现在改成 fetch `u=11`，对应第二棵树的最后一个 leaf row。
+- 对左侧两棵树的叶子坐标再次拉开：
+  - 第一棵树叶子落在 `-9.55,-7.8,-5.55` 一带；
+  - 第二棵树叶子落在 `-4.55,-2.8,-0.55` 一带；
+  - 两棵树现在不再共用任何 leaf node，也不会在视觉上贴成同一排共享叶子。
+- 树下方说明文字同步改成：
+  - “internal nodes are indexed before leaves.”
+
+### 当前状态
+
+- 左侧森林现在是两棵完全分离的小树，不再共享叶子。
+- 全局编号体系已经满足“内部节点编号在前，叶子编号在后”。
+- 已重新运行 `latexmk -pdf main.tex`，`main.pdf` 已更新。
+- 当前图编译通过，没有新增 warning。
