@@ -1,9 +1,10 @@
 \section{Batched Proof Tools}\label{sec:tools}
 
-This section states the two batching tools used throughout the protocol. The
-first tool combines heterogeneous linear identities that initially live on
-different polynomial domains. The second combines many same-form nonlinear
-checks after their witness bundles have been aligned to a common shape.
+This section states the two batching tools used repeatedly in the protocol. The
+first handles heterogeneous linear identities that initially live on different
+polynomial domains. The second handles many same-form nonlinear checks after
+their witness bundles have been aligned to a common shape. Together they cover
+the two batching patterns that recur throughout the rest of the construction.
 
 \subsection{Domain-Lifted Batch}
 
@@ -58,8 +59,8 @@ natural domains are not identical.
 
 \subsection{Interleaved Batch}
 
-The interleaving theorem applies to same-form nonlinear checks, but first we
-need one alignment lemma.
+The interleaving theorem applies to same-form nonlinear checks. We first record
+the alignment lemma used to place multiple witness bundles on a common domain.
 
 \begin{lemma}[Row replication]
 \label{lem:row-replication}

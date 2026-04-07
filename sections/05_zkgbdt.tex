@@ -1,9 +1,9 @@
 \section{ZK-GBDT Protocol}\label{sec:zkgbdt-protocol}
 
-This section instantiates the tools of \cref{sec:tools} in the actual ZK-GBDT
-protocol. Appendix~\ref{app:pseudocode} gives pseudocode for the round structure
-of quantized GBDT training and proof generation; the text below states the
-committed objects and relations that the proof must certify.
+This section instantiates the tools of \cref{sec:tools} in the ZK-GBDT
+protocol. Appendix~\ref{app:pseudocode} gives pseudocode for the round
+structure of quantized GBDT training and proof generation. Here we focus on
+the committed objects and relations that the proof must certify.
 
 \subsection{Committed Forest Representation}
 
@@ -56,9 +56,9 @@ reason about $\mathbf{X}^{\mathrm{rep}}$ through the replicated encoding
 obtained by the substitution $X \mapsto X^{TK}$ rather than asking for a
 separate commitment.
 
-The inference protocol is organized as one row fetch followed by one
-box-containment check. The prover computes the accepting leaf of every sample in
-every tree and proves correctness in two steps.
+The inference protocol consists of a row fetch followed by a box-containment
+check. The prover computes the accepting leaf of every sample in every tree and
+proves correctness in two steps.
 \begin{enumerate}
   \item It proves a concatenated matrix lookup
   \begin{equation}\label{eq:inference-lookup}
@@ -78,17 +78,16 @@ every tree and proves correctness in two steps.
 \end{enumerate}
 
 The fetched leaf scores are then summed across trees to obtain the final
-class-score
-vector for each sample. Operationally, this is aggregation along the tree
-dimension after the tensor is reshaped into round and class axes.
+class-score vector for each sample. Operationally, this is aggregation along
+the tree dimension after reshaping into round and class axes.
 
 \subsection{Round-Level Training Proof}
 
-The training proof is best read as a round-level proof graph rather than as one
-monolithic argument. Each round introduces a small family of committed tensors,
-and each tensor is tied to earlier ones by a short list of recurring checks:
-lookup, aggregation, prefix sums, zero-safe divisions, and max-selection
-constraints.
+The training proof is best read as a round-level proof graph rather than as a
+single monolithic argument. Each round introduces a small family of committed
+tensors, and each tensor is linked to earlier ones through a short list of
+recurring checks: lookup, aggregation, prefix sums, zero-safe divisions, and
+max-selection constraints.
 
 \paragraph{Round state.}
 For each round $t \in [T]$, we maintain:
@@ -101,7 +100,7 @@ For each round $t \in [T]$, we maintain:
   trained in round $t$ for class $k$;
   \item leaf-supported and all-node histogram tensors derived from
   $\boldsymbol{\ell}^{(t,k)}$ and $\mathbf{G}^{(t)}[\cdot,k]$;
-  \item the selected feature and threshold of every internal node.
+  \item the selected feature-threshold pair of every internal node.
 \end{itemize}
 
 \begin{figure}[t]
@@ -137,8 +136,8 @@ For each round $t \in [T]$, we maintain:
 
 \noindent\Cref{fig:round-proof-flow} shows the dependency structure of one
 round. The same leaf assignments drive two downstream tasks: they generate the
-histograms from which the committed split is certified, and they also determine
-the per-leaf residual aggregates that define the next leaf values.
+histograms used for split certification, and they determine the per-leaf
+aggregates that define the next leaf values.
 
 \paragraph{Residual update.}
 For $t=0$, the protocol sets $\mathbf{S}^{(0)}=\mathbf{0}$. For every
@@ -200,9 +199,9 @@ satisfy
 \boldsymbol{\ell}^{(t,k)}[r]=u \wedge \mathbf{D}[r,j]=b
 \right]. \label{eq:leaf-weight-hist}
 \end{align}
-These are the two histogram constraints that drive the rest of the protocol:
-one for counts and one for weighted sums. Internal-node rows of these
-leaf-supported tensors are constrained to zero.
+These are the two histogram relations that drive the rest of the protocol: one
+for counts and one for weighted sums. Internal-node rows of these leaf-supported
+tensors are constrained to zero.
 
 \paragraph{Propagation and split-score derivation.}
 Leaf-supported histograms determine the full all-node histograms
@@ -223,8 +222,8 @@ dimensions, these tensors satisfy
 \label{eq:internal-H}
 \end{align}
 These are linear identities and are absorbed into the batched polynomial
-identity used for the round. If the tensors involved live on different subgroup
-sizes because of padding, \cref{thm:domain-lifted-batch} lifts them to a common
+identity used for the round. If padding places the participating tensors on
+different subgroup sizes, \cref{thm:domain-lifted-batch} lifts them to a common
 ambient domain first.
 
 For each class $k$, the prover next commits prefix tensors
@@ -307,7 +306,9 @@ node $u$ belonging to tree $(t,k)$:
 \label{eq:threshold-argmax}
 \end{align}
 Equations \eqref{eq:feature-max}--\eqref{eq:threshold-argmax} are discharged
-with standard max-selection gadgets over committed tensors.
+with standard max-selection gadgets over committed tensors. The first relation
+identifies the maximizing feature, and the second fixes the maximizing
+threshold bin on that feature.
 
 \paragraph{Leaf values and round closure.}
 The same leaf-index vector also induces per-leaf counts and residual sums:

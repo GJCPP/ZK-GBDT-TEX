@@ -1,16 +1,15 @@
 \section{Technical Overview}
 
-The proof system is easiest to read as a structured certification procedure for
-quantized GBDT training. The central challenge is not tree inference itself,
-but proving that each round derives the correct per-node split statistics and
-commits a split that optimizes the training objective. Two technical issues
-recur throughout this process. First, the proof naturally produces claims over
-different polynomial domains and tensor layouts. Second, the standard
-split-search objective is usually implemented through sorting or feature scans,
-which are awkward proof targets. Our overview therefore focuses on three
-questions: what the committed forest must support, how the split objective is
-rewritten into histogram statistics, and which batching tools let the resulting
-checks compose succinctly.
+The proof system is best understood as a certification procedure for quantized
+GBDT training. The central challenge is not tree inference itself, but
+certifying that each round derives the correct per-node split statistics and
+commits a split that optimizes the training objective. Two obstacles recur
+throughout the construction. First, the proof naturally produces claims over
+different polynomial domains and tensor layouts. Second, the split-search
+objective is usually implemented through sorting or feature scans, which are
+awkward proof targets. Accordingly, this overview isolates three ingredients:
+the committed forest interface, the algebraic rewriting of split search, and
+the batching tools that make the resulting checks compose succinctly.
 
 \subsection{Forest Representation and Batched Inference}
 
@@ -19,8 +18,8 @@ node carries a feature-wise half-open interval box, and a sample reaches a leaf
 exactly when its quantized feature vector lies inside that leaf's box. The
 committed forest is organized over one global node namespace, so every row index
 $u \in [N_{\mathrm{tot}}]$ refers to the same node across all committed
-objects. The role of the committed state is twofold: it exposes enough metadata
-to support batched inference, and it exposes enough structure to certify later
+objects. The committed state plays two roles: it exposes enough metadata to
+support batched inference, and it exposes enough structure to certify later
 that the committed trees are well formed and were trained correctly. The
 committed forest contains:
 \begin{itemize}
@@ -92,8 +91,8 @@ inference relation to the later training proof.
 
 \subsection{Training Proof Pipeline}
 
-The training proof reuses the same committed forest but organizes the remaining
-steps around a small sequence of relations. For each round $t\in[T]$ and class
+The training proof reuses the same committed forest and organizes the remaining
+checks into a short sequence of relations. For each round $t\in[T]$ and class
 $k\in[K]$, the prover obtains a global leaf-assignment vector
 \[
 \boldsymbol{\ell}^{(t,k)} \in
@@ -102,24 +101,24 @@ $k\in[K]$, the prover obtains a global leaf-assignment vector
 where $\boldsymbol{\ell}^{(t,k)}[r]$ is the global leaf index reached by sample
 $r$ in the tree trained for class $k$ at round $t$.
 
-At a high level, one round certifies the following chain of relations.
+At a high level, one round certifies the following proof pipeline.
 \begin{enumerate}
-  \item Update the cumulative score matrix and compute the pseudo-residuals.
-  \item Aggregate leaf-indexed sample contributions into count and weighted
-  histograms.
-  \item Propagate those histograms from leaves to internal nodes through the
-  committed routing matrices.
-  \item Derive prefix statistics and total statistics, and then compute the
-  candidate split score for every feature-threshold pair.
-  \item Prove that the split recorded in $\mathbf{E}$ and $\boldsymbol{\Theta}$
-  is a maximizer of the candidate score tensor.
-  \item Aggregate residuals at the leaves to form the next round's leaf values
-  and add them back into the score matrix.
+  \item update the cumulative score matrix and derive the pseudo-residuals;
+  \item aggregate leaf-indexed sample contributions into count and weighted
+  histograms;
+  \item propagate those histograms from leaves to internal nodes through the
+  committed routing matrices;
+  \item derive prefix and total statistics, then evaluate the candidate split
+  score for every feature-threshold pair;
+  \item certify that the split recorded in $\mathbf{E}$ and
+  $\boldsymbol{\Theta}$ maximizes that score tensor;
+  \item aggregate residuals at the leaves to obtain the next round's leaf
+  values and add them back into the score matrix.
 \end{enumerate}
 
-The tree-specific novelty lies in the middle of this pipeline: the protocol does
-not try to prove a sorting procedure, but instead proves the statistics from
-which split search can be reconstructed algebraically.
+The tree-specific novelty lies in the middle of this pipeline. Rather than
+proving a sorting procedure, the protocol proves the statistics from which split
+search can be reconstructed algebraically.
 
 \subsection{Objective Rewriting for Split Search}
 
@@ -166,8 +165,8 @@ $|L_{u,j,b}|$, $|R_{u,j,b}|$,
 $\sum_{r\in L_{u,j,b}} g_r$, and $\sum_{r\in R_{u,j,b}} g_r$ become prefix- and
 total-sum expressions over the bin axis. The split objective is then reduced to
 tensor algebra over committed counts and sums. The point of this overview is
-the reduction from split search to histogram statistics, rather than the
-particular low-level witness layout used to realize that reduction.
+the reduction from split search to histogram statistics, rather than any
+particular witness layout used to realize that reduction.
 
 \subsection{Domain-Lifted and Interleaved Batching}
 

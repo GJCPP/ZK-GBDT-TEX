@@ -1085,3 +1085,34 @@
 
 - 重新运行了 `latexmk -pdf main.tex`；
 - 编译成功，`main.pdf` 已更新。
+
+## 2026-04-08 00:32:32 +0800
+
+### 用户本轮请求
+
+- 提交当前修改；
+- 继续打磨技术部分，使表述更专业、更易读；
+- 以论文写作为中心，不改动整体符号体系和协议语义。
+
+### 本轮处理
+
+- 对技术主线做了小幅但系统的行文收束，涉及：
+  - [sections/03_problem_statement.tex](sections/03_problem_statement.tex)
+  - [sections/04_protocol.tex](sections/04_protocol.tex)
+  - [sections/05_zkgbdt.tex](sections/05_zkgbdt.tex)
+- 第 3 节的处理重点是：
+  - 将开头的 framing 改成更正式的三点式概括；
+  - 将 training proof 的六步流程改成更统一的 pipeline 口吻；
+  - 压缩了 histogram 段落里偏口语化的句子。
+- 第 4 节的处理重点是：
+  - 明确 domain-lifted batch 与 interleaving batch 分别覆盖哪类重复模式；
+  - 让 theorem 前后的解释语气更一致。
+- 第 5 节的处理重点是：
+  - 收紧 protocol section 的开头；
+  - 让 round-proof flow、histogram propagation、argmax certification 等段落的措辞更正式；
+  - 避免重复解释同一语义，提升可扫描性。
+
+### 验证
+
+- 计划在本轮修改后再次运行 `latexmk -pdf main.tex`；
+- 若编译通过，则将这一轮润色作为新的提交保存。
