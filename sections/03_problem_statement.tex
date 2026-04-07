@@ -42,12 +42,12 @@ committed forest contains:
   each node, while leaf rows are zero; this ties each internal node to one
   active coordinate and is mainly used in well-formedness and split
   certification rather than in the online inference path itself;
-  \item a threshold tensor
-  $\boldsymbol{\Theta}\in\{0,1\}^{N_{\mathrm{tot}}\times d\times B}$,
-  whose support records the selected threshold bin for each internal node and
-  is zero on padding and leaf rows; together with $\mathbf{E}$, it determines
-  how a parent box is split into two child boxes and is therefore used to bind
-  the committed geometry to the split selected in training;
+  \item a threshold-index vector
+  $\boldsymbol{\Theta}\in[B]^{N_{\mathrm{tot}}}$,
+  whose internal-node entries record the selected threshold bin and whose leaf
+  and padding rows are zero; together with $\mathbf{E}$, it determines how a
+  parent box is split into two child boxes and is therefore used to bind the
+  committed geometry to the split selected in training;
   \item a tree-index vector $\mathbf{tree}\in[TK]^{N_{\mathrm{tot}}}$ and a
   root matrix $\mathbf{Root}\in\{0,1\}^{TK\times N_{\mathrm{tot}}}$, which bind
   each node to one tree and identify the root row of that tree; structurally,
@@ -64,8 +64,11 @@ committed forest contains:
 \cite{cq++24}: the left panel presents two concrete trees in the global node
 namespace, while the right panel shows the committed row view on which the
 proof operates. The committed columns record the tree index, split metadata,
-node box, and leaf score. The online fetch opens from this view only the tree
-index, node box, and score of the accepting leaf.
+node box, and leaf score. For compactness, the figure displays the feature
+selected by $\mathbf{E}[u,\cdot]$ as a scalar label rather than as the full
+one-hot row, and it displays $\boldsymbol{\Theta}[u]$ as the selected threshold
+bin. The online fetch opens from this view only the tree index, node box, and
+score of the accepting leaf.
 
 \input{figures/forest_encoding_inference}
 
@@ -99,7 +102,7 @@ $k\in[K]$, the prover obtains a global leaf-assignment vector
 where $\boldsymbol{\ell}^{(t,k)}[r]$ is the global leaf index reached by sample
 $r$ in the tree trained for class $k$ at round $t$.
 
-The proof for one round then proceeds as follows.
+At a high level, one round certifies the following chain of relations.
 \begin{enumerate}
   \item Update the cumulative score matrix and compute the pseudo-residuals.
   \item Aggregate leaf-indexed sample contributions into count and weighted
@@ -162,7 +165,9 @@ count and residual sum associated with that bin, the quantities
 $|L_{u,j,b}|$, $|R_{u,j,b}|$,
 $\sum_{r\in L_{u,j,b}} g_r$, and $\sum_{r\in R_{u,j,b}} g_r$ become prefix- and
 total-sum expressions over the bin axis. The split objective is then reduced to
-tensor algebra over committed counts and sums.
+tensor algebra over committed counts and sums. The point of this overview is
+the reduction from split search to histogram statistics, rather than the
+particular low-level witness layout used to realize that reduction.
 
 \subsection{Domain-Lifted and Interleaved Batching}
 

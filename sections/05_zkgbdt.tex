@@ -24,9 +24,9 @@ The committed forest consists of the following objects.
   \item A feature-selection matrix
   $\mathbf{E}\in\{0,1\}^{N_{\mathrm{tot}}\times d}$ whose support records the
   split feature of each internal node.
-  \item A threshold tensor
-  $\boldsymbol{\Theta}\in\{0,1\}^{N_{\mathrm{tot}}\times d\times B}$ whose support
-  records the selected threshold for each internal node.
+  \item A threshold-index vector
+  $\boldsymbol{\Theta}\in[B]^{N_{\mathrm{tot}}}$ whose internal-node entries
+  record the selected threshold bin.
   \item A tree-index vector
   $\mathbf{tree}\in[TK]^{N_{\mathrm{tot}}}$ and a sparse root matrix
   $\mathbf{Root}\in\{0,1\}^{TK\times N_{\mathrm{tot}}}$.
@@ -44,8 +44,8 @@ single-selection checks, together with the geometric consistency constraints
 = \mathbf{tree}_{\mathrm{int}}. \label{eq:tree-consistency}
 \end{align}
 The remaining hyperbox equations are the usual ones: the selected coordinate is
-split at the chosen threshold, while every non-selected coordinate is inherited
-unchanged by both children.
+split at the chosen threshold indicated by $\boldsymbol{\Theta}[u]$, while
+every non-selected coordinate is inherited unchanged by both children.
 
 \subsection{Batched Forest Inference}
 
@@ -77,14 +77,15 @@ every tree and proves correctness in two steps.
   \end{equation}
 \end{enumerate}
 
-The fetched scores are then summed across trees to obtain the final class-score
+The fetched leaf scores are then summed across trees to obtain the final
+class-score
 vector for each sample. Operationally, this is aggregation along the tree
 dimension after the tensor is reshaped into round and class axes.
 
 \subsection{Round-Level Training Proof}
 
 The training proof is best read as a round-level proof graph rather than as one
-monolithic argument. Each round produces a small family of committed tensors,
+monolithic argument. Each round introduces a small family of committed tensors,
 and each tensor is tied to earlier ones by a short list of recurring checks:
 lookup, aggregation, prefix sums, zero-safe divisions, and max-selection
 constraints.
@@ -294,16 +295,15 @@ maxima $\mathbf{M}^{(t,k)} \in \mathbb{F}^{N_{\mathrm{int}}}$ satisfying
 \mathbf{M}^{(t,k)}[u] &= \max_{j \in [d]} \mathbf{R}^{(t,k)}[u,j].
 \label{eq:node-max}
 \end{align}
-The selected feature matrix $\mathbf{E}$ and threshold tensor $\boldsymbol{\Theta}$
-must satisfy the following constraints for every internal node $u$ belonging to
-tree $(t,k)$:
+The selected feature matrix $\mathbf{E}$ and threshold vector
+$\boldsymbol{\Theta}$ must satisfy the following constraints for every internal
+node $u$ belonging to tree $(t,k)$:
 \begin{align}
-\sum_{j=0}^{d-1}\mathbf{E}[u,j] &= 1,
-\qquad
-\sum_{b=0}^{B-1}\boldsymbol{\Theta}[u,j,b] = \mathbf{E}[u,j], \label{eq:selection-onehot}\\
+\sum_{j=0}^{d-1}\mathbf{E}[u,j] &= 1, \label{eq:selection-onehot}\\
 \mathbf{E}[u,j] = 1 &\Longrightarrow \mathbf{R}^{(t,k)}[u,j] = \mathbf{M}^{(t,k)}[u],
 \label{eq:feature-argmax}\\
-\boldsymbol{\Theta}[u,j,b] = 1 &\Longrightarrow \Gamma^{(t,k)}[u,j,b] = \mathbf{R}^{(t,k)}[u,j].
+\mathbf{E}[u,j] = 1 &\Longrightarrow
+\Gamma^{(t,k)}[u,j,\boldsymbol{\Theta}[u]] = \mathbf{R}^{(t,k)}[u,j].
 \label{eq:threshold-argmax}
 \end{align}
 Equations \eqref{eq:feature-max}--\eqref{eq:threshold-argmax} are discharged

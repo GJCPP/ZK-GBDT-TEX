@@ -1012,3 +1012,76 @@
 - 全局编号体系已经满足“内部节点编号在前，叶子编号在后”。
 - 已重新运行 `latexmk -pdf main.tex`，`main.pdf` 已更新。
 - 当前图编译通过，没有新增 warning。
+
+## 2026-04-08 00:05:00 +0800
+
+### 用户本轮请求
+
+- 不要再做大规模符号体系改动；
+- 保持论文现有记号和叙事；
+- 重新扫描 `ZK-GBDT/`，只修正与代码语义明显不一致的地方；
+- 不要在论文正文里讨论代码实现。
+
+### 本轮处理
+
+- 重新核对了当前论文中的几个关键语义点：
+  - [sections/03_problem_statement.tex](sections/03_problem_statement.tex)
+  - [sections/05_zkgbdt.tex](sections/05_zkgbdt.tex)
+  - [OVERVIEW.md](OVERVIEW.md)
+  - [figures/forest_encoding_inference.tex](figures/forest_encoding_inference.tex)
+- 按先前已确认的代码语义，这一轮只做最小必要修正：
+  - `\boldsymbol{\Theta}` 不能写成 one-hot threshold tensor；
+  - optimal split certification 里不能继续使用 one-hot 的 `\Theta[u,j,b]` 约束；
+  - 图中 `\Theta` 一列本来展示的是标量 threshold bin，图注和正文应与之匹配；
+  - 图文件里还残留了一个 `treenote` 引用，会导致编译失败。
+
+### 本轮修改
+
+- 在 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中：
+  - 将 `\boldsymbol{\Theta}` 改为标量 threshold-index vector；
+  - 保持原有组织方式，只修改其 shape 和语义；
+  - 调整图前说明，使之与当前图中 `\Theta` 的标量展示一致。
+- 在 [sections/05_zkgbdt.tex](sections/05_zkgbdt.tex) 中：
+  - 将 committed object 列表中的 `\Theta` 改为 threshold-index vector；
+  - 将 optimal split certification 从 one-hot `\Theta[u,j,b]` 约束，改为
+    `\Gamma[u,j,\Theta[u]]` 命中所选 bin 的写法；
+  - 删除了正文里显式谈论“current implementation / code”的句子。
+- 在 [OVERVIEW.md](OVERVIEW.md) 中：
+  - 将 `\Theta` 的定义同步成标量 threshold index；
+  - 将 P6 的叙述同步成 `\mathbf{E}` 与标量 `\Theta` 共同确定 split。
+- 在 [figures/forest_encoding_inference.tex](figures/forest_encoding_inference.tex) 中：
+  - 修掉了残留的 `treenote` 引用；
+  - 图注改成说明 `\mathbf{E}` 列展示的是 selected feature index，`\Theta` 列展示的是 selected threshold bin。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮没有重写整套记号，也没有把代码实现细节直接写进论文正文。
+
+## 2026-04-08 00:18:00 +0800
+
+### 用户本轮请求
+
+- 先提交当前修改；
+- 然后继续改进技术部分的专业性和可读性；
+- 但不要在论文里讨论代码本身。
+
+### 本轮处理
+
+- 重新扫描了当前技术部分，重点检查：
+  - [sections/03_problem_statement.tex](sections/03_problem_statement.tex)
+  - [sections/05_zkgbdt.tex](sections/05_zkgbdt.tex)
+  - [OVERVIEW.md](OVERVIEW.md)
+  - [figures/forest_encoding_inference.tex](figures/forest_encoding_inference.tex)
+- 删除了正文中显式提及“current implementation / codebase”的句子，只保留 paper-facing 语义。
+- 在不改变整体结构和记号体系的前提下，补做了一轮轻量润色：
+  - 将第 3 节 training pipeline 的过渡句改得更 formal；
+  - 将第 5 节 round-level proof 的开头收得更紧；
+  - 将 inference 段中的 `fetched scores` 改成 `fetched leaf scores`，避免表意松散；
+  - 保留 `\Theta` 的标量 threshold-index 语义不变。
+
+### 验证
+
+- 重新运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新。

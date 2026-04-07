@@ -206,15 +206,11 @@ $$
   表示该节点按第 $j$ 个特征分裂；若 $u$ 为叶子，则该行应为零。它的用途是：
   1. 在 well-formedness 中指明哪一维的区间被切开；
   2. 在 optimal split proof 中把 committed split feature 与 argmax 结果绑定。
-- threshold selection tensor
+- threshold index vector
   $$
-  \boldsymbol{\Theta}\in\{0,1\}^{N_{\mathrm{tot}} \times d \times B};
+  \boldsymbol{\Theta}\in[B]^{N_{\mathrm{tot}}};
   $$
-  其中
-  $$
-  \boldsymbol{\Theta}[u,j,b]=1
-  $$
-  表示节点 $u$ 选择在特征 $j$ 的第 $b$ 个 bin 处切分。对每个内部节点 $u$，它应与 $\mathbf{E}[u,\cdot]$ 一致：只有被选中的特征对应的 bin 轴上允许出现一个 one-hot 选择。它的用途是：
+  其中 $\boldsymbol{\Theta}[u]$ 表示节点 $u$ 选择的 threshold bin。它在内部节点上语义有效，在叶子与 padding 行上取零。它的用途是：
   1. 更新子节点的 hyperbox；
   2. 将 candidate split score tensor 上的 argmax 与 committed threshold 绑定。
 - tree index vector 与 root matrix
@@ -402,7 +398,7 @@ $$
 
 ### P6. 证明 committed split 是最优 split
 
-对每个 internal node，必须证明 $\mathbf{E}$ 和 $\boldsymbol{\Theta}$ 选出的 feature-threshold pair 确实达到最大 score。
+对每个 internal node，必须证明 $\mathbf{E}$ 与标量 threshold index $\boldsymbol{\Theta}$ 共同确定的 feature-threshold pair 确实达到最大 score。
 
 形式上可写为 feature-wise max 与 node-wise max：
 $$

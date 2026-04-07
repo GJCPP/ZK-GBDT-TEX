@@ -111,9 +111,6 @@
     \draw[->, line width=.75pt] (t1rr) -- (t1w1);
     \draw[->, line width=.75pt] (t1rr) -- (t1w2);
 
-    \node[note, text width=8.4cm] (treenote) at (-5.0,-2.00)
-      {Two trees share one global node namespace; all internal nodes are indexed before leaves.};
-
     % =====================================
     % Right panel: one unified committed table
     % =====================================
@@ -172,7 +169,7 @@
       fit=(ltitle)(rtitle)
           (t0r)(t0l)(t0rleaf)(t0w0)(t0w1)
           (t1r)(t1lleaf)(t1rr)(t1w1)(t1w2)
-          (treenote)(tbl)(sample)
+          (tbl)(sample)
     ] {};
 
   \end{tikzpicture}%
@@ -180,8 +177,11 @@
   \caption{A multi-tree explanation in the style of \cite{cq++24}, adapted to
   our committed-forest setting. The left panel shows two compact trees with
   global node identifiers, and the right panel shows the row-oriented committed
-  state used by inference. The highlighted entries are the fetched rows for one
-  query, one per tree. Batched inference performs this fetch for every
-  tree-sample pair in one shot and then aggregates leaf scores across trees.}
+  state used by inference. For compactness, the `$\mathbf{E}$' column displays
+  the selected feature index rather than the full one-hot row, while
+  `$\boldsymbol{\Theta}$' displays the selected threshold bin. The highlighted
+  entries are the fetched rows for one query, one per tree. Batched inference
+  performs this fetch for every tree-sample pair in one shot and then
+  aggregates leaf scores across trees.}
   \label{fig:forest-encoding-inference}
 \end{figure}
