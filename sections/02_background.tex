@@ -74,21 +74,53 @@ number of features, and each feature value lies in one of $B$ bins. Let
 $\mathbf{Y}\in\{0,1\}^{M\times K}$ be the one-hot label matrix for a $K$-class
 task.
 
-Training proceeds for $T$ boosting rounds with public learning rate $\mu$. At
-round $t$, the learner maintains a score matrix
-$\mathbf{S}^{(t)} \in \mathbb{F}^{M\times K}$ for the current ensemble
-prediction on the training set. It first computes the \emph{pseudo-residual}
-matrix $\mathbf{G}^{(t)}$, which measures how much the current prediction
-deviates from the target label. It then trains $K$ regression trees, one per
-class, against the corresponding column of $\mathbf{G}^{(t)}$. The leaf values
-of these trees are added back to the score matrix, producing
-$\mathbf{S}^{(t+1)}$.
+Training proceeds for $T$ boosting rounds with public learning rate $\mu$. For
+each round $t\in[T]$, the learner maintains a score matrix
+$\mathbf{S}^{(t)} \in \mathbb{F}^{M\times K}$, where
+$\mathbf{S}^{(t)}[r,k]$ is the current class-$k$ score of sample $r$ before the
+$t$-th round is added. We initialize $\mathbf{S}^{(0)}=\mathbf{0}$. The class
+probabilities are obtained by a row-wise softmax:
+\begin{align}
+\mathbf{P}^{(t)}[r,k] &:= \exp(\mathbf{S}^{(t)}[r,k]), \\
+\mathbf{Z}^{(t)}[r] &:= \sum_{c=0}^{K-1}\mathbf{P}^{(t)}[r,c], \\
+\boldsymbol{\pi}^{(t)}[r,k] &:= \frac{\mathbf{P}^{(t)}[r,k]}{\mathbf{Z}^{(t)}[r]}.
+\end{align}
+For the multinomial logistic loss, the pseudo-residual matrix is
+\begin{equation}\label{eq:plain-pseudoresidual}
+\mathbf{G}^{(t)}[r,k]
+:=
+\mathbf{Y}[r,k]-\boldsymbol{\pi}^{(t)}[r,k].
+\end{equation}
+Thus each column $\mathbf{G}^{(t)}[\cdot,k]$ is the regression target used to
+train the tree for class $k$ in round $t$.
 
-The proof-critical step is the training of each regression tree. Consider a node
-$u$, a feature $j$, and a threshold bin $b$. Splitting node $u$ on feature $j$
-at threshold $b$ partitions the samples reaching $u$ into a left child
-$L_{u,j,b}$ and a right child $R_{u,j,b}$. If each such sample carries a target
-value $g_r$, then the standard residual-sum-of-squares objective is
+More concretely, for every class $k\in[K]$, the learner builds one regression
+tree $f^{(t,k)}:[B]^d\to\mathbb{F}$ whose leaves carry scalar outputs. Once all
+$K$ trees of round $t$ have been trained, the score matrix is updated by
+\begin{equation}\label{eq:plain-score-update}
+\mathbf{S}^{(t+1)}[r,k]
+=
+\mathbf{S}^{(t)}[r,k] + \mu\, f^{(t,k)}(\mathbf{D}[r,\cdot]).
+\end{equation}
+At inference time, the same rule is applied to a fresh sample
+$\mathbf{x}\in[B]^d$: the ensemble accumulates the class scores
+\[
+\sum_{t=0}^{T-1}\mu\, f^{(t,k)}(\mathbf{x}),
+\]
+and the final class probabilities are obtained by applying softmax to those
+$K$ accumulated scores.
+
+The proof-critical step is therefore the training of each regression tree. A
+tree is grown recursively. At a node $u$, let $I_u \subseteq [M]$ denote the
+training samples that currently reach $u$, and let
+$g_r := \mathbf{G}^{(t)}[r,k]$ be the target value attached to sample $r$ for
+the class being trained. For a feature $j$ and threshold bin $b$, splitting on
+$(j,b)$ partitions $I_u$ into
+\begin{align*}
+L_{u,j,b} &:= \{r\in I_u : \mathbf{D}[r,j] \le b\}, \\
+R_{u,j,b} &:= \{r\in I_u : \mathbf{D}[r,j] > b\}.
+\end{align*}
+The standard residual-sum-of-squares objective is then
 \begin{equation}\label{eq:rss-plain}
 \operatorname{RSS}(u,j,b)
 =
@@ -98,9 +130,18 @@ value $g_r$, then the standard residual-sum-of-squares objective is
 \end{equation}
 where $\bar{g}_{L}$ and $\bar{g}_{R}$ are the empirical means on the two sides.
 The trainer selects the feature-threshold pair that minimizes
-\eqref{eq:rss-plain}. In the proof, we will later rewrite this objective into a
-form that depends only on per-bin counts and sums, which is much more amenable
-to polynomial commitments.
+\eqref{eq:rss-plain} among valid splits, recurses on the two resulting
+children, and stops when the prescribed tree shape has been reached or when no
+valid split remains. Once the structure is fixed, each leaf $\ell$ receives the
+mean target value of the samples routed to that leaf:
+\begin{equation}\label{eq:plain-leaf-value}
+w_{\ell}^{(t,k)}
+:=
+\frac{1}{|I_{\ell}|}\sum_{r\in I_{\ell}} \mathbf{G}^{(t)}[r,k].
+\end{equation}
+In the proof, we will later rewrite the split objective into a form that
+depends only on per-bin counts and sums, because that representation is much
+more amenable to polynomial commitments.
 
 In standard plaintext training, this optimization is usually implemented by
 sorting the samples at a node according to one feature at a time and then

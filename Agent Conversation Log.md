@@ -1116,3 +1116,321 @@
 
 - 计划在本轮修改后再次运行 `latexmk -pdf main.tex`；
 - 若编译通过，则将这一轮润色作为新的提交保存。
+
+## 2026-04-08 10:25:22 +0800
+
+### 用户本轮请求
+
+- 强化第 2.3 节对明文 GBDT 的描述；
+- 更详细说明 GBDT 如何生成、如何使用、softmax 与伪残差如何计算、节点如何分裂；
+- 若引入新符号，要求全文保持一致。
+
+### 本轮处理
+
+- 重写了 [sections/02_background.tex](sections/02_background.tex) 中的 `Gradient Boosted Decision Trees` 小节。
+- 新版 2.3 现在按明文训练流程展开：
+  - 定义 score matrix $\mathbf{S}^{(t)}$ 及其初始化；
+  - 明确写出 $\mathbf{P}^{(t)}$、$\mathbf{Z}^{(t)}$、softmax 概率 $\boldsymbol{\pi}^{(t)}$；
+  - 写出伪残差定义 $\mathbf{G}^{(t)} = \mathbf{Y} - \boldsymbol{\pi}^{(t)}$；
+  - 说明每轮为每个 class 训练一棵回归树 $f^{(t,k)}$；
+  - 写出 score update；
+  - 补充 inference 时如何累加树输出并再做 softmax；
+  - 更正式地定义 node split、左右子集、RSS 目标、递归生长与 leaf value。
+- 本轮新增符号主要是背景层面的 $\mathbf{P}^{(t)}$、$\mathbf{Z}^{(t)}$、$\boldsymbol{\pi}^{(t)}$ 与局部 leaf value $w_{\ell}^{(t,k)}$。
+- 其中 $\mathbf{P}^{(t)}$、$\mathbf{Z}^{(t)}$、$\mathbf{G}^{(t)}$ 与后文 protocol section 保持一致，没有改动后文核心符号体系。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮未改动协议语义或后文技术部分结构，只增强了背景节的可读性和完整性。
+
+## 2026-04-08 10:45:50 +0800
+
+### 用户本轮请求
+
+- Figure 1 中的 `\mathbf{E}` 应该按 one-hot 形式展示；
+- 第 3.1 节的说明太繁复，希望进一步收缩；
+- 对直观变量少解释，把解释留给不直观的对象。
+
+### 本轮处理
+
+- 修改了 [figures/forest_encoding_inference.tex](figures/forest_encoding_inference.tex)：
+  - 将表中 `\mathbf{E}` 一列从标量 feature index 改成显式 one-hot 行向量；
+  - 对应调整了列宽；
+  - 删除了图注中“为紧凑起见用标量显示 `\mathbf{E}`”的说明。
+- 修改了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 的 3.1：
+  - 将 committed forest 的介绍从“长解释列表”收缩为“对象列表 + 最少必要说明”；
+  - 保留了对 `\mathbf{E}, \boldsymbol{\Theta}, \mathbf{L}, \mathbf{R}` 的简短解释，因为它们在图中不如 box / score 直观；
+  - 删除了原来对若干直观对象的重复性用途说明。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮没有改动后续协议语义，只调整了 Figure 1 的展示方式和 3.1 的行文密度。
+
+## 2026-04-08 19:40:41 +0800
+
+### 用户本轮请求
+
+- 指出 3.2 中关于 “one round” 与 “prepare residuals / leaf values for next round” 的表述不准确；
+- 要求按当前做法修正 round-level training pipeline 的时间关系。
+
+### 本轮处理
+
+- 修改了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 的 3.2：
+  - 不再将整段写成含糊的 “one round” 流程；
+  - 改为先说明每个 round 先认证 $\mathbf{S}^{(t)}$ 与 $\mathbf{G}^{(t)}$；
+  - 再说明每个 class-specific tree $(t,k)$ 分别执行 histogram / split-search / leaf-value 认证；
+  - 将 “next round's leaf values” 改成更准确的 “round-$t$ trees 的 leaf values”。
+- 同步修改了 [sections/05_zkgbdt.tex](sections/05_zkgbdt.tex) 中 round-level flow 图的 caption 与解释段，消除相同的时间关系错误。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮只修正了 technical overview 与 flow figure 的叙述，不涉及新的符号或协议结构改动。
+
+## 2026-04-08 20:46:52 +0800
+
+### 用户本轮请求
+
+- 强调 proof of training 中所有 $\mathbf{S}^{(t)}$ 都承诺在同一个 PCS 中；
+- 强调这些 score-state relations 是一次性共同证明的，因此 proof size 与 boosting rounds 无关；
+- 允许重新核对 `ZK-GBDT` 项目以确认该事实。
+
+### 本轮处理
+
+- 重新核对了 `ZK-GBDT` 中与 boosting state 相关的实现与说明，重点查看：
+  - `forest_boosting_state.hpp`
+  - `forest_training_workflow.cpp`
+  - `examples/README.md`
+- 确认当前主线是把 score / shifted-score / softmax / pseudo-residual 等对象沿 iteration 轴组织成一个全局 boosting-state 见证，并在单个 PCS / 单个 boosting-state protocol 中统一处理。
+- 对应修改了：
+  - [sections/03_problem_statement.tex](sections/03_problem_statement.tex)
+  - [sections/05_zkgbdt.tex](sections/05_zkgbdt.tex)
+- 新表述现在明确说明：
+  - $\mathbf{S}^{(0)},\ldots,\mathbf{S}^{(T)}$ 不是逐轮分别承诺；
+  - 它们是同一个全局 score tensor 的不同切片；
+  - 所有 score-update / softmax / residual checks 共用这一组 PCS 承诺；
+  - 因此 proof size 不随 boosting rounds 增长，增长的是 witness 大小和 prover work。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮没有改动协议公式，只增强了技术部分对全局 boosting-state commitment 的强调。
+
+## 2026-04-08 21:22:24 +0800
+
+### 用户本轮请求
+
+- 在 3.4 的 Domain-lifted batch 中解释为什么约束写成 divisibility claim；
+- 解释其含义，即 residual 在整个 domain 上为零，足以表达各类约束；
+- 并强调这是本文的创新之一。
+
+### 本轮处理
+
+- 修改了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 的 3.4：
+  - 在公式前补充了从 row-wise identity 到 residual polynomial 再到 vanishing polynomial divisibility 的解释；
+  - 明确说明 divisibility claim 的语义就是“该约束在整个 domain 的每一行都成立”；
+  - 增加一句，指出 domain-lifted batch 是本文提出的 proof-composition technique。
+- 修改了 [sections/04_protocol.tex](sections/04_protocol.tex)：
+  - 在 theorem 前加入一段更正式的说明；
+  - 直接标明 domain-lifted batch 是本文的第一个新 batching tool。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮没有改动 theorem 内容或协议公式，只增强了 3.4/4.1 的解释性与贡献表达。
+
+## 2026-04-08 21:26:53 +0800
+
+### 用户本轮请求
+
+- 联网检索相关上下文，确认 “domain-lifted batch / interleaved batch 都是本文创新” 这一 claim 是否站得住；
+- 如果站得住，则在论文中论证其正当性，并写进去。
+
+### 本轮处理
+
+- 联网检索并核对了若干相关论文与资料，重点包括：
+  - Aurora
+  - CQ++
+  - Sparrow
+  - 以及若干围绕 vanishing polynomial / batching / interleaving 的 ePrint 检索
+- 结论不是“绝对不存在先例”，而是更稳妥的学术表述：
+  - 相关文献中已经普遍存在 vanishing-polynomial constraints 与同域 random-linear-combination batching；
+  - 但没有找到把
+    1. heterogeneous-domain linear claims 的 common-domain lifting，
+    2. aligned same-form nonlinear bundles 的 coordinate-wise interleaving
+    明确抽象成可复用 batching theorem 的做法。
+- 因此正文里的 claim 被改成：
+  - `to the best of our knowledge`
+  - 并明确说明我们的 claim 是“as reusable proof-composition tools in this setting”，而不是宣称相关数学恒等式本身从未出现过。
+- 对应修改了：
+  - [sections/03_problem_statement.tex](sections/03_problem_statement.tex)
+  - [sections/04_protocol.tex](sections/04_protocol.tex)
+- 新增内容包括：
+  - 与 Aurora / CQ++ 的对比句；
+  - 对 novelty boundary 的收窄说明；
+  - 同时把 domain-lifted 与 interleaved 两个工具都标为本文的 batching contributions。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮没有改动协议结构，只把 novelty claim 写得更有依据、更稳妥。
+
+## 2026-04-08 21:54:37 +0800
+
+### 用户本轮请求
+
+- 认为 3.4 中对 interleaved batch 的解释仍不够清楚；
+- 希望参考已有文档里的更完整描述，进一步优化 3.4 interleaved batch 的写作。
+
+### 本轮处理
+
+- 重新检索并阅读了仓库中关于 interleaving 的现有描述，重点参考：
+  - [OVERVIEW.md](OVERVIEW.md)
+  - [sections/04_protocol.tex](sections/04_protocol.tex)
+  - 若干旧稿与实现侧说明中的 interleaving / replication 线索
+- 重写了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中 3.4 的 `Interleaving batch` 段落。
+- 新版叙事结构改为：
+  - 先说明它要解决的问题：很多局部 nonlinear gadgets 虽然形式相同，却会分裂成很多独立小 batch；
+  - 再说明第一步是先对齐 shape，通常由 replication 完成；
+  - 再解释 interleaving 的具体动作：把各 bundle 的同位置 tuple 交错写入一个更大的 bundle；
+  - 最后说明其语义：这不是改变约束，而是把多个局部 pointwise checks 重新编号为一个共享 domain 上的大 pointwise relation。
+- 同时保留了其适用场景：
+  - lookup-style table-difference checks；
+  - same-form rounding constraints。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮只重写了 3.4 中 interleaved batch 的解释，没有改动 theorem 本身或后续协议结构。
+
+## 2026-04-08 22:00:32 +0800
+
+### 用户本轮请求
+
+- 指出当前对 interleaved batch 原理的理解有误；
+- 给出了一份更具体的 `Batch Lookup` 草稿，要求据此更正相关内容。
+
+### 本轮处理
+
+- 重新阅读了用户给出的 batch lookup 草稿，并核对了实现侧相关代码：
+  - `include/algebra/interleaved_batching.hpp`
+  - `src/algebra/interleaved_batching.cpp`
+  - `src/protocols/less_check.cpp`
+  - `src/protocols/exp_check.cpp`
+- 确认此前的问题在于：把 interleaving 过度抽象成“bundle 重新编号”，而没有抓住其真正的代数核心：
+  - 先用 $X \mapsto X^r$ 将短 query lift 到较大 domain；
+  - 再用 verifier-known 的稀疏 `even/odd` selectors；
+  - 把两个 query polynomial 交错成一个 virtual query polynomial；
+  - 递归合并后，对同一张表只做一次 batched lookup / same-form nonlinear check。
+- 对应修改了：
+  - [sections/03_problem_statement.tex](sections/03_problem_statement.tex)
+  - [sections/04_protocol.tex](sections/04_protocol.tex)
+- 具体更新包括：
+  - 在 3.4 中改为以 batched lookup 为核心例子解释 interleaving；
+  - 明确写出 `even_n(X)`、`odd_n(X)` 与交错后的 $h(X)$；
+  - 说明不同 domain 时先做 lift，再做 interleave；
+  - 在第 4 节把原来的抽象 vector-level interleaving 定义改成 polynomial-level pairwise interleaving；
+  - 将 theorem 改成递归的 `lift + interleave` 合并过程，并补充“merged bundle is virtual”的说明。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮已经把 3.4 与第 4 节的 interleaving formalization 对齐到同一套 lift-and-interleave 原理。
+
+## 2026-04-08 22:13:26 +0800
+
+### 用户本轮请求
+
+- 认为当前 interleaved batch 的描述仍然过于偏向 batch lookup；
+- 希望将其改写成更 generic 的版本，并解释在当前系统中有哪些 case 属于这个模板，例如 `div_check`。
+
+### 本轮处理
+
+- 进一步阅读并核对了实现中的 generic 用例，重点包括：
+  - `div_check`
+  - `exp_check`
+  - `less_check`
+  - `interleaved_batching.cpp`
+- 将 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中 3.4 的 interleaved batch 重写为更 generic 的 “same-form local gadget” 叙事：
+  - 先定义适用场景：多个共享同一 local verification rule 和同一组 public parameters 的 nonlinear gadget instances；
+  - 再说明做法：group by shared public parameters，lift smaller domains，component-wise interleave witness bundles；
+  - 最后说明 lookup / range check / divisibility-by-power-of-two 都是这个模板的实例。
+- 同步修改了 [sections/04_protocol.tex](sections/04_protocol.tex)：
+  - 在 interleaving 小节开头把对象从 “query families” 收成 generic “nonlinear gadget instances”；
+  - 在 theorem 后补上 “先按 shared public parameters 分组，再在组内应用 theorem” 的说明。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮没有改动 interleaving 的代数原理，只把叙事从 lookup-specific 收回到 generic gadget-level 描述。
+
+## 2026-04-08 22:31:49 +0800
+
+### 用户本轮请求
+
+- 认为 interleaved batch 的符号体系与 domain-lifted batch 差距过大；
+- 希望在 3.4 中明确解释 substitution `X \mapsto X^r` 的作用，并引用对应引理；
+- 认为 theorem 4.4 的描述不清楚，要求改成明确的递归合并过程：
+  - 同 domain 直接合并成 doubled domain；
+  - 否则取两个最小 domain，把较小者 lift 到较大者；
+  - 重复直到只剩一项；
+- 希望证明最终 domain 大小等于“不小于所有原始 domain 之和的最小 power-of-two”。
+
+### 本轮处理
+
+- 重写了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中 3.4 的 interleaving 叙事：
+  - 将符号统一为与 domain-lifted batch 相同的索引风格 `i \in [m]`、domain size `n_i`、bundle `\mathcal U_i`；
+  - 将 local gadget 明确写成共享 public parameter `\rho` 和 pointwise rule `\Psi_\rho` 的实例族；
+  - 明确说明 `X \mapsto X^r` 的作用是借助 row replication，把较小 domain 上的行周期性复制到较大 domain 上，从而只改变 proof shape、不改变 local tuple 的语义；
+  - 在 overview 层面把 merge 过程收成“equal-size merge / lift smaller then merge”的递归过程，并指出最终 domain 大小由 \cref{thm:interleaving-batch} 给出。
+- 重写了 [sections/04_protocol.tex](sections/04_protocol.tex) 中的 interleaving theorem：
+  - theorem 现在按用户要求，显式写成 active-bundle 递归合并算法；
+  - 将对象记号统一成 polynomial bundle `\mathcal U_i = (u_i^{(1)}(X), \ldots, u_i^{(s)}(X))`；
+  - 在 theorem 中直接陈述最终 domain 大小为 `\operatorname{pow2ceil}(\sum_i n_i)`；
+  - 在 proof 中分别证明：
+    - lift 与 pairwise interleave 保持原 pointwise relation；
+    - 每一步 merge 在 domain-size 层面等价于把两项替换成 `\operatorname{pow2ceil}(a+b)`；
+    - 递归合并后的最终结果确实等于总和的最小 power-of-two 上界。
+- 顺手统一了 theorem 内的 evaluation 记号，避免 `u_i(a)` 与 vector indexing 混用。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮完成后，3.4 的 interleaving 叙事与第 4 节的 theorem 已经对齐到同一套 merge process 和同一套符号体系。
+
+## 2026-04-08 22:42:36 +0800
+
+### 用户本轮请求
+
+- 认为 interleaving theorem 的符号仍然过重；
+- 希望去掉 `\mathcal{U}_i` 一类的 bundle 记号，直接写成一堆 `(u_i(X), n_i)`；
+- 希望去掉 `pow2ceil` 这类临时符号，改成正式的 `2^{\lceil \log_2(\cdot)\rceil}` 表述。
+
+### 本轮处理
+
+- 继续收紧了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中 3.4 的 interleaving 叙事：
+  - 将对象从 `\mathcal U_i` 改写成更轻量的 `(u_i(X), n_i)`；
+  - 将 merge process 直接写成“同 size 直接合并；否则取最小两个，先 lift 小的，再合并”的递归过程；
+  - 将最终 domain 大小改写成 `n = 2^{\lceil \log_2(n_1+\cdots+n_m)\rceil}`。
+- 重写了 [sections/04_protocol.tex](sections/04_protocol.tex) 中 interleaving theorem 的记号：
+  - theorem 现在直接维护 active pairs `\{(u_i(X), n_i)\}`；
+  - 去掉了 `pow2ceil` 记号，所有相关结论和 proof 都改写成 `2^{\lceil \log_2(\cdot)\rceil}`；
+  - 保留了前一轮已经对齐到实现的 merge semantics，只是把呈现方式改得更轻、更接近正文口吻。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮没有改变 theorem 的含义，只是进一步简化了 interleaving 的符号和表述方式。

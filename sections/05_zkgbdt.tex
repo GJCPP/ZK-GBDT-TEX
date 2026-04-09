@@ -90,7 +90,15 @@ recurring checks: lookup, aggregation, prefix sums, zero-safe divisions, and
 max-selection constraints.
 
 \paragraph{Round state.}
-For each round $t \in [T]$, we maintain:
+For exposition, we refer to the $t$-th score slice as
+$\mathbf{S}^{(t)} \in \mathbb{F}^{M\times K}$. At the commitment layer,
+however, the family
+$(\mathbf{S}^{(0)},\mathbf{S}^{(1)},\ldots,\mathbf{S}^{(T)})$ is represented as
+one global tensor over the extra round axis, and all cumulative-score,
+shifted-score, softmax, and pseudo-residual relations are proved against that
+single PCS object. This is what prevents the proof from growing with the number
+of boosting rounds. With that convention, for each round $t \in [T]$ we
+maintain:
 \begin{itemize}
   \item the cumulative score matrix $\mathbf{S}^{(t)} \in \mathbb{F}^{M\times K}$;
   \item the pseudo-residual matrix $\mathbf{G}^{(t)} \in \mathbb{F}^{M\times K}$;
@@ -102,6 +110,10 @@ For each round $t \in [T]$, we maintain:
   $\boldsymbol{\ell}^{(t,k)}$ and $\mathbf{G}^{(t)}[\cdot,k]$;
   \item the selected feature-threshold pair of every internal node.
 \end{itemize}
+All of these round-indexed views are slices or derived slices of globally
+committed objects. In particular, the score-update relations for all rounds are
+batched into one shared boosting-state proof rather than proved in separate PCS
+instances.
 
 \begin{figure}[t]
   \centering
@@ -129,15 +141,15 @@ For each round $t \in [T]$, we maintain:
     \draw[arr] (leafvalue) -- node[above, font=\small] {boosting update} (nextscores);
   \end{tikzpicture}
   \caption{Round-level proof flow for one boosting round. The same leaf
-  assignments support both split certification and the computation of the next
-  round's leaf values.}
+  assignments support both split certification and the computation of the
+  current round's leaf values.}
   \label{fig:round-proof-flow}
 \end{figure}
 
 \noindent\Cref{fig:round-proof-flow} shows the dependency structure of one
 round. The same leaf assignments drive two downstream tasks: they generate the
 histograms used for split certification, and they determine the per-leaf
-aggregates that define the next leaf values.
+aggregates that define the current round's leaf values.
 
 \paragraph{Residual update.}
 For $t=0$, the protocol sets $\mathbf{S}^{(0)}=\mathbf{0}$. For every

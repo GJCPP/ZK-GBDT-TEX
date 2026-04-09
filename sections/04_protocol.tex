@@ -5,8 +5,21 @@ first handles heterogeneous linear identities that initially live on different
 polynomial domains. The second handles many same-form nonlinear checks after
 their witness bundles have been aligned to a common shape. Together they cover
 the two batching patterns that recur throughout the rest of the construction.
+Standard divisibility-based zero checks and same-domain batching already appear
+in prior proof systems such as Aurora and CQ++ \cite{aurora19,cq++24}. Our
+contribution here is to isolate two stronger reusable tools: one for lifting
+heterogeneous-domain linear claims before batching, and one for interleaving
+aligned same-form nonlinear claims into a single pointwise relation.
 
 \subsection{Domain-Lifted Batch}
+
+To the best of our knowledge, domain-lifted batch is new as a reusable
+heterogeneous-domain batching theorem in this line of KZG-based protocol
+design. We use divisibility claims because a row-wise identity over
+$\mathbb{H}_n$ is equivalent to the statement that its residual polynomial
+vanishes on every point of $\mathbb{H}_n$, and therefore is divisible by the
+vanishing polynomial $\nu_n(X)$. The theorem below formalizes how such claims
+can be lifted to a common larger domain before batching.
 
 \begin{theorem}[Domain-lifted batch]
 \label{thm:domain-lifted-batch}
@@ -59,8 +72,12 @@ natural domains are not identical.
 
 \subsection{Interleaved Batch}
 
-The interleaving theorem applies to same-form nonlinear checks. We first record
-the alignment lemma used to place multiple witness bundles on a common domain.
+To the best of our knowledge, interleaved batch is likewise new as a reusable
+way to collapse many same-form nonlinear gadget instances into one larger
+virtual instance. The intended setting is that many checks share the same local
+rule and the same public parameters, but arrive as separate witness bundles on
+possibly different power-of-two domains. We first record the alignment lemma
+used to place smaller objects on larger domains.
 
 \begin{lemma}[Row replication]
 \label{lem:row-replication}
@@ -86,97 +103,153 @@ where the last equality uses $\omega_{rm}^r=\omega_m$. Since both sides have
 degree less than $rm$ and agree on $\mathbb{H}_{rm}$, they are identical.
 \end{proof}
 
-\begin{definition}[Interleaving]
-Let $\mathbf{a}^{(0)},\ldots,\mathbf{a}^{(k-1)}\in\mathbb{F}^n$. Their
-interleaving is the vector
+\begin{definition}[Pairwise interleaving]
+\label{def:pairwise-interleaving}
+Let $f(X)$ and $g(X)$ be the encoding polynomials of two length-$n$ vectors
+over $\mathbb{H}_n$, where $n$ is a power of two. Define
 \[
-\operatorname{Int}\!\left(
-\mathbf{a}^{(0)},\ldots,\mathbf{a}^{(k-1)}
-\right)\in\mathbb{F}^{kn}
-\]
-defined by
-\[
-\operatorname{Int}\!\left(
-\mathbf{a}^{(0)},\ldots,\mathbf{a}^{(k-1)}
-\right)[ik+t]
-:=
-\mathbf{a}^{(t)}[i]
+\operatorname{even}_n(X):=\frac{X^n+1}{2},
 \qquad
-\forall i\in[n],\ t\in[k].
+\operatorname{odd}_n(X):=\frac{1-X^n}{2}.
+\]
+Their evaluations on $\mathbb{H}_{2n}$ are the alternating selectors
+$(1,0,1,0,\ldots)$ and $(0,1,0,1,\ldots)$. The pairwise interleaving of
+$f(X)$ and $g(X)$ is the virtual polynomial
+\[
+\operatorname{Int}_n(f,g)(X)
+:=
+\operatorname{even}_n(X)\,f(X)
++
+\operatorname{odd}_n(X)\,g(\omega_{2n}^{-1}X).
+\]
+Its evaluation vector over $\mathbb{H}_{2n}$ is
+\[
+(f_0,g_0,f_1,g_1,\ldots,f_{n-1},g_{n-1}).
 \]
 \end{definition}
 
 \begin{theorem}[Interleaving batch]
 \label{thm:interleaving-batch}
-For each $\ell\in[m]$, let
-\[
-\mathcal{U}_\ell=
-\bigl(
-\mathbf{u}^{(1)}_\ell,\ldots,\mathbf{u}^{(s)}_\ell
-\bigr)
-\]
-be a bundle of vectors over a domain of size $n_\ell$, and suppose all bundles
-must satisfy the same pointwise polynomial relation
+For each $i\in[m]$, let $u_i(X)$ denote the full witness bundle of one gadget
+instance over $\mathbb{H}_{n_i}$, where each $n_i$ is a power of two. Assume
+all instances share one public parameter tuple $\rho$ and must satisfy the same
+pointwise relation
 \[
 \Psi\!\left(
-\mathbf{u}^{(1)}_\ell[x],\ldots,\mathbf{u}^{(s)}_\ell[x]
+\rho;u_i(a)
 \right)=0
 \qquad
-\forall x\in[n_\ell].
+\forall a\in\mathbb{H}_{n_i}.
 \]
-Assume that each bundle is first aligned to a common domain size $N$ by a
-shape-preserving transformation such as row replication. Let
-\[
-\widetilde{\mathcal{U}}_\ell=
-\bigl(
-\widetilde{\mathbf{u}}^{(1)}_\ell,\ldots,
-\widetilde{\mathbf{u}}^{(s)}_\ell
-\bigr)
-\in (\mathbb{F}^N)^s
-\]
-denote the aligned bundle, and define the interleaved bundle
-\[
-\operatorname{Int}(\widetilde{\mathcal{U}}_1,\ldots,\widetilde{\mathcal{U}}_m)
-:=
-\Bigl(
-\operatorname{Int}(\widetilde{\mathbf{u}}^{(1)}_1,\ldots,\widetilde{\mathbf{u}}^{(1)}_m),
-\ldots,
-\operatorname{Int}(\widetilde{\mathbf{u}}^{(s)}_1,\ldots,\widetilde{\mathbf{u}}^{(s)}_m)
-\Bigr).
-\]
-Then all original pointwise claims hold if and only if the interleaved bundle
-satisfies
-\[
-\Psi\!\left(
-\widehat{\mathbf{u}}^{(1)}[z],\ldots,\widehat{\mathbf{u}}^{(s)}[z]
-\right)=0
-\qquad
-\forall z\in[mN],
-\]
-where
-\[
-(\widehat{\mathbf{u}}^{(1)},\ldots,\widehat{\mathbf{u}}^{(s)})
-:=
-\operatorname{Int}(\widetilde{\mathcal{U}}_1,\ldots,\widetilde{\mathcal{U}}_m).
-\]
+Maintain a multiset of active pairs, initially
+$\{(u_i(X),n_i)\}_{i\in[m]}$, and recursively apply the following merge
+procedure.
+\begin{enumerate}
+  \item If two active pairs have the same domain size $n$, replace them by one
+  active pair of domain size $2n$ obtained by pairwise interleaving their
+  corresponding components as in \cref{def:pairwise-interleaving}.
+  \item Otherwise, let $n_i<n_j$ be the two smallest active domain sizes. Set
+  $r=n_j/n_i$. Replace $(u_i(X),n_i)$ by $(u_i(X^r),n_j)$.
+  \item Repeat until one active pair
+  $(\widehat{u}(X),\widehat{n})$
+  remains.
+\end{enumerate}
+Then:
+\begin{enumerate}
+  \item all original pointwise claims hold if and only if
+  \[
+  \Psi\!\left(
+  \rho;\widehat{u}(z)
+  \right)=0
+  \qquad
+  \forall z\in\mathbb{H}_{\widehat{n}};
+  \]
+  \item the final domain size satisfies
+  \[
+  \widehat{n}
+  =
+  2^{\left\lceil \log_2(n_1+\cdots+n_m)\right\rceil}.
+  \]
+\end{enumerate}
 \end{theorem}
 
 \begin{proof}
-For each aligned position $x\in[N]$ and each bundle index $\ell\in[m]$, the
-interleaved coordinate $z=xm+\ell-1$ stores exactly the tuple
+For the first claim, the lifting step is exactly the setting of
+\cref{lem:row-replication}: if $r=n_j/n_i$, then the substitution
+$X\mapsto X^r$ repeats the rows of $u_i(X)$ periodically on the larger domain
+$\mathbb{H}_{n_j}$. Therefore the row-wise relation $\Psi(\rho;\cdot)=0$ holds
+before lifting if and only if it holds after lifting. Once two active pairs
+share one domain, pairwise interleaving places one tuple on the even positions
+and the other on the odd positions of the doubled domain. Thus the merged pair
+satisfies the same pointwise relation if and only if both original pairs do.
+Recursing proves the first item.
+
+For the second claim, each merge step replaces two power-of-two domain sizes
+$a\leq b$ by one new size $2b$. This is exactly
+$2^{\lceil \log_2(a+b)\rceil}$: if $a=b$, the claim is immediate; if $a<b$,
+then $a\leq b/2$, so
 \[
-\bigl(
-\widetilde{\mathbf{u}}^{(1)}_\ell[x],\ldots,
-\widetilde{\mathbf{u}}^{(s)}_\ell[x]
-\bigr).
+b < a+b \leq \frac{3b}{2} < 2b,
 \]
-Hence the interleaved pointwise claim is just a re-indexing of the $mN$ aligned
-pointwise claims. The equivalence follows immediately.
+and therefore
+\[
+2^{\lceil \log_2(a+b)\rceil}=2b.
+\]
+
+We now prove by induction on the number of active pairs that the final domain
+size is $2^{\lceil \log_2(\sum_i n_i)\rceil}$. The base case $m=1$ is trivial.
+For the induction step, let $a\leq b$ be the two sizes merged first, and let
+$R$ be the sum of all remaining sizes. Because the algorithm chooses the two
+smallest active domains, every remaining size is a power of two at least $b$,
+so $R$ is a multiple of $b$. Let
+\[
+c:=2^{\lceil \log_2(a+b)\rceil}=2b.
+\]
+After the first merge, the algorithm continues on a reduced multiset whose
+total size is $R+c$. By the induction hypothesis, the final size is
+$2^{\lceil \log_2(R+c)\rceil}$. It remains to show that
+\[
+2^{\lceil \log_2(R+c)\rceil}
+=
+2^{\lceil \log_2(R+a+b)\rceil}.
+\]
+Write $R=kb$ with $k\in\mathbb{Z}_{\ge 0}$. Since $b$ is itself a power of two,
+\[
+2^{\lceil \log_2(bx)\rceil}
+=
+b\cdot 2^{\lceil \log_2 x\rceil}
+\]
+for every positive real $x$. Therefore it suffices to compare
+\[
+x:=k+1+\frac{a}{b}
+\qquad\text{and}\qquad
+y:=k+2.
+\]
+We have $x\in(y-1,y]$. If $y$ is not a power of two, then no power of two lies
+in the interval $(y-1,y]$, so
+\[
+2^{\lceil \log_2 x\rceil}=2^{\lceil \log_2 y\rceil}.
+\]
+If $y=2^t$, then $x>2^t-1\ge 2^{t-1}$, hence both $x$ and $y$ lie in the same
+dyadic interval $(2^{t-1},2^t]$ and again have the same power-of-two ceiling.
+Thus
+\[
+2^{\lceil \log_2(R+c)\rceil}
+=
+2^{\lceil \log_2(R+a+b)\rceil},
+\]
+which completes the induction.
 \end{proof}
 
 Theorem~\ref{thm:interleaving-batch} is useful when the protocol produces many
 small nonlinear checks of the same form. Examples include several lookup-style
-table-difference checks and several same-form rounding relations of the form
-$n=qd+r$ with bounded remainder. Rather than assign a separate batch to each
-local check, the prover aligns the bundles and proves one larger pointwise
-relation on the interleaved object.
+table-difference checks, several same-form rounding relations of the form
+$n=qd+r$ with bounded remainder, and other small gadgets that share one local
+rule together with one public parameter tuple. Rather than assign a separate
+batch to each local instance, the prover recursively lifts and interleaves them
+into one larger virtual bundle and proves one resulting pointwise relation. The
+merged bundle is still virtual: every component is assembled from existing
+commitments by public sparse selectors and domain-lift substitutions, so no new
+base commitment is required. In concrete protocols, we first group checks by
+their shared public parameters, such as a common lookup table or a common
+divisor, and then apply the theorem within each group.

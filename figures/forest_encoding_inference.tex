@@ -42,7 +42,7 @@
       row 1/.style={nodes={font=\bfseries}},
       column 1/.style={nodes={minimum width=7mm}},
       column 2/.style={nodes={minimum width=11mm}},
-      column 3/.style={nodes={minimum width=7mm}},
+      column 3/.style={nodes={minimum width=17mm}},
       column 4/.style={nodes={minimum width=9mm}},
       column 5/.style={nodes={minimum width=18mm}},
       column 6/.style={nodes={minimum width=24mm}},
@@ -118,17 +118,17 @@
 
     \matrix[bigtable, anchor=north west] (tbl) at (1.15,2.55) {
       $\mathbf{u}$ \& $\mathit{tree}$ \& $\mathbf{E}$ \& $\boldsymbol{\Theta}$ \& $\mathbf{N}^{\leftarrow}$ \& $\mathbf{N}^{\rightarrow}$ \& $\mathbf{score}$ \\
-      $0$ \& $t_0$ \& $1$ \& $3$ \& $(0,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
-      $1$ \& $t_0$ \& $2$ \& $4$ \& $(0,0)$ \& $(3,B{+}1)$ \& $0$ \\
-      $2$ \& $t_1$ \& $1$ \& $2$ \& $(0,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
-      $3$ \& $t_1$ \& $2$ \& $6$ \& $(2,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
-      $4$ \& $t_0$ \& $0$ \& $0$ \& $(0,0)$ \& $(3,4)$ \& $w_0$ \\
-      $5$ \& $t_0$ \& $0$ \& $0$ \& $(0,4)$ \& $(3,B{+}1)$ \& $w_1$ \\
-      |[fetchtxt]| $6$ \& |[fetchtxt]| $t_0$ \& |[fetchtxt]| $0$ \& |[fetchtxt]| $0$ \& |[fetchtxt]| $(3,0)$ \& |[fetchtxt]| $(B{+}1,B{+}1)$ \& |[fetchtxt]| $w_2$ \\
-      $7$ \& $t_1$ \& $0$ \& $0$ \& $(0,0)$ \& $(2,B{+}1)$ \& $w'_0$ \\
-      |[fetchtxt]| $8$ \& |[fetchtxt]| $t_1$ \& |[fetchtxt]| $0$ \& |[fetchtxt]| $0$
+      $0$ \& $t_0$ \& $(1,0)$ \& $3$ \& $(0,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
+      $1$ \& $t_0$ \& $(0,1)$ \& $4$ \& $(0,0)$ \& $(3,B{+}1)$ \& $0$ \\
+      $2$ \& $t_1$ \& $(1,0)$ \& $2$ \& $(0,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
+      $3$ \& $t_1$ \& $(0,1)$ \& $6$ \& $(2,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
+      $4$ \& $t_0$ \& $(0,0)$ \& $0$ \& $(0,0)$ \& $(3,4)$ \& $w_0$ \\
+      $5$ \& $t_0$ \& $(0,0)$ \& $0$ \& $(0,4)$ \& $(3,B{+}1)$ \& $w_1$ \\
+      |[fetchtxt]| $6$ \& |[fetchtxt]| $t_0$ \& |[fetchtxt]| $(0,0)$ \& |[fetchtxt]| $0$ \& |[fetchtxt]| $(3,0)$ \& |[fetchtxt]| $(B{+}1,B{+}1)$ \& |[fetchtxt]| $w_2$ \\
+      $7$ \& $t_1$ \& $(0,0)$ \& $0$ \& $(0,0)$ \& $(2,B{+}1)$ \& $w'_0$ \\
+      |[fetchtxt]| $8$ \& |[fetchtxt]| $t_1$ \& |[fetchtxt]| $(0,0)$ \& |[fetchtxt]| $0$
         \& |[fetchtxt]| $(2,0)$ \& |[fetchtxt]| $(B{+}1,6)$ \& |[fetchtxt]| $w'_1$ \\
-      $9$ \& $t_1$ \& $0$ \& $0$ \& $(2,6)$ \& $(B{+}1,B{+}1)$ \& $w'_2$ \\
+      $9$ \& $t_1$ \& $(0,0)$ \& $0$ \& $(2,6)$ \& $(B{+}1,B{+}1)$ \& $w'_2$ \\
     };
 
     % Column background boxes
@@ -177,11 +177,9 @@
   \caption{A multi-tree explanation in the style of \cite{cq++24}, adapted to
   our committed-forest setting. The left panel shows two compact trees with
   global node identifiers, and the right panel shows the row-oriented committed
-  state used by inference. For compactness, the `$\mathbf{E}$' column displays
-  the selected feature index rather than the full one-hot row, while
-  `$\boldsymbol{\Theta}$' displays the selected threshold bin. The highlighted
-  entries are the fetched rows for one query, one per tree. Batched inference
-  performs this fetch for every tree-sample pair in one shot and then
-  aggregates leaf scores across trees.}
+  state used by inference. The highlighted entries are the fetched rows for one
+  query, one per tree. Batched inference performs this fetch for every
+  tree-sample pair in one shot and then aggregates scores across trees for
+  each sample-class pair.}
   \label{fig:forest-encoding-inference}
 \end{figure}
