@@ -3,10 +3,10 @@
 This paper formulates a proof architecture for quantized GBDT in which the
 central training difficulty, namely optimal split selection, is handled through
 a dedicated primitive layer rather than through a monolithic generic circuit.
-The key ingredients are a common batched zero-check template, a domain-lifting
-argument for heterogeneous subgroup sizes, replication and interleaving tools
-for reshaping committed objects, and aggregation/histogram relations that
-expose split search as tensor algebra. This organization is intended to fit the
+The key ingredients are a common batched zero-check template, domain-lifting
+batching for heterogeneous subgroup sizes, replication and interleaving
+batching for reshaping committed objects, and aggregation/histogram relations
+that expose split search as tensor algebra. This organization is intended to fit the
 style of a security-systems paper: the core protocol is presented as a small
 catalog of relations, the imported and new components are separated cleanly,
 and the tree-specific training logic remains explicit throughout the proof.

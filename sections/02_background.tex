@@ -154,6 +154,32 @@ instead of proving a sorting procedure in zero knowledge, we prove the
 correctness of the histogram statistics from which the trainer derives the same
 split scores.
 
+\subsection{Quantization and Fixed-Point Reduction}
+
+Our proof does not work with raw floating-point arithmetic. The feature values
+are already quantized into bins, and the remaining real-valued quantities are
+carried in fixed-point form. Concretely, if a real value $x$ is represented
+with $q$ fractional bits, we store the integer
+\[
+\lfloor 2^q x \rfloor.
+\]
+Decoding means dividing by the same public scale $2^q$, with the floor rule
+fixing the rounding convention.
+
+This matches the trainer semantics: thresholds are selected as bin indices,
+split gains and leaf values are computed after a fixed-point rescaling, and the
+softmax-related tables are tabulated on a power-of-two grid. The recurring
+proof obligation therefore has the form
+\[
+a = \left\lfloor \frac{b}{2^q} \right\rfloor
+\qquad\text{or equivalently}\qquad
+b = a \cdot 2^q + r,
+\]
+with a public divisor $2^q$ and a range condition on the quotient or remainder.
+This is exactly the kind of same-form local check that later fits
+interleaving batching: once the domains are aligned, many fixed-point
+quantization claims can be merged into one virtual instance.
+
 \subsection{What Must Be Proved}
 
 At a high level, a proof of GBDT training must justify four kinds of steps:

@@ -215,19 +215,20 @@ verifier can batch them as
 \]
 for a random challenge $\eta$.
 
-We call this \emph{domain-lifted batching}. It lets us merge linear claims
+We call this \emph{domain-lifting batching}. It lets us merge linear claims
 that are initially written over different domains by first rewriting the
 smaller one over the larger domain and then applying an ordinary same-domain
 batch.
 
-\paragraph{Interleaving batch.}
+\paragraph{Interleaving batching.}
 The second batching problem concerns same-form nonlinear checks that are
 \emph{local}: validity at one position depends only on the witness values at
-that position, not on any other entry of the vector. Typical examples in our setting
-include lookup-style checks against one common table, range checks against one
-public range table. If each local
-instance is proved per PCS, the proof size scales with the number of
-instances even though the check itself is always the same.
+that position, not on any other entry of the vector. Typical examples in our
+setting include lookup-style checks against one common table and range checks
+against one public range table. If each local instance is proved per PCS, the
+proof size
+scales with the number of instances even though the check itself is always the
+same.
 
 The basic case is two vectors of the same length. Suppose
 $\mathbf{f},\mathbf{g}\in\mathbb{F}^n$ must both satisfy the same local

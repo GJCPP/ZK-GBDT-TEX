@@ -1,38 +1,38 @@
-\section{Batched Proof Tools}\label{sec:tools}
+\section{Proof-Batching Tools}\label{sec:tools}
 
-This section states the two batching tools used repeatedly in the protocol. The
-first handles heterogeneous linear identities that initially live on different
-polynomial domains. The second handles many same-form nonlinear checks after
-their witness bundles have been aligned to a common shape. Together they cover
-the two batching patterns that recur throughout the rest of the construction.
+This section presents the two batching tools used repeatedly in the protocol.
+The first handles heterogeneous linear identities whose natural domains
+differ. The second merges many same-form local nonlinear checks into one
+larger virtual instance. Together they cover the two batching patterns that
+recur throughout the rest of the construction.
 Standard divisibility-based zero checks and same-domain batching already appear
 in prior proof systems such as Aurora and CQ++ \cite{aurora19,cq++24}. Our
-contribution here is to isolate two stronger reusable tools: one for lifting
-heterogeneous-domain linear claims before batching, and one for interleaving
-aligned same-form nonlinear claims into a single pointwise relation.
+contribution here is to isolate two reusable tools: domain-lifting batching for
+heterogeneous linear claims, and interleaving batching for aligned same-form
+nonlinear claims.
 
-\subsection{Domain-Lifted Batch}
+\subsection{Domain-Lifting Batching}
 
-To the best of our knowledge, domain-lifted batch is new as a reusable
-heterogeneous-domain batching theorem in this line of KZG-based protocol
-design. We use divisibility claims because a row-wise identity over
-$\mathbb{H}_n$ is equivalent to the statement that its residual polynomial
-vanishes on every point of $\mathbb{H}_n$, and therefore is divisible by the
-vanishing polynomial $\nu_n(X)$. The theorem below formalizes how such claims
-can be lifted to a common larger domain before batching.
+As explained earlier, most linear constraints in our construction are first
+expressed as zero-checks over some evaluation domain $\mathbb{H}_n$. The
+following theorem shows how to batch many such claims together even when their
+natural domains differ. The key idea is to lift each claim from its original
+domain to a common larger domain, so the lifted claim is still a zero-check
+but now over the same domain as the others. After lifting, we can apply an
+ordinary same-domain batch to combine all claims into one.
 
-\begin{theorem}[Domain-lifted batch]
-\label{thm:domain-lifted-batch}
+\begin{theorem}[Domain-lifting batching]
+\label{thm:domain-lifting-batching}
 Let
 \[
-1 \leq n_1 < n_2 < \cdots < n_m = N
+2 \leq n_1 \leq n_2 \leq \cdots \leq n_m = N
 \]
 be powers of two. For each $i \in [m]$, let $F_i(X)$ be a virtual polynomial
 and suppose the target claim is
 \[
 F_i(X)=Q_i(X)\nu_{n_i}(X)
 \]
-for some polynomial $Q_i(X)$. Define the lifted residual
+for some polynomial $Q_i(X)$. Define the lifted polynomial
 \[
 \widehat{F}_i(X):=
 F_i(X)\frac{\nu_N(X)}{\nu_{n_i}(X)}.
@@ -43,11 +43,11 @@ Then:
   $\widehat{F}_i(X)$ is divisible by $\nu_N(X)$.
   \item For a verifier challenge $\eta$, all $m$ claims can be combined into
   the single identity
-  \begin{equation}\label{eq:domain-lifted-batch}
+  \begin{equation}\label{eq:domain-lifting-batching}
   \sum_{i=1}^{m}\eta^{i-1}\widehat{F}_i(X)=Q(X)\nu_N(X).
   \end{equation}
   \item If at least one original claim is false, then
-  \eqref{eq:domain-lifted-batch} holds for at most $m-1$ values of $\eta$.
+  \eqref{eq:domain-lifting-batching} holds for at most $m-1$ values of $\eta$, i.e. the soundness error is at most $(m-1)/|\mathbb{F}|$.
 \end{enumerate}
 \end{theorem}
 
@@ -59,24 +59,22 @@ F_i(X)=Q_i(X)\nu_{n_i}(X)
 F_i(X)\frac{\nu_N(X)}{\nu_{n_i}(X)} = Q_i(X)\nu_N(X).
 \]
 For soundness, once the lifted residuals are reduced modulo $\nu_N(X)$, the
-left-hand side of \eqref{eq:domain-lifted-batch} becomes a polynomial in $\eta$
+left-hand side of \eqref{eq:domain-lifting-batching} becomes a polynomial in $\eta$
 of degree at most $m-1$. If at least one original claim is false, this
 polynomial is nonzero, so a uniformly random $\eta$ causes accidental
 acceptance with probability at most $(m-1)/|\mathbb{F}|$.
 \end{proof}
 
-Theorem~\ref{thm:domain-lifted-batch} is the protocol's main tool for batching
+Theorem~\ref{thm:domain-lifting-batching} is the protocol's main tool for batching
 heterogeneous linear identities. Later we apply it to routing equations,
 padding-induced tensor equalities, and other zero-check-style relations whose
 natural domains are not identical.
 
-\subsection{Interleaved Batch}
+\subsection{Interleaving Batching}
 
-To the best of our knowledge, interleaved batch is likewise new as a reusable
-way to collapse many same-form nonlinear gadget instances into one larger
-virtual instance. The intended setting is that many checks share the same local
-rule and the same public parameters, but arrive as separate witness bundles on
-possibly different power-of-two domains. We first record the alignment lemma
+The intended setting for interleaving batching is that many checks share the
+same local rule and the same public parameters, but arrive as separate 
+PCS and witness on possibly different power-of-two domains. We first record the alignment lemma
 used to place smaller objects on larger domains.
 
 \begin{lemma}[Row replication]
@@ -94,7 +92,7 @@ V(X)=v(X^r).
 For every $i\in[r]$ and $j\in[m]$,
 \[
 V(\omega_{rm}^{im+j})
-= \mathbf{V}[i][j]
+= \mathbf{V}[i,j]
 = \mathbf{v}[j]
 = v(\omega_m^j)
 = v((\omega_{rm}^{im+j})^r),
@@ -114,7 +112,7 @@ over $\mathbb{H}_n$, where $n$ is a power of two. Define
 \]
 Their evaluations on $\mathbb{H}_{2n}$ are the alternating selectors
 $(1,0,1,0,\ldots)$ and $(0,1,0,1,\ldots)$. The pairwise interleaving of
-$f(X)$ and $g(X)$ is the virtual polynomial
+$f(X)$ and $g(X)$ is defined as the virtual polynomial
 \[
 \operatorname{Int}_n(f,g)(X)
 :=
@@ -128,42 +126,30 @@ Its evaluation vector over $\mathbb{H}_{2n}$ is
 \]
 \end{definition}
 
-\begin{theorem}[Interleaving batch]
+\begin{theorem}[Interleaving batching]
 \label{thm:interleaving-batch}
-For each $i\in[m]$, let $u_i(X)$ denote the full witness bundle of one gadget
-instance over $\mathbb{H}_{n_i}$, where each $n_i$ is a power of two. We write
-$u_i(a)$ for the local tuple extracted from that bundle at
-$a\in\mathbb{H}_{n_i}$. After grouping together the instances that share the
-same public data, assume every point must satisfy one common local relation
+For each $i\in[m]$, let $u_i(X)$ denote the polynomial encoding a vector of
+length $n_i$ over $\mathbb{H}_{n_i}$, where each $n_i$ is a power of two. For
+some (non-linear) constraint $\varphi$, suppose the target claim is that all
+$m$ pointwise relations
 \[
+\forall i \in [m],\ \forall a\in\mathbb{H}_{n_i}\quad
 \varphi\!\left(
 u_i(a)
-\right)=0
-\qquad
-\forall a\in\mathbb{H}_{n_i}.
+\right)=0.
 \]
-Maintain a multiset of active pairs, initially
-$\{(u_i(X),n_i)\}_{i\in[m]}$, and recursively apply the following merge
-procedure.
-\begin{enumerate}
-  \item If two active pairs have the same domain size $n$, replace them by one
-  active pair of domain size $2n$ obtained by pairwise interleaving their
-  corresponding components as in \cref{def:pairwise-interleaving}.
-  \item Otherwise, let $n_i<n_j$ be the two smallest active domain sizes. Set
-  $r=n_j/n_i$. Replace $(u_i(X),n_i)$ by $(u_i(X^r),n_j)$.
-  \item Repeat until one active pair
-  $(\widehat{u}(X),\widehat{n})$
-  remains.
-\end{enumerate}
-Then:
+There exists an algorithm that combines these $m$ claims into one
+check over a single virtual polynomial $\widehat{u}(X)$ over domain
+$\mathbb{H}_{\widehat{n}}$, using only domain lifts and pairwise interleaving
+and introducing no new PCS commitment. Using two scans over power-of-two
+domain sizes, it runs in $O(m+\log \hat{n})$ time. This algorithm guarantees:
 \begin{enumerate}
   \item all original pointwise claims hold if and only if
   \[
+  \forall z\in\mathbb{H}_{\widehat{n}}\quad
   \varphi\!\left(
   \widehat{u}(z)
-  \right)=0
-  \qquad
-  \forall z\in\mathbb{H}_{\widehat{n}};
+  \right)=0;
   \]
   \item the final domain size satisfies
   \[
@@ -171,87 +157,98 @@ Then:
   =
   2^{\left\lceil \log_2(n_1+\cdots+n_m)\right\rceil}.
   \]
+  \item any opening claim for $\widehat{u}(X)$ is reduced to one opening for each
+  original $u_i(X)$, and the verifier can check the claim in
+  $O(m\log \widehat{n})$ time.
 \end{enumerate}
 \end{theorem}
 
 \begin{proof}
-For the first claim, the lifting step is exactly the setting of
-\cref{lem:row-replication}: if $r=n_j/n_i$, then the substitution
-$X\mapsto X^r$ repeats the entries of the evaluation vector of $u_i(X)$
-periodically on the larger domain $\mathbb{H}_{n_j}$. Therefore the pointwise
-relation $\varphi(\cdot)=0$ holds
-before lifting if and only if it holds after lifting. Once two active pairs
-share one domain, pairwise interleaving places one tuple on the even positions
-and the other on the odd positions of the doubled domain. Thus the merged pair
-satisfies the same pointwise relation if and only if both original pairs do.
-Recursing proves the first item.
+Start from the active multiset $\{(u_i(X),n_i)\}_{i\in[m]}$.
+We first store all pairs with same domain size in the same bucket.
+Then we perform two scans over the buckets.
+In the first scan, process the buckets from small to large domain size and
+merge equal-sized pairs whenever a bucket contains at least two active pairs.
+Each such merge uses pairwise interleaving as in
+\cref{def:pairwise-interleaving}. After this pass, every bucket contains at
+most one active pair, and the total size $\sum_i n_i$ is unchanged.
 
-For the second claim, each merge step replaces two power-of-two domain sizes
-$a\leq b$ by one new size $2b$. This is exactly
-$2^{\lceil \log_2(a+b)\rceil}$: if $a=b$, the claim is immediate; if $a<b$,
-then $a\leq b/2$, so
+In the second scan, repeatedly take the two smallest active pairs. If their
+sizes differ, lift the smaller one to the larger domain using
+$X\mapsto X^r$ with $r=n_j/n_i$; then interleave the pair. Repeat
+until one active pair $(\widehat{u}(X),\widehat{n})$ remains.
+
+Because the domain sizes are powers of two, the two scans touch only
+$O(\log \hat{n})$ buckets, and each merge or lift removes one active pair, so the
+implementation runs in $O(m+\log \hat{n})$ time.
+
+For property~(1), lifting is exactly the setting of \cref{lem:row-replication}:
+if $r=n_j/n_i$, then $X\mapsto X^r$ repeats the entries of $u_i(X)$ on the
+larger domain $\mathbb{H}_{n_j}$. So the pointwise relation $\varphi(\cdot)=0$
+holds before lifting if and only if it holds after lifting. Pairwise
+interleaving preserves the same relation for the same reason,
+since all entries are preserved.
+Repeating these two facts over the two scans proves property~(1).
+
+For property~(2), note that the first scan preserves the total size
+$S:=n_1+\cdots+n_m$. If we denote the
+sizes after the first scan by $n_1'<\cdots<n_s'$, then
 \[
-b < a+b \leq \frac{3b}{2} < 2b,
+\sum_{i=1}^m n_i = \sum_{i=1}^s n_s'\implies n_s' = 2^{\left\lfloor \log_2(n_1+\cdots+n_m)\right\rfloor}.
 \]
-and therefore
+If $n_s' = 2^{\log_2(n_1+\cdots+n_m)}$,
+there $s=1$ and there is no second scan, and the property~(2) holds.
+Otherwise,
+the second scan pushes the size to $2 n_s'$,
+and thus
 \[
-2^{\lceil \log_2(a+b)\rceil}=2b.
+\widehat{n}= 2 n_s' = 2^{\left\lceil \log_2(n_1+\cdots+n_m)\right\rceil}.
 \]
 
-We now prove by induction on the number of active pairs that the final domain
-size is $2^{\lceil \log_2(\sum_i n_i)\rceil}$. The base case $m=1$ is trivial.
-For the induction step, let $a\leq b$ be the two sizes merged first, and let
-$R$ be the sum of all remaining sizes. Because the algorithm chooses the two
-smallest active domains, every remaining size is a power of two at least $b$,
-so $R$ is a multiple of $b$. Let
-\[
-c:=2^{\lceil \log_2(a+b)\rceil}=2b.
-\]
-After the first merge, the algorithm continues on a reduced multiset whose
-total size is $R+c$. By the induction hypothesis, the final size is
-$2^{\lceil \log_2(R+c)\rceil}$. It remains to show that
-\[
-2^{\lceil \log_2(R+c)\rceil}
-=
-2^{\lceil \log_2(R+a+b)\rceil}.
-\]
-Write $R=kb$ with $k\in\mathbb{Z}_{\ge 0}$. Since $b$ is itself a power of two,
-\[
-2^{\lceil \log_2(bx)\rceil}
-=
-b\cdot 2^{\lceil \log_2 x\rceil}
-\]
-for every positive real $x$. Therefore it suffices to compare
-\[
-x:=k+1+\frac{a}{b}
-\qquad\text{and}\qquad
-y:=k+2.
-\]
-We have $x\in(y-1,y]$. If $y$ is not a power of two, then no power of two lies
-in the interval $(y-1,y]$, so
-\[
-2^{\lceil \log_2 x\rceil}=2^{\lceil \log_2 y\rceil}.
-\]
-If $y=2^t$, then $x>2^t-1\ge 2^{t-1}$, hence both $x$ and $y$ lie in the same
-dyadic interval $(2^{t-1},2^t]$ and again have the same power-of-two ceiling.
-Thus
-\[
-2^{\lceil \log_2(R+c)\rceil}
-=
-2^{\lceil \log_2(R+a+b)\rceil},
-\]
-which completes the induction.
+For property~(3), note that for interleaving,
+the verifier can compute the sparse selectors by itself.
+And for row-replication $u(X)\mapsto u(X^r) = v(X)$, the opening of $v(x)$ for any $x\in \mathbb{F}$ is trivially reduced to the opening of $u(x^r)$.
+Hence, the verifier can check any opening claim for $\widehat{u}(X)$ by checking one opening claim for each original $u_i(X)$,
+which incurs $O(m\log \widehat{n})$ time to compute the selectors and check the claims.
 \end{proof}
 
+\subsection{Explicit Lookup Batching Example}
+
+As a concrete application for interleaving batching, suppose we have several lookup families indexed by
+$i\in[s]$. For each family, there is a public table $\mathbf{t}_i$ and a
+collection of vector queries $\mathbf{f}_{i,1},\ldots,\mathbf{f}_{i,m_i}$ such
+that every query satisfies $\mathbf{f}_{i,j}\subseteq \mathbf{t}_i$.
+
+We batch them in three steps. First, for each fixed $i$, we interleave the
+queries $\mathbf{f}_{i,1},\ldots,\mathbf{f}_{i,m_i}$ into one family-level
+query vector $\mathbf{f}_i$. Second, we shift each table by a random challenge
+$\alpha$ and form $\widetilde{\mathbf{t}}_i:=\alpha^i+\mathbf{t}_i$, so that
+different tables are separated with high probability. We then interleave the
+shifted tables into one combined table vector $\mathbf{t}$. Third, we
+interleave the family-level query vectors $\mathbf{f}_1,\ldots,\mathbf{f}_s$
+into one global query vector $\mathbf{f}$.
+
+This yields a single lookup claim
+\[
+\mathbf{f}\subseteq \mathbf{t},
+\]
+which can be proved with one lookup argument instead of one argument per
+family. The benefit is that the prover amortizes the lookup proof across all
+tables while keeping the query structure explicit. The random shifts prevent
+cross-table collisions, and the interleaving steps preserve the original
+within-family lookup relations.
+
+A second example is fixed-point quantization. Suppose several checks all prove
+relations of the form
+\[
+a_i = \left\lfloor \frac{b_i}{2^q} \right\rfloor
+\]
+for the same public divisor $2^q$ and the same rounding rule. These are again
+same-form local checks: after aligning the domains of the witness vectors, we
+interleave them and obtain one larger quantization check. This is the pattern
+behind the fixed-point gain, leaf-value, and normalization relations that
+appear later in the construction.
+
 Theorem~\ref{thm:interleaving-batch} is useful when the protocol produces many
-small nonlinear checks of the same form. Examples include several lookup-style
-table-difference checks, several same-form rounding relations of the form
-$n=qd+r$ with bounded remainder, and other small gadgets that share one local
-rule together with one public parameter tuple. Rather than assign a separate
-batch to each local instance, the prover recursively lifts and interleaves them
-into one larger virtual bundle and proves one resulting pointwise relation. The
-merged bundle is still virtual: every component is assembled from existing
-commitments by public sparse selectors and domain-lift substitutions, so no new
-base commitment is required. In concrete protocols, we first group checks by
-their shared public parameters, such as a common lookup table or a common
-divisor, and then apply the theorem within each group.
+small nonlinear checks of the same form, and lookup batching across different
+tables is one of the main examples in our construction.

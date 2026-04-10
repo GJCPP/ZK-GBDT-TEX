@@ -49,9 +49,9 @@ We study zero-knowledge proofs for quantized gradient boosted decision trees
 (GBDTs). The main bottleneck is not tree inference itself, but proving that each
 boosting round uses the split that maximizes the training objective without
 reducing the entire algorithm to a large generic circuit. Our approach keeps the
-tree-specific structure explicit. We use a domain-lifted batch theorem to
-combine heterogeneous linear identities and an interleaving batch theorem to
-combine same-form nonlinear checks, with replication used to align witness
+tree-specific structure explicit. We use domain-lifting batching to combine
+heterogeneous linear identities and interleaving batching to combine same-form
+nonlinear checks, with replication used to align witness
 shapes before batching. We then introduce aggregation and histogram relations
 that expose split search as algebra over per-node, per-feature, and per-bin
 statistics. This leads to a training proof organized around a small catalog of

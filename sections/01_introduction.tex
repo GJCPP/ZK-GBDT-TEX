@@ -36,7 +36,7 @@ Our construction combines four ingredients. First, we encode the forest with
 the hyperbox-style representation used in zero-knowledge decision-tree
 inference \cite{cq++24}. Second, we use lookup-based techniques to fetch node
 data while keeping proofs short. Third, we introduce two batching tools:
-domain-lifted batching for heterogeneous linear identities and interleaved
+domain-lifting batching for heterogeneous linear identities and interleaving
 batching for same-form nonlinear checks, with replication used to align shapes
 before batching. Fourth, we design histogram and aggregation primitives that
 expose the quantities needed for split search in a form amenable to KZG-based
@@ -54,8 +54,8 @@ technical novelty for the tree-specific training layer.
   of the paper's contribution set. These primitives bridge leaf assignments,
   per-bin statistics, prefix sums, and split scores.
   \item We organize the remaining algebraic machinery around three reusable
-  tools: domain lifting for heterogeneous linear checks, replication for moving
-  information across shapes, and interleaving batch arguments for combining
+  tools: domain-lifting batching for heterogeneous linear checks, replication
+  for moving information across shapes, and interleaving batching for combining
   nonlinear constraints.
   \item We show how these ingredients fit together into proofs of batched
   forest inference and iterative GBDT training.

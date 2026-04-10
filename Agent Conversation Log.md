@@ -1664,3 +1664,63 @@
 - 运行了 `latexmk -pdf main.tex`；
 - 编译成功，`main.pdf` 已更新；
 - 这轮只收缩了 overview 的展示范围，没有改 theorem 或协议语义。
+
+### 本轮补充
+
+- 将论文正文中的术语统一为 `domain-lifting batching` 和 `interleaving batching`；
+- 同步更新了摘要、引言、协议节、结论和附录中的 visible 表述；
+- 同时把对应 theorem / equation 标签也改成了新的命名，保持源文件检索一致。
+
+### 本轮继续
+
+- 继续检查全文里 `batch` 相关表述的自然程度；
+- 把摘要、引言、`3.4`、`4` 节、结论和附录里偏生硬的句子改得更直接；
+- 保持协议语义不变，只优化叙述流畅度和术语一致性。
+
+### 本轮索引统一
+
+- 扫描全文中的二维矩阵索引写法；
+- 将 `\mathbf{V}[i][j]` 统一改为 `\mathbf{V}[i,j]`；
+- 重新编译确认没有影响正文排版或交叉引用。
+
+### 本轮 theorem 4.4
+
+- 将 `4.4` 的 interleaving batching theorem 改写成“递归合并算法 + 证明”的结构；
+- statement 中直接列出 lift / interleave 的 merge 规则；
+- proof 中保留 row-replication 和 pairwise interleaving 的正确性论证，并用归纳给出最终 domain size 结论。
+
+### 本轮再调整
+
+- 按你的要求，把 theorem statement 改成“存在一个算法”；
+- statement 只陈述该算法能合并为单个 check、不会引入新的 PCS，并满足性质 1/2；
+- proof 中再展开具体 merge 算法与两个性质的证明。
+
+### 本轮补充性质
+
+- 在 `4.4` 的 interleaving batching theorem 中新增 opening / verification 复杂度性质；
+- 现在 theorem 明确说明：`widehat{u}` 的 opening 可归约到各个 `u_i` 的 opening；
+- 同时补充 verifier 侧的 `O(n\log \widehat{n})` 检查开销表述。
+
+### 本轮简化
+
+- 重新梳理了 theorem 4.4 的 statement 和 proof，保留三条原始性质；
+- statement 仍只说明“存在一个算法”，proof 中给出具体 merge 过程；
+- 压缩了 proof 中关于实现和复杂度的重复解释，保留 row-replication、interleaving 和 domain-size 的核心论证。
+
+### 本轮两遍 scan
+
+- 将 theorem 4.4 的 proof 改成两遍 scan 结构；
+- 第一遍按桶从小到大合并相同 size 的 pair，并保持总 size 不变；
+- 第二遍再取最小的两个 active pair 合并，从而更直接地推出 property 2 的 domain-size 上界和最终取整结果。
+
+### 本轮 lookup example
+
+- 在 `4.2` 后新增了一个 explicit lookup batching example；
+- 例子说明如何先在每个 table 内 interleave queries，再用随机平移把不同 table 合成一个大 table；
+- 最后把所有 family-level query 再 interleave 成一个总 query，并用一次 lookup 证明 `\mathbf{f}\subseteq \mathbf{t}`。
+
+### 本轮 quantization
+
+- 在 sec 2 新增了 `Quantization and Fixed-Point Reduction` 小节；
+- 用统一的 fixed-point 视角解释了 feature bin、$2^q$ 量化、floor rounding，以及后续的 divisibility / quotient 约束；
+- 在 `4.2` 后补了一个 interleaving batching 的 quantization 例子，强调多个同 divisor + rounding 的固定点检查可以合并成一个虚拟实例。

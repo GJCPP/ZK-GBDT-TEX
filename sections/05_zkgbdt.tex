@@ -245,7 +245,7 @@ dimensions, they satisfy
 \end{align}
 These are linear identities, so they are absorbed into the batched polynomial
 identity used for the round. If padding places the participating tensors on
-different subgroup sizes, \cref{thm:domain-lifted-batch} lifts them to a common
+different subgroup sizes, \cref{thm:domain-lifting-batching} lifts them to a common
 ambient domain first.
 
 For each class $k$, the prover next commits prefix tensors
@@ -385,8 +385,8 @@ following:
   \item the soundness of the imported lookup, softmax, or max-selection
   subprotocols;
   \item the random-linear-combination soundness of
-  \cref{thm:domain-lifted-batch};
-  \item the soundness of the interleaved pointwise reductions;
+  \cref{thm:domain-lifting-batching};
+  \item the soundness of the interleaving-batched pointwise reductions;
   \item the random-evaluation soundness of aggregation.
 \end{itemize}
 For aggregation, the standard check is to compare
@@ -407,5 +407,5 @@ round soundness error is
 \]
 plus the error terms of the imported subprotocols. Domain lifting introduces no
 additional soundness term beyond the random linear combination in
-\eqref{eq:domain-lifted-batch}; it only rewrites smaller-domain claims into the
+\eqref{eq:domain-lifting-batching}; it only rewrites smaller-domain claims into the
 same ambient divisibility check.
