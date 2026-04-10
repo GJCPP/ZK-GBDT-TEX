@@ -124,19 +124,20 @@ $f(X)$ and $g(X)$ is the virtual polynomial
 \]
 Its evaluation vector over $\mathbb{H}_{2n}$ is
 \[
-(f_0,g_0,f_1,g_1,\ldots,f_{n-1},g_{n-1}).
+(f[0],g[0],f[1],g[1],\ldots,f[n-1],g[n-1]).
 \]
 \end{definition}
 
 \begin{theorem}[Interleaving batch]
 \label{thm:interleaving-batch}
 For each $i\in[m]$, let $u_i(X)$ denote the full witness bundle of one gadget
-instance over $\mathbb{H}_{n_i}$, where each $n_i$ is a power of two. Assume
-all instances share one public parameter tuple $\rho$ and must satisfy the same
-pointwise relation
+instance over $\mathbb{H}_{n_i}$, where each $n_i$ is a power of two. We write
+$u_i(a)$ for the local tuple extracted from that bundle at
+$a\in\mathbb{H}_{n_i}$. After grouping together the instances that share the
+same public data, assume every point must satisfy one common local relation
 \[
-\Psi\!\left(
-\rho;u_i(a)
+\varphi\!\left(
+u_i(a)
 \right)=0
 \qquad
 \forall a\in\mathbb{H}_{n_i}.
@@ -158,8 +159,8 @@ Then:
 \begin{enumerate}
   \item all original pointwise claims hold if and only if
   \[
-  \Psi\!\left(
-  \rho;\widehat{u}(z)
+  \varphi\!\left(
+  \widehat{u}(z)
   \right)=0
   \qquad
   \forall z\in\mathbb{H}_{\widehat{n}};
@@ -176,8 +177,9 @@ Then:
 \begin{proof}
 For the first claim, the lifting step is exactly the setting of
 \cref{lem:row-replication}: if $r=n_j/n_i$, then the substitution
-$X\mapsto X^r$ repeats the rows of $u_i(X)$ periodically on the larger domain
-$\mathbb{H}_{n_j}$. Therefore the row-wise relation $\Psi(\rho;\cdot)=0$ holds
+$X\mapsto X^r$ repeats the entries of the evaluation vector of $u_i(X)$
+periodically on the larger domain $\mathbb{H}_{n_j}$. Therefore the pointwise
+relation $\varphi(\cdot)=0$ holds
 before lifting if and only if it holds after lifting. Once two active pairs
 share one domain, pairwise interleaving places one tuple on the even positions
 and the other on the odd positions of the doubled domain. Thus the merged pair

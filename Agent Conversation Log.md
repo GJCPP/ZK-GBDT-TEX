@@ -1434,3 +1434,233 @@
 - 运行了 `latexmk -pdf main.tex`；
 - 编译成功，`main.pdf` 已更新；
 - 本轮没有改变 theorem 的含义，只是进一步简化了 interleaving 的符号和表述方式。
+
+## 2026-04-09 00:06:39 +0800
+
+### 用户本轮请求
+
+- 认为 3.2 中“六点流程”仍然容易引起误解；
+- 希望改成逻辑性表述，即“对于每个第 $t$ 轮，需要同时满足哪些条件”，而不是给人一种执行顺序的印象。
+
+### 本轮处理
+
+- 重写了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中 3.2 的主体段落：
+  - 保留了单个 PCS 承诺全部 `\mathbf{S}^{(t)}` 的结构性说明；
+  - 将原来的六点 pipeline 改写成“对每个 round $t$ simultaneously hold 的条件集合”；
+  - 新表述现在按逻辑关系组织为五项：
+    - 当前 boosting state `\mathbf{S}^{(t)}, \mathbf{G}^{(t)}` 的正确性；
+    - 每棵 round-`t` class-specific tree 的 leaf assignment 正确性；
+    - 由 leaf assignment 和 residual 派生出的 histogram 正确性；
+    - 由 histogram 导出的 split-score tensor 与 `(\mathbf{E}, \boldsymbol{\Theta})` 的优化性绑定；
+    - 当前 round leaf values 与下一状态 `\mathbf{S}^{(t+1)}` 的更新一致性。
+- 将结尾总结句改成“这些条件 together imply a valid plaintext GBDT training trajectory”，避免读者把这小节理解成执行脚本。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮没有改动协议含义，只调整了 3.2 的逻辑组织和表述方式。
+
+## 2026-04-09 00:13:44 +0800
+
+### 用户本轮请求
+
+- 检查 3.2 中出现的符号是否都已经在上文明确给出 shape；
+- 如果某个对象此前没有明确 shape，则要求在它第一次出现处补上。
+
+### 本轮处理
+
+- 逐项核对了 [sections/02_background.tex](sections/02_background.tex) 与 [sections/03_problem_statement.tex](sections/03_problem_statement.tex)：
+  - `\mathbf{S}^{(t)}`、`\mathbf{G}^{(t)}` 的 shape 已在 background 中定义，但为了减少读者来回翻找，在 3.2 中再次显式写成 `\mathbb{F}^{M\times K}`；
+  - `\boldsymbol{\ell}^{(t,k)}`、`\mathbf{E}`、`\boldsymbol{\Theta}` 的 shape 在 3.1 已定义，因此未重复扩写；
+  - `histograms`、`candidate split-score tensor`、`leaf values` 在 3.2 中此前只有语义，没有 shape，于是补成：
+    - histogram tensors over `N_{\mathrm{tot}}\times d\times B`；
+    - `\Gamma^{(t,k)}\in\mathbb{F}^{N_{\mathrm{int}}\times d\times B}`；
+    - `\widetilde{\mathbf{W}}^{(t)}\in\mathbb{F}^{N_{\mathrm{tot}}\times K}`；
+    - `\mathbf{S}^{(t+1)}\in\mathbb{F}^{M\times K}`。
+- 保持了 3.2 的逻辑化写法，没有再把它改回流程叙事。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮只补了 shape 信息，没有改变任何协议内容。
+
+## 2026-04-09 00:25:02 +0800
+
+### 用户本轮请求
+
+- 检查全文中的符号，确认它们第一次被定义的位置；
+- 如果某个符号出现时尚未被定义，则在适当位置补充定义或说明。
+
+### 本轮处理
+
+- 进行了一轮全文符号审计，重点检查：
+  - background 中的全局基础记号是否覆盖后文使用；
+  - technical overview 中新引入的 round-level objects 是否在首次出现处有 shape；
+  - protocol 节中局部中间变量是否存在“先用后定义”。
+- 在 [sections/05_zkgbdt.tex](sections/05_zkgbdt.tex) 中补了几类此前缺少首次说明的符号：
+  - `\mathbf{tree}_{\mathrm{int}}`：说明为 internal rows 上的 tree-index vector，leaf / padding rows 上补零；
+  - inference lookup 中的
+    `\mathbf{ind}, \mathbf{U}^{\leftarrow}, \mathbf{U}^{\rightarrow}, \mathbf{s}`：
+    补了各自的 shape 和语义；
+  - `\mathbf{tree}_{\mathrm{ext}}, \mathbf{F}^{\leftarrow}, \mathbf{F}^{\rightarrow}`：
+    说明为 committed columns 的 leaf-row restrictions；
+  - softmax 辅助对象 `\mathbf{P}^{(t)}, \mathbf{Z}^{(t)}, \mathbf{I}^{(t)}`：
+    补了 shape；
+  - prefix / total / right-side statistics：
+    补了
+    `\mathbf{C}^{(t,k)}_{\leq}, \mathbf{H}^{(t,k)}_{\leq}`,
+    `\mathbf{C}^{(t,k)}_{\Sigma}, \mathbf{H}^{(t,k)}_{\Sigma}`,
+    `\mathbf{C}^{(t,k)}_{>}, \mathbf{H}^{(t,k)}_{>}`
+    的 shape；
+  - `\Gamma^{(t,k)}`：
+    在 protocol 节首次定义处补了 shape；
+  - `\widetilde{\mathbf{n}}^{(t,k)}, \widetilde{\mathbf{a}}^{(t,k)}`,
+    `\widetilde{\mathbf{W}}^{(t)}`, `\mathbf{W}^{(t)}`：
+    补了 shape。
+- 此前在 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中已经补过
+  `\mathbf{S}^{(t)}, \mathbf{G}^{(t)}, \Gamma^{(t,k)}, \widetilde{\mathbf{W}}^{(t)}` 等
+  round-level 对象的 shape，本轮保留不动。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮完成后，全文中我检查到的主要“先用后定义”的局部技术符号都已补到首次自然出现处。
+
+## 2026-04-09 00:39:11 +0800
+
+### 用户本轮请求
+
+- 继续优化技术部分的写作；
+- 目标是让行文更流畅易懂，同时让符号更明确、更直观。
+
+### 本轮处理
+
+- 对 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 做了一轮 prose pass：
+  - 收紧 opening 段落，使“核心挑战 / 两个障碍 / 三个 ingredient”更直接；
+  - 将 3.1 开头改成更直接的 “adopt the hyperbox encoding of CQ++” 写法；
+  - 调整 3.1 里若干解释句的句法，减少机械重复；
+  - 继续收紧 3.2 的五条条件，使它们更平行、更像 correctness conditions；
+  - 将 `(\mathbf{E}, \boldsymbol{\Theta})` 等对象写成更直观的“encoded split”表述；
+  - 收紧 3.4 domain-lifted / interleaving 两段的叙事，减少绕句；
+  - 对 `u_i(a)` 增补说明：它表示从 witness bundle 在行 `a` 处抽出的 local tuple。
+- 对 [sections/04_protocol.tex](sections/04_protocol.tex) 做了轻量澄清：
+  - 在 interleaving theorem 里补了 `u_i(a)` 的解释；
+  - 保持 theorem 和 proof 的数学内容不变，只改可读性。
+- 对 [sections/05_zkgbdt.tex](sections/05_zkgbdt.tex) 做了对应的 prose 收束：
+  - batched inference 改成 “two-stage proof” 的直接表述；
+  - round-level proof graph 的说明更简洁；
+  - propagation / gain / leaf-value 小节中若干过长句被拆短；
+  - 若干局部对象改成更自然的描述，例如 “the split encoded by ...”。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮没有改协议语义，只做了写作和局部记号说明的优化。
+
+## 2026-04-10 00:10:52 +0800
+
+### 用户本轮请求
+
+- 认为 3.4 中 interleaved batch 的写作太 formal、太蹩脚；
+- 希望在 tech overview 中改成：
+  - 简要说明问题；
+  - 非正式地描述两个同形向量 `f,g` 在同一个 local constraint 下如何 batch；
+  - 说明这个约束是 local 的，只依赖当前位置的值；
+  - 简单讨论不同长度向量的情况；
+- 同时希望去掉 `\Psi_\rho` 这类不直观的符号。
+
+### 本轮处理
+
+- 重写了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中 3.4 的 interleaving 段落：
+  - 不再从抽象 predicate + parameter tuple 开始；
+  - 改成先讲“same-form local nonlinear checks”的问题；
+  - 明确写出 local 的含义：某一行是否合法只依赖该行本身，不依赖向量的其他位置；
+  - 用两个等长向量 `\mathbf f,\mathbf g` 和同一个局部约束 `\varphi(x)=0` 作为核心说明；
+  - 保留 `\operatorname{Int}_n(f,g)` 公式，但其作用现在作为例子出现，而不是抽象定义的中心；
+  - 对不同长度的情况，改成一句直观说明：先用 `X\mapsto X^r` 按 row replication 把短向量 lift 到大域，再 interleave；
+  - 结尾再回到“实际协议里是 component-wise 作用于短 witness bundles”。
+- 同步修改了 [sections/04_protocol.tex](sections/04_protocol.tex) 中 interleaving theorem 的记号：
+  - 将 theorem 里的公共局部关系从 `\Psi(\rho;\cdot)` 改成更直观的 `\varphi(\cdot)`；
+  - 将 shared public parameters 改写成一句说明，而不再塞进 predicate 记号本身。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮没有改 interleaving theorem 的数学内容，只重写了 overview 叙事并同步简化了记号。
+
+## 2026-04-10 00:16:47 +0800
+
+### 用户本轮请求
+
+- 指出 interleaving 这段不应使用 `row` 叙事；
+- 要求完全按向量视角来写，把 `f,g` 当作向量，使用 `entry / position` 一类表述。
+
+### 本轮处理
+
+- 对 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中 3.4 的 interleaving 段落做了纯措辞修正：
+  - 将 “validity at one row” 改成 “validity at one position”；
+  - 将 “row by row” 改成 “entrywise”；
+  - 将 “every row of the larger domain still corresponds ...” 改成 “every position of the larger vector ...”。
+- 对 [sections/04_protocol.tex](sections/04_protocol.tex) 中对应 theorem / proof 做了同样的视角统一：
+  - 将 “every row must satisfy” 改成 “every point must satisfy”；
+  - 将 proof 中 “repeats the rows” 改成 “repeats the entries of the evaluation vector”；
+  - 将 “row-wise relation” 改成 “pointwise relation”。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮没有改动任何数学内容，只统一了 interleaving 段落的向量化表述。
+
+## 2026-04-10 00:20:33 +0800
+
+### 用户本轮请求
+
+- 将 interleaving 示例中的向量元素记号从 `\mathbf{f}_0` 改成 `\mathbf{f}[0]`；
+- 同时要求在第 2 节检查并补充这种 bracket indexing 的说明。
+
+### 本轮处理
+
+- 修改了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex)：
+  - 将 interleaving 示例向量改成
+    `(\mathbf{f}[0], \mathbf{g}[0], \mathbf{f}[1], \mathbf{g}[1], \ldots)`。
+- 修改了 [sections/04_protocol.tex](sections/04_protocol.tex)：
+  - 将 pairwise interleaving 定义中的 evaluation vector 改成
+    `(f[0], g[0], f[1], g[1], \ldots, f[n-1], g[n-1])`。
+- 修改了 [sections/02_background.tex](sections/02_background.tex)：
+  - 在 notation 小节补了一句，说明当需要强调向量索引时，统一写成 `\mathbf{v}[i]`。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 本轮仅统一了索引记法，没有改动任何协议内容。
+
+## 2026-04-10 00:28:41 +0800
+
+### 用户本轮请求
+
+- 希望继续精简 sec 3 的 `domain-lifted batch`；
+- 要求只展示两个不同 domain size 的实例如何合并，而不是泛化到多个实例。
+
+### 本轮处理
+
+- 精简了 [sections/03_problem_statement.tex](sections/03_problem_statement.tex) 中的 `domain-lifted batch`：
+  - 去掉了多实例批处理的 general `m`-claim 叙事；
+  - 改成只讲两个线性 claim 的合并；
+  - 现在 overview 里直接说明：
+    - 两个 claim 分别写在 `\mathbb{H}_{n_1}` 和 `\mathbb{H}_{n_2}` 上；
+    - 将较小的 residual 通过 `\nu_{n_2}(X)/\nu_{n_1}(X)` lift 到大域；
+    - 然后在同一个 ambient domain 上做普通 batch。
+- 保留了正式 theorem 的完整 generality，没有改 [sections/04_protocol.tex](sections/04_protocol.tex) 的 theorem 形式。
+
+### 验证
+
+- 运行了 `latexmk -pdf main.tex`；
+- 编译成功，`main.pdf` 已更新；
+- 这轮只收缩了 overview 的展示范围，没有改 theorem 或协议语义。

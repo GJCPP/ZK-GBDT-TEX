@@ -1,24 +1,24 @@
 \section{Technical Overview}
 
-The proof system is best understood as a certification procedure for quantized
-GBDT training. The central challenge is not tree inference itself, but
-certifying that each round derives the correct per-node split statistics and
-commits a split that optimizes the training objective. Two obstacles recur
-throughout the construction. First, the proof naturally produces claims over
-different polynomial domains and tensor layouts. Second, the split-search
-objective is usually implemented through sorting or feature scans, which are
-awkward proof targets. Accordingly, this overview isolates three ingredients:
-the committed forest interface, the algebraic rewriting of split search, and
-the batching tools that make the resulting checks compose succinctly.
+The proof system is best viewed as a certification procedure for quantized GBDT
+training. The main challenge is not tree inference itself, but proving that
+every boosting round computes the correct split statistics and commits a split
+that optimizes the training objective. Two obstacles recur throughout the
+construction. First, the proof naturally produces claims over different
+polynomial domains and tensor layouts. Second, plaintext split search is
+usually implemented through sorting or feature scans, which are awkward proof
+targets. The overview below therefore isolates three ingredients: the
+committed forest interface, the algebraic rewriting of split search, and the
+batching tools that make the resulting checks compose succinctly.
 
 \subsection{Forest Representation and Batched Inference}
 
-We encode the forest using the hyperbox representation similar to the one adopted by \cite{cq++24}. Each
-node carries a feature-wise half-open interval box, and a sample reaches a leaf
-exactly when its quantized feature vector lies inside that leaf's box. The
-committed forest is organized over one global node namespace, so every row index
-$u \in [N_{\mathrm{tot}}]$ refers to the same node across all committed
-objects. The committed state is:
+We adopt the hyperbox forest encoding of \cite{cq++24}. Each node carries a
+feature-wise half-open interval box, and a sample reaches a leaf exactly when
+its quantized feature vector lies inside that box. All committed objects share
+one global node namespace, so the row index
+$u \in [N_{\mathrm{tot}}]$ refers to the same node everywhere. The committed
+forest consists of:
 \begin{itemize}
   \item routing matrices
   $\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}$,
@@ -42,11 +42,10 @@ objects. The committed state is:
   whose leaf entries store the scalar contribution returned by that tree and
   whose internal-node entries are zero or padding.
 \end{itemize}
-The matrices $\mathbf{E}$ and $\boldsymbol{\Theta}$
-serve as the witness in proving that $\mathbf{N}^{\leftarrow}$ and 
-$\mathbf{N}^{\rightarrow}$ encode a valid hyperbox forest.
-The routing matrices $\mathbf{L}$ and $\mathbf{R}$ are used in proof of training 
-to propagate histogram statistics from leaves to internal nodes.
+The pair $(\mathbf{E},\boldsymbol{\Theta})$ witnesses that
+$\mathbf{N}^{\leftarrow}$ and $\mathbf{N}^{\rightarrow}$ encode a valid
+hyperbox forest. The routing matrices $(\mathbf{L},\mathbf{R})$ are reused in
+training to propagate histogram statistics from leaves to internal nodes.
 
 \Cref{fig:forest-encoding-inference} follows the exposition style of
 \cite{cq++24}: the left panel presents two concrete trees in the global node
@@ -57,10 +56,10 @@ index, node box, and score of the accepting leaf.
 
 \input{figures/forest_encoding_inference}
 
-This encoding supports both inference and training. On the inference path, the
-protocol follows the row-fetch pattern of \cite{cq++24}. Given a query batch
+This encoding supports both inference and training. For inference, the protocol
+follows the row-fetch pattern of \cite{cq++24}. Given a query batch
 $\mathbf{X}\in[B]^{b\times d}$, the prover conceptually replicates
-$\mathbf{X}$ once per tree, determines one accepting leaf row for every
+$\mathbf{X}$ once per tree, determines the accepting leaf row of each
 tree-sample pair, and proves a batched fetch of
 \[
 (\mathbf{tree},\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow},\mathbf{score})
@@ -70,19 +69,16 @@ inside the fetched half-open box
 $[\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow})$ coordinate-wise, which
 certifies that the fetched row is exactly the accepting leaf of that tree on
 that sample. Finally, the fetched leaf scores are aggregated back along the
-tree axis to obtain the class scores. The remaining forest objects are not
-directly consumed by this inference check, but they are needed to certify that
-the committed rows really form a valid hyperbox forest and to connect the
-inference relation to the later training proof.
+tree axis to obtain the class scores. The remaining forest objects are not used
+directly in this fetch-and-containment check, but they are needed to certify
+that the committed rows do form a valid hyperbox forest and to connect
+inference with the later training proof.
 
 \subsection{Training Proof Pipeline}
 
-The training proof reuses the same committed forest and organizes the remaining
-checks into a short sequence of relations. For each round $t\in[T]$, it first
-certifies the current score matrix $\mathbf{S}^{(t)}$ and the pseudo-residual
-matrix $\mathbf{G}^{(t)}$. It then treats the $K$ class-specific trees of that
-round separately. For each class $k\in[K]$, the prover obtains a global
-leaf-assignment vector
+The training proof reuses the same committed forest and is organized around one
+logical statement per boosting round. For every round $t\in[T]$ and class
+$k\in[K]$, the prover exposes a global leaf-assignment vector
 \[
 \boldsymbol{\ell}^{(t,k)} \in
 \{N_{\mathrm{int}},\ldots,N_{\mathrm{tot}}-1\}^{M},
@@ -100,26 +96,38 @@ shared committed object. Consequently, the proof size does not grow with the
 number of boosting rounds; increasing $T$ enlarges the witness tensor and the
 prover's work, but not the PCS-level proof artifact.
 
-At a high level, the proof of round $t$ has the following structure.
+Logically, the proof of training establishes that for every round $t\in[T]$,
+all of the following conditions hold:
 \begin{enumerate}
-  \item derive the pseudo-residual matrix $\mathbf{G}^{(t)}$ from the current
-  score matrix $\mathbf{S}^{(t)}$;
-  \item for each class-specific tree $(t,k)$, aggregate leaf-indexed sample
-  contributions into count and weighted histograms;
-  \item propagate those histograms from leaves to internal nodes through the
-  committed routing matrices;
-  \item derive prefix and total statistics, then evaluate the candidate split
-  score for every feature-threshold pair;
-  \item certify that the split recorded in $\mathbf{E}$ and
-  $\boldsymbol{\Theta}$ maximizes that score tensor;
-  \item aggregate the same residuals at the leaves to obtain the leaf values of
-  the round-$t$ trees, and use those leaf values to update the score matrix to
-  $\mathbf{S}^{(t+1)}$.
+  \item the current boosting state is correct:
+  $\mathbf{S}^{(t)}\in\mathbb{F}^{M\times K}$ is the score matrix carried into
+  round $t$, and
+  $\mathbf{G}^{(t)}\in\mathbb{F}^{M\times K}$ is the pseudo-residual matrix
+  derived from $\mathbf{S}^{(t)}$ by the softmax relation;
+  \item for every class-specific tree $(t,k)$, the vector
+  $\boldsymbol{\ell}^{(t,k)}$ records exactly which leaf each sample reaches in
+  the committed tree of that round;
+  \item the histogram tensors derived from $\boldsymbol{\ell}^{(t,k)}$ and
+  $\mathbf{G}^{(t)}[\cdot,k]$ are correct, first on leaf rows and then after
+  propagation to internal nodes through the routing matrices; these tensors lie
+  in $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ over the node, feature,
+  and bin axes;
+  \item from those histograms, the protocol derives the candidate split-score
+  tensor
+  $\Gamma^{(t,k)}\in\mathbb{F}^{N_{\mathrm{int}}\times d\times B}$ for every
+  internal-node / feature / threshold triple, and the split encoded by
+  $(\mathbf{E},\boldsymbol{\Theta})$ is certified to optimize that tensor;
+  \item the same per-leaf aggregates determine a padded leaf-value matrix
+  $\widetilde{\mathbf{W}}^{(t)}\in\mathbb{F}^{N_{\mathrm{tot}}\times K}$ for
+  the round-$t$ trees, and these leaf values update the boosting state to the
+  next score matrix $\mathbf{S}^{(t+1)}\in\mathbb{F}^{M\times K}$.
 \end{enumerate}
 
-The tree-specific novelty lies in the middle of this pipeline. Rather than
-proving a sorting procedure, the protocol proves the statistics from which split
-search can be reconstructed algebraically.
+Together, these conditions imply that the committed objects encode a valid
+plaintext GBDT training trajectory across all rounds. The tree-specific novelty
+lies in the middle of this statement: instead of proving a sorting procedure,
+the protocol proves the statistics from which split search can be reconstructed
+algebraically.
 
 \subsection{Objective Rewriting for Split Search}
 
@@ -182,88 +190,55 @@ claims to the same largest domain before batching, and the second interleaves
 aligned same-form nonlinear bundles into one pointwise check.
 
 \paragraph{Domain-lifted batch.}
-Most linear constraints in the paper are first expressed as row-wise identities
-over some evaluation domain $\mathbb{H}_{n_i}$. After moving all terms to one
-side, such a constraint is reduced to a zero-check over that domain:
+Most linear constraints in the paper are first expressed over some evaluation
+domain $\mathbb{H}_n$. After moving all terms to one side, we obtain a virtual polynomial $F(X)$, and the constraint is
+reduced to a zero-check over that domain, hence to a divisibility claim of the
+form
 \[
-F_i(a)=0
-\qquad
-\forall a\in\mathbb{H}_{n_i},
+F(X)=Q(X)\nu_n(X),
 \]
-for some (virtual) polynomial $F_i(X)$. This is exactly the same as saying that
-$F_i(X)$ vanishes on the whole domain $\mathbb{H}_{n_i}$. Since
-$\nu_{n_i}(X)=X^{n_i}-1$ is the vanishing polynomial of that domain, the
-condition is equivalent to divisibility by $\nu_{n_i}(X)$:
-\[
-F_i(X)=Q_i(X)\nu_{n_i}(X)
-\]
-for some quotient polynomial $Q_i(X)$.
+where $\nu_n(X)=X^n-1$ is the vanishing polynomial of $\mathbb{H}_n$.
 
-Suppose linear identities are expressed as divisibility claims
+The basic batching problem is therefore the following: suppose we have two such
+claims, one over $\mathbb{H}_{n_1}$ and one over $\mathbb{H}_{n_2}$, with
+$n_1<n_2$. Since our domain sizes are powers of two, the smaller domain is
+nested inside the larger one. We can therefore lift the smaller claim to
+$\mathbb{H}_{n_2}$ by multiplying its residual by
+$\nu_{n_2}(X)/\nu_{n_1}(X)$:
 \[
-F_i(X)=Q_i(X)\nu_{n_i}(X),
-\qquad i\in[m],
+\widehat{F}_1(X):=F_1(X)\frac{\nu_{n_2}(X)}{\nu_{n_1}(X)}.
 \]
-where the domain sizes $n_i$ may differ. Let
-$N=\max_i n_i$ and define
+Now both claims live over the same ambient domain $\mathbb{H}_{n_2}$, and the
+verifier can batch them as
 \[
-\widehat{F}_i(X):=F_i(X)\frac{\nu_N(X)}{\nu_{n_i}(X)}.
+\widehat{F}_1(X)+\eta F_2(X)=Q(X)\nu_{n_2}(X)
 \]
-Then every original claim holds if and only if every
-$\widehat{F}_i(X)$ is divisible by $\nu_N(X)$, so the verifier can batch them as
-\[
-\sum_{i=1}^{m}\eta^{i-1}\widehat{F}_i(X)=Q(X)\nu_N(X)
-\]
-for a random challenge $\eta$. 
+for a random challenge $\eta$.
 
-We call such a technique \emph{domain-lifted batching}, which
-allows us to batch linear claims even when they are
-initially expressed over different domains, as long as those domains are nested in one common larger domain.
-Given that we assume the domain-size to be
-power-of-two, the domains are naturally nested.
+We call this \emph{domain-lifted batching}. It lets us merge linear claims
+that are initially written over different domains by first rewriting the
+smaller one over the larger domain and then applying an ordinary same-domain
+batch.
 
 \paragraph{Interleaving batch.}
-The second batching problem concerns same-form nonlinear \emph{local gadgets}.
-Fix one gadget shape, determined by shared public parameters $\rho$ and one
-pointwise rule
-\[
-\Psi_\rho(z_1,\ldots,z_s)=0.
-\]
-For each $i\in[m]$, write $u_i(X)$ for the full witness bundle of the $i$-th
-instance and let $n_i$ be its domain size. The intended claim is
-\[
-\Psi_\rho\!\left(
-u_i(a)
-\right)=0
-\qquad
-\forall a\in\mathbb{H}_{n_i}.
-\]
-Typical examples in our setting include lookup-style checks against one common
-table, range checks against one public range table, and quotient-style checks
-such as proving divisibility by a fixed power of two together with a bounded
-remainder or quotient. If each instance is proved separately, the proof size
-scales with the number of gadget instances even though the local rule
-$\Psi_\rho$ is identical.
+The second batching problem concerns same-form nonlinear checks that are
+\emph{local}: validity at one position depends only on the witness values at
+that position, not on any other entry of the vector. Typical examples in our setting
+include lookup-style checks against one common table, range checks against one
+public range table. If each local
+instance is proved per PCS, the proof size scales with the number of
+instances even though the check itself is always the same.
 
-Interleaving batch addresses exactly this situation. We first group instances
-by their shared public parameters $\rho$, and then maintain a collection of
-active pairs
+The basic case is two vectors of the same length. Suppose
+$\mathbf{f},\mathbf{g}\in\mathbb{F}^n$ must both satisfy the same local
+constraint, say $\varphi(x)=0$ entrywise. Then we can interleave them into one
+larger virtual vector
 \[
-\{(u_i(X),n_i)\}.
+(\mathbf{f}[0],\mathbf{g}[0],\mathbf{f}[1],\mathbf{g}[1],\ldots),
 \]
-If two active pairs already have the same domain size $n$, we pairwise
-interleave them and replace them by one new pair over $\mathbb{H}_{2n}$.
-Otherwise, let $n_i<n_j$ be the two smallest active domain sizes. We first
-lift the smaller pair to $\mathbb{H}_{n_j}$ by the substitution
-$X\mapsto X^r$, where $r=n_j/n_i$. By \cref{lem:row-replication}, this
-substitution replaces each row by $r$ periodic copies on the larger domain. In
-other words, it changes the proof shape but not the local tuple carried by each
-row. After this alignment step, the two active pairs again share one common
-domain and can be merged.
-
-For equal-size components, the merge is implemented with public sparse
-selectors. Two witness polynomials $f(X)$ and $g(X)$ over $\mathbb{H}_n$ are
-combined into one virtual polynomial over the doubled domain:
+and check the same local constraint once on that merged vector. In polynomial
+form, if $f(X)$ and $g(X)$ are the encodings of $\mathbf{f}$ and $\mathbf{g}$
+over $\mathbb{H}_n$, the merged object is
 \[
 \operatorname{Int}_n(f,g)(X)
 :=
@@ -276,42 +251,12 @@ where
 \qquad
 \operatorname{odd}_n(X):=\frac{1-X^n}{2}.
 \]
-These public sparse selectors place one instance on the even positions and the
-other on the odd positions, so the merged evaluation vector is
-\[
-(f_0,g_0,f_1,g_1,\ldots).
-\]
-The same merge is applied component-wise to every commitment in the witness
-bundle. Since every point of the larger domain still corresponds to one
-concrete original row, the same local rule $\Psi_\rho$ can be checked once on
-the merged bundle. Repeating
-\[
-\text{equal-size merge}
-\qquad\text{or}\qquad
-\text{lift the smaller pair to the next larger domain and merge}
-\]
-yields one final active pair $(u(X),n)$ covering the whole group. The formal
-theorem in \cref{thm:interleaving-batch} shows that
-\[
-n = 2^{\left\lceil \log_2(n_1+\cdots+n_m)\right\rceil}.
-\]
+These public sparse selectors place $\mathbf{f}$ on the even positions and
+$\mathbf{g}$ on the odd positions, so every position of the larger vector still
+corresponds to one concrete original entry.
 
+If the two vectors have different lengths, we first lift the smaller one to the
+larger domain by the substitution $X\mapsto X^r$, exactly as in \cref{lem:row-replication}.
 The important point is that the merged object is still virtual: it is assembled
 from existing commitments, public sparse masks, and domain-lift substitutions,
-so no new base commitment is required. To the best of our knowledge, this
-lift-and-interleave view is new as a reusable batching move in this setting. It
-is complementary to domain-lifted batch: domain lifting unifies heterogeneous
-linear claims, whereas interleaving unifies same-form nonlinear gadget
-instances after they have been aligned.
-
-The construction will package these two ideas as two reusable batching theorems:
-one for heterogeneous linear claims and one for same-form nonlinear claims.
-
-\subsection{Organization of the Construction}
-
-The rest of the paper follows this decomposition. Section~\ref{sec:tools} states
-the two batching theorems and the replication lemma used inside the second one.
-Section~\ref{sec:zkgbdt-protocol} then instantiates these tools in the ZK-GBDT
-protocol, covering committed-forest well-formedness, batched inference,
-round-by-round training, and soundness composition. A full protocol skeleton is
-given in Appendix~\ref{app:pseudocode}.
+so no new base commitment is required.

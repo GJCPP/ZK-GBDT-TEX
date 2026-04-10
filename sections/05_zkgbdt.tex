@@ -43,6 +43,8 @@ single-selection checks, together with the geometric consistency constraints
 \mathbf{L}\mathbf{tree} &= \mathbf{R}\mathbf{tree}
 = \mathbf{tree}_{\mathrm{int}}. \label{eq:tree-consistency}
 \end{align}
+Here $\mathbf{tree}_{\mathrm{int}}\in[TK]^{N_{\mathrm{tot}}}$ denotes the
+tree-index vector on internal rows, extended by zeros on leaf and padding rows.
 The remaining hyperbox equations are the usual ones: the selected coordinate is
 split at the chosen threshold indicated by $\boldsymbol{\Theta}[u]$, while
 every non-selected coordinate is inherited unchanged by both children.
@@ -56,9 +58,9 @@ reason about $\mathbf{X}^{\mathrm{rep}}$ through the replicated encoding
 obtained by the substitution $X \mapsto X^{TK}$ rather than asking for a
 separate commitment.
 
-The inference protocol consists of a row fetch followed by a box-containment
-check. The prover computes the accepting leaf of every sample in every tree and
-proves correctness in two steps.
+The inference proof has two stages: row fetch and box containment. For every
+tree-sample pair, the prover identifies the accepting leaf and then proves that
+this leaf is the correct one.
 \begin{enumerate}
   \item It proves a concatenated matrix lookup
   \begin{equation}\label{eq:inference-lookup}
@@ -68,8 +70,14 @@ proves correctness in two steps.
   \mathbf{tree}_{\mathrm{ext}}\ \|\ \mathbf{F}^{\leftarrow}\ \|\ 
   \mathbf{F}^{\rightarrow}\ \|\ \mathbf{score},
   \end{equation}
-  where each row on the left fetches, for one tree-sample pair, the tree index,
-  the lower and upper hyperbox bounds, and the leaf score.
+  where
+  $\mathbf{ind}\in[TK]^{bTK}$,
+  $\mathbf{U}^{\leftarrow},\mathbf{U}^{\rightarrow}\in[B+1]^{bTK\times d}$,
+  and $\mathbf{s}\in\mathbb{F}^{bTK}$ are the fetched tree indices, lower and
+  upper boxes, and leaf scores for the $bTK$ tree-sample pairs; and
+  $\mathbf{tree}_{\mathrm{ext}}, \mathbf{F}^{\leftarrow},
+  \mathbf{F}^{\rightarrow}$ denote the leaf-row restrictions of
+  $\mathbf{tree}, \mathbf{N}^{\leftarrow}, \mathbf{N}^{\rightarrow}$.
   \item It proves the range relation
   \begin{equation}\label{eq:inference-range}
   \mathbf{U}^{\leftarrow} \leq \mathbf{X}^{\mathrm{rep}} <
@@ -78,14 +86,14 @@ proves correctness in two steps.
 \end{enumerate}
 
 The fetched leaf scores are then summed across trees to obtain the final
-class-score vector for each sample. Operationally, this is aggregation along
-the tree dimension after reshaping into round and class axes.
+class-score vector of each sample. Operationally, this is aggregation along the
+tree axis after reshaping into round and class axes.
 
 \subsection{Round-Level Training Proof}
 
-The training proof is best read as a round-level proof graph rather than as a
+The training proof is best read as a round-level dependency graph rather than a
 single monolithic argument. Each round introduces a small family of committed
-tensors, and each tensor is linked to earlier ones through a short list of
+tensors, and each one is linked to earlier objects through a short list of
 recurring checks: lookup, aggregation, prefix sums, zero-safe divisions, and
 max-selection constraints.
 
@@ -111,7 +119,7 @@ maintain:
   \item the selected feature-threshold pair of every internal node.
 \end{itemize}
 All of these round-indexed views are slices or derived slices of globally
-committed objects. In particular, the score-update relations for all rounds are
+committed objects. In particular, the score-update relations of all rounds are
 batched into one shared boosting-state proof rather than proved in separate PCS
 instances.
 
@@ -167,7 +175,9 @@ The right-hand side is proved by a lookup from the leaf-index vector into
 $\widetilde{\mathbf{W}}^{(t-1)}$, followed by a linear consistency check.
 
 To derive pseudo-residuals, the prover commits auxiliary matrices
-$\mathbf{P}^{(t)}, \mathbf{Z}^{(t)}, \mathbf{I}^{(t)}$ satisfying
+$\mathbf{P}^{(t)}\in\mathbb{F}^{M\times K}$,
+$\mathbf{Z}^{(t)}\in\mathbb{F}^{M}$, and
+$\mathbf{I}^{(t)}\in\mathbb{F}^{M}$ satisfying
 \begin{align}
 \mathbf{P}^{(t)}[r,k] &= \exp(\mathbf{S}^{(t)}[r,k]), \label{eq:softmax-exp}\\
 \mathbf{Z}^{(t)}[r] &= \sum_{c=0}^{K-1}\mathbf{P}^{(t)}[r,c], \label{eq:softmax-sum}\\
@@ -211,14 +221,14 @@ satisfy
 \boldsymbol{\ell}^{(t,k)}[r]=u \wedge \mathbf{D}[r,j]=b
 \right]. \label{eq:leaf-weight-hist}
 \end{align}
-These are the two histogram relations that drive the rest of the protocol: one
-for counts and one for weighted sums. Internal-node rows of these leaf-supported
-tensors are constrained to zero.
+These are the two basic histogram relations used by the rest of the protocol:
+one for counts and one for weighted sums. Internal-node rows of these
+leaf-supported tensors are constrained to zero.
 
 \paragraph{Propagation and split-score derivation.}
 Leaf-supported histograms determine the full all-node histograms
 $\mathbf{C}^{(t,k)}$ and $\mathbf{H}^{(t,k)}$. After flattening the last two
-dimensions, these tensors satisfy
+dimensions, they satisfy
 \begin{align}
 \Flat\!\bigl(\mathbf{C}^{(t,k)}\bigr)
 &=
@@ -233,13 +243,14 @@ dimensions, these tensors satisfy
 + \mathbf{R}\Flat\!\bigl(\mathbf{H}^{(t,k)}\bigr).
 \label{eq:internal-H}
 \end{align}
-These are linear identities and are absorbed into the batched polynomial
+These are linear identities, so they are absorbed into the batched polynomial
 identity used for the round. If padding places the participating tensors on
 different subgroup sizes, \cref{thm:domain-lifted-batch} lifts them to a common
 ambient domain first.
 
 For each class $k$, the prover next commits prefix tensors
-$\mathbf{C}^{(t,k)}_{\leq}, \mathbf{H}^{(t,k)}_{\leq}$ satisfying
+$\mathbf{C}^{(t,k)}_{\leq}, \mathbf{H}^{(t,k)}_{\leq}
+\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ satisfying
 \begin{align}
 \mathbf{C}^{(t,k)}_{\leq}[u,j,b]
 &=
@@ -249,6 +260,11 @@ $\mathbf{C}^{(t,k)}_{\leq}, \mathbf{H}^{(t,k)}_{\leq}$ satisfying
 \sum_{q=0}^{b}\mathbf{H}^{(t,k)}[u,j,q]. \label{eq:prefix-weight}
 \end{align}
 The corresponding totals
+\[
+\mathbf{C}^{(t,k)}_{\Sigma},\mathbf{H}^{(t,k)}_{\Sigma}
+\in\mathbb{F}^{N_{\mathrm{tot}}\times d}
+\]
+are
 \begin{align}
 \mathbf{C}^{(t,k)}_{\Sigma}[u,j]
 &=
@@ -257,8 +273,12 @@ The corresponding totals
 &=
 \sum_{q=0}^{B-1}\mathbf{H}^{(t,k)}[u,j,q]
 \end{align}
-are ordinary sums over the bin dimension. The right-side statistics are then
-derived by subtraction:
+ordinary sums over the bin dimension. The right-side statistics
+\[
+\mathbf{C}^{(t,k)}_{>},\mathbf{H}^{(t,k)}_{>}
+\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}
+\]
+are then derived by subtraction:
 \begin{align}
 \mathbf{C}^{(t,k)}_{>}[u,j,b]
 &=
@@ -277,7 +297,9 @@ $\boldsymbol{\chi}^{(t,k)} \in \{0,1\}^{N_{\mathrm{int}}\times d\times B}$ such 
 \ \wedge\
 \mathbf{C}^{(t,k)}_{>}[u,j,b] > 0.
 \]
-The candidate split-score tensor is then defined by the zero-safe identity
+The candidate split-score tensor
+$\Gamma^{(t,k)}\in\mathbb{F}^{N_{\mathrm{int}}\times d\times B}$ is then
+defined by the zero-safe identity
 \begin{equation}\label{eq:gain-tensor}
 \Gamma^{(t,k)}[u,j,b]
 =
@@ -292,9 +314,9 @@ The candidate split-score tensor is then defined by the zero-safe identity
 \Bigg).
 \end{aligned}
 \end{equation}
-When the mask equals one, \eqref{eq:gain-tensor} is exactly the objective of
+When the mask equals one, \eqref{eq:gain-tensor} is exactly the objective in
 \eqref{eq:split-objective}. When the mask equals zero, the score is forced to
-zero and the division remains well defined.
+zero so that the division remains well defined.
 
 \paragraph{Optimal split certification.}
 For each internal node, the prover commits feature-wise maxima
@@ -335,8 +357,12 @@ The same leaf-index vector also induces per-leaf counts and residual sums:
 \mathbf{1}\!\left[\boldsymbol{\ell}^{(t,k)}[r]=u\right]. \label{eq:leaf-sum}
 \end{align}
 Both are obtained by aggregating per-sample contributions according to the
-global leaf index. The padded leaf-value matrix
-$\widetilde{\mathbf{W}}^{(t)}$ is then defined by
+global leaf index. Here
+$\widetilde{\mathbf{n}}^{(t,k)},\widetilde{\mathbf{a}}^{(t,k)}
+\in\mathbb{F}^{N_{\mathrm{tot}}}$.
+The padded leaf-value matrix
+$\widetilde{\mathbf{W}}^{(t)}\in\mathbb{F}^{N_{\mathrm{tot}}\times K}$ is then
+defined by
 \begin{equation}\label{eq:leaf-value}
 \widetilde{\mathbf{W}}^{(t)}[u,k]
 =
@@ -344,7 +370,9 @@ $\widetilde{\mathbf{W}}^{(t)}$ is then defined by
 {\widetilde{\mathbf{n}}^{(t,k)}[u]},
 \end{equation}
 again with the standard zero-safe masking on padded or unused leaves. The
-compact leaf-only matrix $\mathbf{W}^{(t)}$ is obtained by restricting
+compact leaf-only matrix
+$\mathbf{W}^{(t)}\in\mathbb{F}^{(N_{\mathrm{tot}}-N_{\mathrm{int}})\times K}$
+is obtained by restricting
 $\widetilde{\mathbf{W}}^{(t)}$ to leaf rows. Finally, the next-round score
 matrix is proved using \eqref{eq:score-update}.
 
