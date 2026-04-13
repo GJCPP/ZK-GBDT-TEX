@@ -66,271 +66,261 @@ flattened in row-major order before commitment.}
 
 \subsection{KZG Polynomial Commitments}
 
-We use the KZG polynomial commitment scheme~\cite{kate2010constant}. Let
-$\mathbb{F}$ be a field, and let $\mathcal{P}_{<d}$ denote the set of univariate
-polynomials over $\mathbb{F}$ of degree strictly smaller than $d$.
-A KZG commitment scheme for degree bound $d_{\max}$ consists of the following
-algorithms.
+We use a KZG-based polynomial commitment scheme (PCS) for univariate polynomials.
+The PCS consists of the following algorithms:
 
 \begin{itemize}
-    \item $\Setup(1^\lambda, d_{\max}) \to \mathsf{pp}$:
-    on input the security parameter $\lambda$ and a maximum supported degree
-    $d_{\max}$, outputs public parameters $\mathsf{pp}$.
-    In the structured-reference-string setting, $\mathsf{pp}$ contains the KZG
-    commitment key and verification key for polynomials of degree $< d_{\max}$.
+    \item $\Setup(1^\lambda, d_{\max}) \rightarrow \pp$:
+    Generates public parameters supporting commitments to polynomials of degree at most $d_{\max}$.
 
-    \item $\Commit(\mathsf{pp}, f) \to C$:
-    on input $\mathsf{pp}$ and a polynomial $f \in \mathcal{P}_{<d_{\max}}$,
-    outputs a commitment $C$ to $f$.
+    \item $\Commit(\pp, f) \rightarrow c$:
+    Commits to a polynomial $f$ and outputs a commitment $c$.
 
-    \item $\Open(\mathsf{pp}, f, z) \to (v,\pi)$:
-    on input $\mathsf{pp}$, a polynomial $f \in \mathcal{P}_{<d_{\max}}$, and a point
-    $z \in \mathbb{F}$, outputs the evaluation $v = f(z)$ together with an opening
-    proof $\pi$ attesting that the committed polynomial evaluates to $v$ at $z$.
+    \item $\Open(\pp, f, z) \rightarrow (v, \pi)$:
+    Given a polynomial $f$ and an evaluation point $z$, outputs the evaluation
+    $v = f(z)$ together with an opening proof $\pi$.
 
-    \item $\Verify(\mathsf{pp}, C, z, v, \pi) \to \{0,1\}$:
-    on input $\mathsf{pp}$, a commitment $C$, a point $z \in \mathbb{F}$, a value
-    $v \in \mathbb{F}$, and an opening proof $\pi$, outputs $1$ iff $\pi$
-    is a valid proof that the polynomial committed in $C$ evaluates to $v$ at $z$.
-
-    \item $\ProveDegBound(\mathsf{pp}, f, d) \to \pi_{\deg}$:
-    on input $\mathsf{pp}$, a polynomial $f \in \mathcal{P}_{<d_{\max}}$, and a target
-    degree bound $d \le d_{\max}$, outputs a proof $\pi_{\deg}$ that
-    $\deg(f) < d$.
-
-    \item $\VerifyDegBound(\mathsf{pp}, C, d, \pi_{\deg}) \to \{0,1\}$:
-    on input $\mathsf{pp}$, a commitment $C$, a target degree bound $d$,
-    and a degree-bound proof $\pi_{\deg}$, outputs $1$ iff $\pi_{\deg}$
-    is a valid proof that the polynomial committed in $C$ has degree $< d$.
+    \item $\Verify(\pp, c, z, v, \pi) \rightarrow \{0,1\}$:
+    Verifies that $v$ is the correct evaluation of the polynomial committed in $c$
+    at point $z$.
 \end{itemize}
 
-We rely on the following standard properties of the commitment scheme.
+\paragraph{Batched openings.}
+In addition to single-point openings, we use a batched opening interface that
+allows the prover to open multiple evaluation claims together.
 
 \begin{itemize}
-    \item \textbf{Correctness.}
-    If a prover commits to a polynomial $f$ and then honestly generates an opening proof
-    for a point $z$, verification accepts and returns the correct value $f(z)$.
-    Likewise, if the prover honestly generates a degree-bound proof for $f$,
-    then degree verification accepts.
+    \item $\BatchOpen(\pp, \{f_i\}_{i \in [m]}, \{Q_i\}_{i \in [m]})
+    \rightarrow (\{v_{i,z}\}_{i \in [m], z \in Q_i}, \Pi)$:
+    For each committed polynomial $f_i$ and each query point set $Q_i$,
+    outputs all claimed evaluations $v_{i,z} = f_i(z)$ together with a single
+    batched proof $\Pi$.
 
-    \item \textbf{Binding.}
-    After publishing a commitment $C$, the prover cannot later open it to two different
-    values at the same point. Intuitively, the commitment uniquely fixes the polynomial
-    being committed to.
-
-    \item \textbf{Sound degree certification.}
-    A prover cannot produce a valid degree-bound proof for a polynomial whose degree
-    exceeds the claimed bound, except with negligible probability.
+    \item $\BatchVerify(\pp, \{c_i\}_{i \in [m]}, \{Q_i\}_{i \in [m]},
+    \{v_{i,z}\}_{i \in [m], z \in Q_i}, \Pi) \rightarrow \{0,1\}$:
+    Verifies that all claimed evaluations are consistent with the corresponding
+    commitments.
 \end{itemize}
+
+\paragraph{Properties.}
+We rely on the following standard properties. First, honestly generated openings
+and batched openings always verify. Second, commitments are binding: after a
+commitment is published, the prover cannot later open it to a different value at
+the same point. Third, batched verification is sound: a prover cannot convince
+the verifier of incorrect evaluation claims, except with negligible probability.
 
 \subsection{Gradient Boosted Decision Trees}
 
-We prove the correct execution of a \emph{fixed quantized trainer semantics}.
-It is closest to Friedman-style gradient boosting with regression trees on
-pseudo-residuals, while borrowing the histogram-based split search familiar
-from quantized systems such as XGBoost \cite{friedman01,xgboost16}. The paper
-does \emph{not} claim to prove the full semantics of a production XGBoost
-trainer with Hessian-based gains, regularization, or implementation-dependent
-heuristics.
+Given a commitment to a forest, the task of proof of training is to show that
+the forest arises from a valid execution of the GBDT training procedure.
 
 Let $\mathbf{D}\in[B]^{M\times d}$ be the quantized training dataset, where
 $M$ is the number of samples, $d$ is the number of features, and each feature
 value lies in one of $B$ bins. Let $\mathbf{Y}\in\{0,1\}^{M\times K}$ be the
-one-hot label matrix for a $K$-class task. We treat the number of rounds $T$,
-the learning rate $\mu$, the quantization parameters, and the tree-shape policy
-as public parameters of the statement being proved.
+one-hot label matrix for a $K$-class classification task. We treat the number
+of boosting rounds $T$, the learning rate $\mu$, the quantization parameters,
+and the tree-shape policy as public parameters of the statement being proved.
 
-Training proceeds for $T$ boosting rounds with public learning rate $\mu$. For
-each round $t\in[T]$, the learner maintains a score matrix
-$\mathbf{S}^{(t)} \in \mathbb{F}^{M\times K}$, where
-$\mathbf{S}^{(t)}[r,k]$ is the current class-$k$ score of sample $r$ before the
-$t$-th round is added. We initialize $\mathbf{S}^{(0)}=\mathbf{0}$. The class
-probabilities are obtained by a row-wise softmax:
-\begin{align}
-\mathbf{P}^{(t)}[r,k] &:= \exp(\mathbf{S}^{(t)}[r,k]), \\
-\mathbf{Z}^{(t)}[r] &:= \sum_{c=0}^{K-1}\mathbf{P}^{(t)}[r,c], \\
-\boldsymbol{\pi}^{(t)}[r,k] &:= \frac{\mathbf{P}^{(t)}[r,k]}{\mathbf{Z}^{(t)}[r]}.
-\end{align}
-For the multinomial logistic loss, the pseudo-residual matrix is
+\paragraph{Boosting view.}
+GBDT trains an additive model over $T$ rounds. In each round $t\in[T]$, the
+learner maintains a score matrix $\mathbf{S}^{(t)}\in\mathbb{F}^{M\times K}$,
+where $\mathbf{S}^{(t)}[r,k]$ is the current score of sample $r$ for class $k$
+before the trees of round $t$ are added. We initialize
+$\mathbf{S}^{(0)}=\mathbf{0}$.
+
+The current class probabilities are obtained by applying softmax row-wise:
+\begin{equation}
+\boldsymbol{\pi}^{(t)}[r,k]
+:=
+\frac{\exp(\mathbf{S}^{(t)}[r,k])}
+{\sum_{k'\in[K]} \exp(\mathbf{S}^{(t)}[r,k'])}.
+\end{equation}
+For the multinomial logistic loss, the negative gradient with respect to the
+score matrix is
 \begin{equation}\label{eq:plain-pseudoresidual}
 \mathbf{G}^{(t)}[r,k]
 :=
 \mathbf{Y}[r,k]-\boldsymbol{\pi}^{(t)}[r,k].
 \end{equation}
-Thus each column $\mathbf{G}^{(t)}[\cdot,k]$ is the regression target used to
-train the tree for class $k$ in round $t$.
+We refer to $\mathbf{G}^{(t)}$ as the pseudo-residual matrix. Thus, in round
+$t$, the learner trains one regression tree for each class $k\in[K]$ to fit the
+target vector $\mathbf{G}^{(t)}[\cdot,k]\in\mathbb{F}^{M}$.
 
-More concretely, for every class $k\in[K]$, the learner builds one regression
-tree $f^{(t,k)}:[B]^d\to\mathbb{F}$ whose leaves carry scalar outputs. Once all
-$K$ trees of round $t$ have been trained, the score matrix is updated by
+\paragraph{Regression tree.}
+Fix a round $t$ and a class $k$. The learner constructs a regression tree
+$f^{(t,k)}:[B]^d\to\mathbb{F}$, which is a binary decision tree whose leaves
+carry scalar prediction values. Each internal node $u$ is labeled by a feature
+index $j_u\in[d]$ and a threshold bin $b_u\in[B]$. Given a sample
+$\mathbf{x}\in[B]^d$, routing at node $u$ is determined by the predicate
+$\mathbf{x}[j_u] < b_u$: if it holds, the sample is sent to the left child of
+$u$; otherwise it is sent to the right child. The output
+$f^{(t,k)}(\mathbf{x})$ is the value stored at the leaf reached by this routing
+procedure.
+
+Equivalently, during training, each node $u$ is associated with the set
+$I_u\subseteq[M]$ of samples currently reaching $u$. The root contains all
+samples, i.e., $I_{\mathrm{root}}=[M]$, and each split partitions the parent
+sample set into the left and right child sample sets.
+
+\paragraph{How a node is split.}
+For the class-$k$ tree in round $t$, let
+\[
+g_r := \mathbf{G}^{(t)}[r,k]
+\]
+denote the regression target attached to sample $r$. Consider a node $u$ with
+current sample set $I_u$. For a candidate split specified by a feature
+$j\in[d]$ and a threshold bin $b\in[B]$, define
+\begin{align}
+L_{u,j,b} &:= \{\, r\in I_u : \mathbf{D}[r,j] < b \,\},\\
+R_{u,j,b} &:= \{\, r\in I_u : \mathbf{D}[r,j] \ge b \,\}.
+\end{align}
+The quality of this split is measured by the residual sum of squares (RSS):
+\begin{equation}\label{eq:rss-plain}
+\operatorname{RSS}(u,j,b)
+=
+\sum_{r\in L_{u,j,b}} (g_r-\bar{g}_L)^2
++
+\sum_{r\in R_{u,j,b}} (g_r-\bar{g}_R)^2,
+\end{equation}
+where
+\[
+\bar{g}_L := \frac{1}{|L_{u,j,b}|}\sum_{r\in L_{u,j,b}} g_r,
+\qquad
+\bar{g}_R := \frac{1}{|R_{u,j,b}|}\sum_{r\in R_{u,j,b}} g_r
+\]
+are the empirical means on the two sides. Intuitively, the split is good if the
+targets assigned to each child are well concentrated around a single mean.
+
+Among all \emph{valid} candidates, namely those for which both
+$L_{u,j,b}\neq\varnothing$ and $R_{u,j,b}\neq\varnothing$, the trainer selects a
+feature-threshold pair minimizing \eqref{eq:rss-plain}.
+
+Once the tree structure is fixed, each leaf $\ell$ is assigned the mean target
+value of the samples that reach it. Writing $I_\ell\subseteq[M]$ for the sample
+set of leaf $\ell$, its output value is
+\begin{equation}\label{eq:plain-leaf-value}
+w_{\ell}^{(t,k)}
+:=
+\frac{1}{|I_\ell|}\sum_{r\in I_\ell} \mathbf{G}^{(t)}[r,k].
+\end{equation}
+Therefore, for every training sample $r$, the tree prediction
+$f^{(t,k)}(\mathbf{D}[r,\cdot])$ is exactly the leaf value associated with the
+leaf reached by sample $r$.
+
+\paragraph{Round update.}
+After training all $K$ regression trees
+$\{f^{(t,k)}\}_{k\in[K]}$ in round $t$, the learner updates the score matrix by
+adding the tree outputs with learning rate $\mu$:
 \begin{equation}\label{eq:plain-score-update}
 \mathbf{S}^{(t+1)}[r,k]
 =
 \mathbf{S}^{(t)}[r,k] + \mu\, f^{(t,k)}(\mathbf{D}[r,\cdot]).
 \end{equation}
-At inference time, the same rule is applied to a fresh sample
-$\mathbf{x}\in[B]^d$: the ensemble accumulates the class scores
+This completes round $t$. The next round recomputes
+$\boldsymbol{\pi}^{(t+1)}$, forms the new pseudo-residual matrix
+$\mathbf{G}^{(t+1)}$ using \eqref{eq:plain-pseudoresidual}, and trains a fresh
+collection of $K$ regression trees against those updated targets. After $T$
+rounds, the forest consists of the $TK$ trees trained all rounds.
+
+At inference time, for a fresh sample $\mathbf{x}\in[B]^d$, the model
+accumulates the per-class scores
 \[
-\sum_{t=0}^{T-1}\mu\, f^{(t,k)}(\mathbf{x}),
+\sum_{t=0}^{T-1} f^{(t,k)}(\mathbf{x})
+\qquad\text{for each }k\in[K],
 \]
-and the final class probabilities are obtained by applying softmax to those
-$K$ accumulated scores.
+and predicts from the resulting $K$-dimensional score vector, typically by
+applying softmax.
 
-The proof-critical step is therefore the training of each regression tree. A
-tree is grown according to a fixed public shape policy; the proof then
-certifies that the committed split metadata and leaf values are compatible with
-that policy. At a node $u$, let $I_u \subseteq [M]$ denote the training samples
-that currently reach $u$, and let
-$g_r := \mathbf{G}^{(t)}[r,k]$ be the target value attached to sample $r$ for
-the class being trained. For a feature $j$ and threshold bin $b$, splitting on
-$(j,b)$ partitions $I_u$ into
-\begin{align*}
-L_{u,j,b} &:= \{r\in I_u : \mathbf{D}[r,j] < b\}, \\
-R_{u,j,b} &:= \{r\in I_u : \mathbf{D}[r,j] \ge b\}.
-\end{align*}
-The standard residual-sum-of-squares objective is then
-\begin{equation}\label{eq:rss-plain}
-\operatorname{RSS}(u,j,b)
-=
-\sum_{r \in L_{u,j,b}} \left(g_r-\bar{g}_{L}\right)^2
-+
-\sum_{r \in R_{u,j,b}} \left(g_r-\bar{g}_{R}\right)^2,
-\end{equation}
-where $\bar{g}_{L}$ and $\bar{g}_{R}$ are the empirical means on the two sides.
-The trainer selects the feature-threshold pair that minimizes
-\eqref{eq:rss-plain} among \emph{valid} splits, namely those with
-$L_{u,j,b}\neq\varnothing$ and $R_{u,j,b}\neq\varnothing$. The semantics proved
-later does not attempt to canonicalize ties: any maximizing valid split is
-accepted. If all candidates at a node are invalid, the masked objective is zero
-for every candidate and the proved semantics is correspondingly nondeterministic
-at that node. Once the structure is fixed, each leaf $\ell$ receives the
-mean target value of the samples routed to that leaf:
-\begin{equation}\label{eq:plain-leaf-value}
-w_{\ell}^{(t,k)}
-:=
-\frac{1}{|I_{\ell}|}\sum_{r\in I_{\ell}} \mathbf{G}^{(t)}[r,k].
-\end{equation}
-In the proof, we later rewrite the split objective into a form that
-depends only on per-bin counts and sums, because that representation is much
-more amenable to polynomial commitments.
-
-In standard plaintext training, this optimization is usually implemented by
-sorting the samples at a node according to one feature at a time and then
-scanning all candidate thresholds in that sorted order. In quantized systems
-such as XGBoost, the same scan is often expressed through per-bin histograms
-rather than explicit sorting on raw feature values. This is the gap we exploit:
-instead of proving a sorting procedure in zero knowledge, we prove the
+\paragraph{Implication for the proof.}
+The proof-critical step is the correctness of the regression-tree training at
+each node, namely, that the committed split metadata and leaf values are
+consistent with the pseudo-residual targets of that round and class. In
+standard plaintext implementations, the optimizer often evaluates split
+candidates by sorting samples according to each feature and scanning candidate
+thresholds in that sorted order. In quantized systems, the same optimization is
+commonly expressed through per-bin histograms. Our proof follows the latter
+view: instead of proving a sorting procedure in zero knowledge, we prove the
 correctness of the histogram statistics from which the trainer derives the same
 split scores.
 
-\subsection{Quantization and Fixed-Point Reduction}
+\subsection{Quantization}
 
-The proof works over $\mathbb{F}$ and does not emulate floating-point
-arithmetic directly. Feature values already appear as public bin indices in
-$[B]$. All remaining real-valued quantities are represented in fixed-point
-form with one public scale
+We follow the fixed-point quantization approach used in prior works~\cite{sparrow24,zkboost26}. 
+Given a real number $x$, we encode it as a signed integer
 \[
-\Delta := 2^q.
+q_x = \lfloor x \cdot 2^Q \rfloor,
 \]
-For a real value $x$, the stored integer is $\lfloor \Delta x \rfloor$; decoding
-divides by the same public scale. Signed values are first interpreted in the
-intended signed-integer range and only then embedded into $\mathbb{F}$.
+where $Q>0$ is a public quantization parameter. The corresponding fixed-point value is then interpreted as $x \approx q_x / 2^Q$.
 
-With this convention, addition and subtraction are scale-preserving. If
-$\widehat{x}=\lfloor \Delta x\rfloor$ and
-$\widehat{y}=\lfloor \Delta y\rfloor$, then
-$\widehat{x}\pm\widehat{y}$ already represents the fixed-point value
-$x\pm y$ at the same scale $\Delta$, so no explicit rescaling step is needed.
-
-Multiplication and division are different. The product
-$\widehat{x}\widehat{y}$ lives at scale $\Delta^2$, not at scale $\Delta$; and
-an exact quotient generally leaves the fixed-point grid. Therefore every
-operation that is supposed to return to the standard scale must be accompanied
-by one explicit rounding or reduction step. Algebraically, the recurring check
-is
+Under this representation, addition is scale-preserving: if
+$x_1 \approx q_{x_1}/2^Q$ and $x_2 \approx q_{x_2}/2^Q$, then
 \[
-a = \left\lfloor \frac{b}{\Delta} \right\rfloor
-\qquad\Longleftrightarrow\qquad
-b = a\Delta + r
-\quad\text{with}\quad
-0 \le r < \Delta.
+x_1 + x_2 \approx \frac{q_{x_1}+q_{x_2}}{2^Q}.
 \]
-This is the recurring fixed-point reduction relation used later in the
-protocol: raw products or quotients are formed in the larger integer domain,
-then reduced back to the standard scale by proving the above decomposition.
-Because many such reductions share the same public divisor $\Delta$, they also
-form a canonical family of same-form local checks for interleaving batching.
+Multiplication, however, increases the scale and therefore requires an explicit
+rescaling step. In particular, if
+$x \approx q_x/2^Q$ and $y \approx q_y/2^Q$, then their product is represented by
+\[
+q_z = \left\lfloor \frac{q_x q_y}{2^Q} \right\rfloor,
+\]
+so that
+\[
+xy \approx \frac{q_z}{2^Q}.
+\]
+\subsection{Statement and Proof Overview}
 
-\subsection{Field Embedding and Range Assumptions}
+Our goal is to prove correct training, not merely well-formedness of the
+committed forest. Concretely, given commitments to a training dataset and to a
+forest, the prover must show that the committed forest is exactly the result of
+running the public quantized GBDT training algorithm on the committed dataset.
 
-All arithmetic is carried out in $\mathbb{F}$, but the intended semantics is an
-integer or fixed-point computation. We therefore fix one public bound
-$\mathcal{B}$ such that every scalar appearing in any checked identity admits an
-integer interpretation in the interval $[-\mathcal{B},\mathcal{B}]$ after the
-agreed fixed-point scaling.
-We require that $\mathcal{B}$ is small enough to prevent wraparound in all the checked identities, and we also require that $\mathcal{B} < |\mathbb{F}|/2$ to ensure that the integer interpretation is unambiguous.
-
-\subsection{Formal Statement Being Proved}
-
-The public statement consists of the training dimensions
+The public statement consists of the training parameters
 $(M,d,B,K,T)$, the learning rate $\mu$, the public tree-shape policy, the
-quantization parameters, the public lookup tables used by imported
-subprotocols, and the KZG setup parameters. The secret witness consists of the
-quantized dataset $\mathbf{D}$, the labels $\mathbf{Y}$, the committed forest
-metadata, the round-indexed boosting-state tensors, the histogram tensors, the
-split metadata, the leaf values, and the auxiliary witnesses required by the
-imported lookup, aggregation, softmax, and max-selection gadgets.
+quantization parameters, the public tables used by imported subprotocols, the
+KZG setup parameters, and the commitments to the dataset and the forest. The
+witness consists of the values needed to certify one valid training trace,
+including the labels, the round-wise boosting states, the histogram
+statistics, the split metadata, the leaf values, and the auxiliary witnesses
+required by the imported gadgets.
 
-The relation checked by the verifier is:
-there exists a committed witness encoding a valid execution trace of the fixed,
-quantized trainer semantics defined in this section, together with a committed
-forest and leaf values consistent with that trace.
+Accordingly, the verifier checks the following claim: there exists a witness
+such that, starting from the committed dataset, the public quantized training
+procedure produces exactly the committed forest. Thus, an accepting proof
+certifies not only that the committed forest has valid syntax, but that it is
+consistent with one end-to-end execution of the trainer semantics fixed by this
+paper.
 
-Equivalently, an accepting proof certifies that the committed witness can be
-interpreted as one end-to-end execution of the quantized training trace defined
-by the paper, not as an arbitrary real-valued GBDT trainer.
+At a high level, the proof of training must establish four facts:
+\begin{enumerate}
+    \item the committed forest derives the claimed inference over the dataset;
+    \item each boosting round correctly derives the pseudo-residuals and updates
+    the score state;
+    \item in each boosting round, each tree is trained according to the public training algorithm.
+\end{enumerate}
+
+The rest of the protocol decomposes this global claim into local checks for
+forest semantics, routing, histogram construction, split-score correctness,
+split optimality, and leaf-value correctness, and then batches these checks
+into a small number of polynomial openings.
 
 \begin{theorem}[Informal security statement]
 \label{thm:main-informal}
-Assume the KZG commitment scheme is binding, the imported subprotocols satisfy
-their claimed completeness and soundness properties, and the bounds of
-\cref{prop:no-wraparound} hold. Then the protocol of Sections~4--5 satisfies:
+Assume the KZG commitment scheme is binding, and the imported subprotocols satisfy
+their claimed completeness and soundness properties. Then the protocol satisfies:
 \begin{enumerate}
-  \item \textbf{Completeness.} Any honestly generated witness for the quantized
-  trainer semantics is accepted.
-  \item \textbf{Soundness.} Any accepting proof implies the existence of a
-  witness corresponding to a valid execution of that same quantized trainer
-  semantics, except with the accumulated soundness error of the imported
-  gadgets and the random linear-combination checks.
-  \item \textbf{Witness privacy.} If the hiding variant of the commitment scheme
-  is used and the imported subprotocols are zero knowledge, then the proof
-  reveals nothing beyond the public statement and the committed outputs.
+    \item \textbf{Completeness.} If the committed forest is obtained by honestly
+    running the public quantized trainer on the committed dataset, then the
+    prover can produce an accepting proof.
+
+    \item \textbf{Soundness.} If the verifier accepts, then, except with the
+    accumulated soundness error of the imported gadgets and the batching
+    checks, the committed forest is consistent with a valid execution of that
+    same trainer on the committed dataset.
+
+    \item \textbf{(Optional) Witness privacy.} If the hiding variant of the commitment
+    scheme is used and the imported subprotocols are zero knowledge, then the
+    proof reveals nothing beyond the public statement and the committed
+    outputs.
 \end{enumerate}
-We claim soundness for this protocol, not a separate argument-of-knowledge
-statement.
+We claim soundness, not a separate argument-of-knowledge statement.
 \end{theorem}
-
-\subsection{What Must Be Proved}
-
-At a high level, a proof of GBDT training must justify four kinds of steps:
-\begin{enumerate}
-  \item the forest is encoded correctly, and inference with the committed forest
-  is correct;
-  \item each boosting round computes the right pseudo-residuals from the current
-  score matrix;
-  \item for every node, feature, and threshold, the prover correctly derives the
-  statistics needed to evaluate the split objective;
-  \item the split committed in the tree is an optimizer of that objective.
-\end{enumerate}
-
-Our construction uses standard lookup arguments when rows or table values need to be
-fetched \cite{cq22,cq++24,baloo25}. The new technical ingredients appear later,
-when we must align heterogeneous domains, aggregate sample contributions into
-histograms, and batch many polynomial identities into a small number of
-openings.
-
-Section~5 will formalize this roadmap as a sequence of propositions: forest
-well-formedness, leaf assignment, leaf histogram construction, internal
-propagation, prefix and total statistics, split-score correctness, split
-optimality, leaf-value correctness, and finally one round-level theorem that
-packages them together.

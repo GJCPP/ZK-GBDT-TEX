@@ -13,7 +13,7 @@ round-by-round proof obligations attached to that trace.
 \toprule
 Relation & Objects & Gadget & Batching & Status \\
 \midrule
-Forest well-formedness & $\mathbf{L},\mathbf{R},\mathbf{E},\boldsymbol{\Theta},\mathbf{Root}$ & zero / lookup checks & domain-lifting & new composition \\
+Forest well-formedness & $\mathbf{lc},\mathbf{rc},\mathbf{E},\boldsymbol{\Theta},\mathbf{Root}$ & zero / lookup checks & domain-lifting & new composition \\
 Leaf assignment & $\mathbf{D},\boldsymbol{\ell}^{(t,k)}$ & batched inference & interleaving + lookup & imported + composed \\
 Leaf histogram & $\mathbf{addr}^{(t,k)},\mathbf{G}^{(t)},\mathbf{C}^{\mathrm{leaf}},\mathbf{H}^{\mathrm{leaf}}$ & aggregation & aggregation batching & imported + composed \\
 Propagation / prefix & $\mathbf{C},\mathbf{H},\mathbf{C}_{\leq},\mathbf{H}_{\leq}$ & linear identities & domain-lifting & new composition \\
@@ -41,7 +41,7 @@ batching mode used for each one.}
   \For{$k=0$ to $K-1$}
     \State Infer global leaf indices $\boldsymbol{\ell}^{(t,k)}$ for all samples under the current tree
     \State Build leaf-supported count and weighted histograms from $\boldsymbol{\ell}^{(t,k)}$, $\mathbf{D}$, and $\mathbf{G}^{(t)}[\cdot,k]$
-    \State Propagate histograms to internal nodes through the routing matrices
+    \State Propagate histograms to internal nodes using the committed child index vectors
     \State Compute prefix statistics and candidate gain tensor $\Gamma^{(t,k)}$
     \State Select the maximizing feature-threshold pair at each internal node
     \State Compute padded leaf values $\widetilde{\mathbf{W}}^{(t)}[\cdot,k]$ from per-leaf counts and residual sums

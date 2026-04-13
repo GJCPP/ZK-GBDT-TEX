@@ -15,9 +15,10 @@ class $k$ in round $t$.
 
 The committed forest consists of the following objects.
 \begin{itemize}
-  \item Sparse routing matrices
-  $\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}$
-  encoding left and right children.
+  \item Left and right child index vectors
+  $\mathbf{lc},\mathbf{rc}\in[N_{\mathrm{tot}}]^{N_{\mathrm{tot}}}$
+  encoding the global row indices of the left and right child of each
+  internal node.
   \item Lower and upper hyperbox bounds
   $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}
   \in [B+1]^{N_{\mathrm{tot}}\times d}$.
@@ -33,18 +34,28 @@ The committed forest consists of the following objects.
   \item A leaf-score vector
   $\mathbf{score}\in\mathbb{F}^{N_{\mathrm{tot}}}$.
 \end{itemize}
+Whenever a matrix form is convenient, we write
+$\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}$
+for the virtual sparse routing operators induced by
+$\mathbf{lc},\mathbf{rc}$, namely
+$\mathbf{L}[u,v]=1 \iff \mathbf{lc}[u]=v$ and
+$\mathbf{R}[u,v]=1 \iff \mathbf{rc}[u]=v$.
 
 \begin{proposition}[Forest well-formedness]
 \label{prop:forest-well-formedness}
 The committed forest is well formed if the following hold:
 \begin{enumerate}
-  \item every active internal row of $\mathbf{L}$, $\mathbf{R}$, and
-  $\mathbf{E}$ is one-hot, while leaf and padding rows are zero;
+  \item every active internal entry of
+  $\mathbf{lc},\mathbf{rc}$ points to one child row,
+  leaf and padding entries of these vectors are zero, and every active
+  internal row of $\mathbf{E}$ is one-hot while leaf and padding rows are
+  zero;
   \item $\boldsymbol{\Theta}$ is zero on leaf and padding rows, and
   $\mathbf{score}$ is zero on internal and padding rows;
-  \item parent-child rows selected by $\mathbf{L}$ and $\mathbf{R}$ belong to
-  the same tree, and the root selector $\mathbf{Root}$ chooses exactly one root
-  row per tree;
+  \item the child rows selected by
+  $\mathbf{lc},\mathbf{rc}$ belong to the same tree
+  as their parent, and the root selector $\mathbf{Root}$ chooses exactly one
+  root row per tree;
   \item the selected coordinate updates exactly one box bound at the chosen
   threshold, while every non-selected coordinate is inherited unchanged by both
   children;
@@ -199,8 +210,8 @@ relations.
     \node[box, right=of leafvalue] (nextscores) {$\mathbf{S}^{(t+1)}$};
     \draw[arr] (scores) -- node[above, font=\small] {softmax} (resid);
     \draw[arr] (resid) -- node[above, font=\small] {batched inference} (leaf);
-    \draw[arr] (leaf) -- (hist);
-    \draw[arr] (hist) -- node[above, font=\small] {routing} (allnode);
+    \draw[arr] (leaf) -- node[right, font=\small] {histogram agg.} (hist);
+    \draw[arr] (hist) -- node[above, font=\small] {child-index pull-up} (allnode);
     \draw[arr] (allnode) -- node[above, font=\small] {prefix / zero-safe score} (gain);
     \draw[arr] (gain) -- node[right, font=\small] {argmax bind} (split);
     \draw[arr] (hist) -- node[right, font=\small] {leaf aggregation} (leafvalue);

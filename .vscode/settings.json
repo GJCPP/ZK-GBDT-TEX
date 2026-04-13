@@ -1,33 +1,39 @@
 {
-  // LaTeX Workshop: enforce SyncTeX metadata for forward/inverse search.
-  "latex-workshop.latex.autoBuild.run": "onSave",
-  "latex-workshop.synctex.afterBuild.enabled": true,
-  "latex-workshop.synctex.synctexjs.enabled": true,
-  "latex-workshop.view.pdf.viewer": "tab",
-  "latex-workshop.view.pdf.internal.synctex.keybinding": "double-click",
-
-  // Keep outputs in the root file directory so the viewer and SyncTeX metadata stay aligned.
-  "latex-workshop.latex.outDir": "%DIR%",
-
-  // Follow the extension's documented latexmk recipe so PDF and SyncTeX are emitted consistently.
-  "latex-workshop.latex.recipes": [
-    {
-      "name": "latexmk (pdf)",
-      "tools": ["latexmk"]
-    }
-  ],
   "latex-workshop.latex.tools": [
     {
-      "name": "latexmk",
-      "command": "latexmk",
+      "name": "pdflatex",
+      "command": "pdflatex",
       "args": [
-        "-pdf",
         "-synctex=1",
         "-interaction=nonstopmode",
         "-file-line-error",
-        "-outdir=%OUTDIR%",
         "%DOC%"
       ]
+    },
+    {
+      "name": "bibtex",
+      "command": "bibtex",
+      "args": [
+        "%DOCFILE%"
+      ]
     }
-  ]
+  ],
+  "latex-workshop.latex.recipes": [
+    {
+      "name": "pdflatex",
+      "tools": [
+        "pdflatex"
+      ]
+    },
+    {
+      "name": "pdflatex -> bibtex -> pdflatex -> pdflatex",
+      "tools": [
+        "pdflatex",
+        "bibtex",
+        "pdflatex",
+        "pdflatex"
+      ]
+    }
+  ],
+  "latex-workshop.latex.recipe.default": "first"
 }

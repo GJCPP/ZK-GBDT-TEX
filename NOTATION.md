@@ -67,7 +67,8 @@ reuse the symbols below unless there is a strong reason to change them.
 
 ## Forest objects
 
-- `\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}`: left/right routing matrices.
+- `\mathbf{lc},\mathbf{rc}\in[N_{\mathrm{tot}}]^{N_{\mathrm{tot}}}`: left/right child index vectors, with internal entries pointing to child rows and leaf/padding entries equal to `0`.
+- `\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}`: sparse routing operators induced by `\mathbf{lc},\mathbf{rc}` when a matrix form is convenient.
 - `\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}\in[B+1]^{N_{\mathrm{tot}}\times d}`: lower and upper node bounds.
 - `\mathbf{E}\in\{0,1\}^{N_{\mathrm{tot}}\times d}`: feature-selection matrix.
 - `\boldsymbol{\Theta}\in[B]^{N_{\mathrm{tot}}}`: threshold-index vector.
@@ -89,6 +90,7 @@ reuse the symbols below unless there is a strong reason to change them.
 ## Training and histogram objects
 
 - `\boldsymbol{\ell}^{(t,k)}\in\{N_{\mathrm{int}},\ldots,N_{\mathrm{tot}}-1\}^{M}`: leaf-assignment vector for tree `(t,k)`.
+- `\mathbf{addr}^{(t,k)}\in[N_{\mathrm{tot}}dB]^{M\times d}`: histogram-aggregation addresses induced by `\boldsymbol{\ell}^{(t,k)}` and `\mathbf{D}`.
 - `\mathbf{C}^{(t,k)}, \mathbf{H}^{(t,k)}\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}`: all-node count and residual-sum histograms.
 - `\mathbf{C}^{\mathrm{leaf},(t,k)}, \mathbf{H}^{\mathrm{leaf},(t,k)}`: leaf-supported histogram tensors before propagation.
 - `\mathbf{C}_{\le}^{(t,k)}, \mathbf{H}_{\le}^{(t,k)}`: prefix histograms along the bin axis.

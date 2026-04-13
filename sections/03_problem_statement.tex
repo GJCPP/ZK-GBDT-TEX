@@ -1,16 +1,8 @@
 \section{Technical Overview}
 
-The proof system is best viewed as a certification procedure for quantized GBDT
-training. The main challenge is not tree inference itself, but proving that
-every boosting round computes the correct split statistics and commits a split
-that optimizes the training objective. Two obstacles recur throughout the
-construction. First, the proof naturally produces claims over different
-polynomial domains and tensor layouts. Second, plaintext split search is
-usually implemented through sorting or feature scans, which are awkward proof
-targets. The overview below therefore isolates three ingredients: the
-committed forest interface, the algebraic rewriting of split search, and the
-batching tools that make the resulting checks compose succinctly. Exact
-statements are deferred to Sections~4--5.
+In this section, we introduce four ingredients: the committed forest
+interface, histogram aggregation, the algebraic rewriting of split search, and
+the batching tools that make the resulting checks compose succinctly.
 
 \subsection{Forest Representation and Batched Inference}
 
@@ -21,10 +13,10 @@ one global node namespace, so the row index
 $u \in [N_{\mathrm{tot}}]$ refers to the same node everywhere. The committed
 forest consists of:
 \begin{itemize}
-  \item routing matrices
-  $\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}$,
-  where an internal-node row is one-hot and points from a parent node to its
-  left or right child, while leaf rows are zero;
+  \item left and right child index vectors
+  $\mathbf{lc},\mathbf{rc}\in[N_{\mathrm{tot}}]^{N_{\mathrm{tot}}}$,
+  whose internal-node entries record the global row indices of the left and
+  right child of each parent node, while leaf and padding entries are zero;
   \item lower and upper node bounds
   $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}\in[B+1]^{N_{\mathrm{tot}}\times d}$,
   where row $u$ stores the $d$-dimensional half-open box of node $u$ and every
@@ -42,44 +34,57 @@ forest consists of:
   \item a leaf-score vector $\mathbf{score}\in\mathbb{F}^{N_{\mathrm{tot}}}$,
   whose leaf entries store the scalar contribution returned by that tree and
   whose internal-node entries are zero or padding.
+  \item a boolean vector $\mathbf{is\_leaf}\in\{0,1\}^{N_{\mathrm{tot}}}$, 
+  where $\mathbf{is\_leaf}[u]=1$ if and only if $u$ is a leaf node.
 \end{itemize}
-The pair $(\mathbf{E},\boldsymbol{\Theta})$ witnesses that
-$\mathbf{N}^{\leftarrow}$ and $\mathbf{N}^{\rightarrow}$ encode a valid
-hyperbox forest. The routing matrices $(\mathbf{L},\mathbf{R})$ are reused in
-training to propagate histogram statistics from leaves to internal nodes. We
-assume a topological node order in which children have larger indices than
-their parents, so the later propagation equations have a unique recursive
-interpretation.
 
-\Cref{fig:forest-encoding-inference} follows the exposition style of
-\cite{cq++24}: the left panel presents two concrete trees in the global node
-namespace, while the right panel shows the committed row view on which the
-proof operates. The committed columns record the tree index, split metadata,
-node box, and leaf score. The online fetch opens from this view only the tree
-index, node box, and score of the accepting leaf.
+We assume there are $N_{\mathrm{int}}$ internal nodes and $N_{\mathrm{leaf}}$ leaf nodes
+in the forest, where internal nodes are indexed by $[N_{\mathrm{int}}]$ and leaf nodes are indexed by 
+$\{N_{\mathrm{int}}, \dots, N_{\mathrm{tot}} - 1\}$.
+
+Note that $\mathbf{N}^{\leftarrow}$, $\mathbf{N}^{\rightarrow}$, $\mathbf{lc}$
+and $\mathbf{rc}$ together fix the entire forest.
+Other vectors/matrices are auxiliary to the proof
+of training and inference.
+
+\Cref{fig:forest-encoding-inference} shows the intuition behind
+the forest encoding: the left panel illustrates the structure of the forest,
+while the right panel presents the committed objects.
 
 \input{figures/forest_encoding_inference}
 
-This encoding supports both inference and training. For inference, the protocol
-follows the row-fetch pattern of \cite{cq++24}. Given a query batch
-$\mathbf{X}\in[B]^{b\times d}$, the prover conceptually replicates
-$\mathbf{X}$ once per tree, determines the accepting leaf row of each
-tree-sample pair, and proves a batched fetch of
+\paragraph{Proof of inference.}
+
+To prove the correctness of inference over batched input $\mathbf{I}\in\mathbb{F}^{b\times d}$,
+the prover commits $\mathbf{U}^{\leftarrow}, \mathbf{U}^{\rightarrow}\in \mathbb{F}^{TKb\times d}$,
+$\mathbf{sc}\in\mathbb{F}^{TKb}$,
+and utilize table lookup to prove
+\begin{align}
+  \mathbf{1} \| \mathbf{ind}  \| \mathbf{U} ^{\leftarrow } \| \mathbf{U} ^{\rightarrow } \| \mathbf{sc} \subseteq
+  \mathbf{is\_leaf} \| \mathbf{tree} \| \mathbf{N} ^{\leftarrow }\| \mathbf{N} ^{\rightarrow }\| \mathbf{score},\label{eq:inference-lookup}
+\end{align}
+where notation ``$\subseteq$'' means that each row of the left matrix equals some row of the right matrix, and
 \[
-(\mathbf{tree},\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow},\mathbf{score})
+\mathbf{ind} \coloneqq (\underbrace{0, \dots, 0}_b, \underbrace{1, \dots, 1}_{b}, \dots, \underbrace{T-1, \dots, T-1}_b)^\top.
 \]
-from those committed leaf rows. It then proves that the replicated query lies
-inside the fetched half-open box
-$[\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow})$ coordinate-wise, which
-certifies that the fetched row is exactly the accepting leaf of that tree on
-that sample. Uniqueness follows from forest well-formedness: leaf boxes within
-one tree form a partition of the quantized input domain, so two distinct leaf
-rows cannot both contain the same query. Finally, the fetched leaf scores are
-aggregated back along the
-tree axis to obtain the class scores. The remaining forest objects are not used
-directly in this fetch-and-containment check, but they are needed to certify
-that the committed rows do form a valid hyperbox forest and to connect
-inference with the later training proof.
+This lookup argument guaranttes that $\mathbf{U}^{\leftarrow}, \mathbf{U}^{\rightarrow}$
+and $\mathbf{sc}$ are fields of the same leaves.
+By further proving
+\begin{align}
+  \mathbf{U} ^{\leftarrow }[t, k, i, j] \leq \mathbf{I}[i][j] \leq \mathbf{U} ^{\rightarrow }[t, k, i, j], \label{eq:inference-interval}
+\end{align}
+the prover proves that the leaf reached by each sample is correct.
+What remains is to prove the result of inference from $\mathbf{sc}$,
+where $\mathbf{sc}[tKb + kb + i]$ represents the score sample $i$
+received from the tree trained at round $t$ for class $k$,
+which is relatively easy.
+
+We note that~\cite{cq++24} already handles table lookup
+for single matrix, e.g. $\mathbf{F}\subseteq \mathbf{T}$,
+where the online complexity depends only upon $|\mathbf{F}|$.
+However, \Cref{eq:inference-lookup} is a more complex lookup over concatenated matrices,
+where matrices may differ by shape.
+We will show how to handle this more complex lookup in \Cref{sec:zkgbdt-protocol}.
 
 \subsection{Training Proof Pipeline}
 
@@ -92,6 +97,11 @@ $k\in[K]$, the prover exposes a global leaf-assignment vector
 \]
 where $\boldsymbol{\ell}^{(t,k)}[r]$ is the global leaf index reached by sample
 $r$ in the tree trained for class $k$ at round $t$.
+
+From this leaf assignment and the residual column $\mathbf{G}^{(t)}[\cdot,k]$,
+the prover next forms leaf-supported count and residual-sum histograms by
+histogram aggregation over the addresses induced by the triples
+$(\boldsymbol{\ell}^{(t,k)}[r],j,\mathbf{D}[r,j])$.
 
 A key structural point is that the family
 $(\mathbf{S}^{(0)},\mathbf{S}^{(1)},\ldots,\mathbf{S}^{(T)})$ is not committed
@@ -115,10 +125,11 @@ all of the following conditions hold:
   $\boldsymbol{\ell}^{(t,k)}$ records exactly which leaf each sample reaches in
   the committed tree of that round;
   \item the histogram tensors derived from $\boldsymbol{\ell}^{(t,k)}$ and
-  $\mathbf{G}^{(t)}[\cdot,k]$ are correct, first on leaf rows and then after
-  propagation to internal nodes through the routing matrices; these tensors lie
-  in $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ over the node, feature,
-  and bin axes;
+  $\mathbf{G}^{(t)}[\cdot,k]$ are correct: first the protocol proves
+  leaf-supported histograms by histogram aggregation, and then it propagates
+  them to internal nodes according to the committed child index vectors; these
+  tensors lie in $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ over the
+  node, feature, and bin axes;
   \item from those histograms, the protocol derives the candidate split-score
   tensor
   $\Gamma^{(t,k)}\in\mathbb{F}^{N_{\mathrm{int}}\times d\times B}$ for every
@@ -186,7 +197,7 @@ tensor algebra over committed counts and sums,
 which becomes much easier to handle. The maximization is always over valid
 splits only.
 
-\subsection{Domain-Lifted and Interleaved Batching}
+\subsection{Domain-Lifting and Interleaving Batching}
 
 The construction repeatedly needs to batch claims that are structurally similar
 but do not initially share one proof shape. Here we keep only the intuition.
