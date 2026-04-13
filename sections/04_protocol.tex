@@ -32,7 +32,9 @@ and suppose the target claim is
 \[
 F_i(X)=Q_i(X)\nu_{n_i}(X)
 \]
-for some polynomial $Q_i(X)$. Define the lifted polynomial
+for some polynomial $Q_i(X)$, which may itself be virtual or prover-supplied.
+Because $n_i \mid N$, the ratio $\nu_N(X)/\nu_{n_i}(X)$ is again a polynomial.
+Define the lifted polynomial
 \[
 \widehat{F}_i(X):=
 F_i(X)\frac{\nu_N(X)}{\nu_{n_i}(X)}.
@@ -46,6 +48,8 @@ Then:
   \begin{equation}\label{eq:domain-lifting-batching}
   \sum_{i=1}^{m}\eta^{i-1}\widehat{F}_i(X)=Q(X)\nu_N(X).
   \end{equation}
+  In particular, the PCS only needs to support openings up to the largest
+  degree induced by the lifted residuals on $\mathbb{H}_N$.
   \item If at least one original claim is false, then
   \eqref{eq:domain-lifting-batching} holds for at most $m-1$ values of $\eta$, i.e. the soundness error is at most $(m-1)/|\mathbb{F}|$.
 \end{enumerate}
@@ -58,11 +62,19 @@ F_i(X)=Q_i(X)\nu_{n_i}(X)
 \iff
 F_i(X)\frac{\nu_N(X)}{\nu_{n_i}(X)} = Q_i(X)\nu_N(X).
 \]
-For soundness, once the lifted residuals are reduced modulo $\nu_N(X)$, the
-left-hand side of \eqref{eq:domain-lifting-batching} becomes a polynomial in $\eta$
-of degree at most $m-1$. If at least one original claim is false, this
-polynomial is nonzero, so a uniformly random $\eta$ causes accidental
-acceptance with probability at most $(m-1)/|\mathbb{F}|$.
+For soundness, define the reduced residual
+\[
+R_i(X):=\widehat{F}_i(X)\bmod \nu_N(X).
+\]
+If all claims are true then every $R_i$ vanishes. Otherwise at least one
+$R_i$ is nonzero, and the left-hand side of
+\eqref{eq:domain-lifting-batching} reduced modulo $\nu_N(X)$ becomes
+\[
+\sum_{i=1}^{m}\eta^{i-1}R_i(X),
+\]
+which is a nonzero polynomial in $\eta$ of degree at most $m-1$. Hence a
+uniformly random $\eta$ causes accidental acceptance with probability at most
+$(m-1)/|\mathbb{F}|$.
 \end{proof}
 
 Theorem~\ref{thm:domain-lifting-batching} is the protocol's main tool for batching
@@ -128,27 +140,35 @@ Its evaluation vector over $\mathbb{H}_{2n}$ is
 
 \begin{theorem}[Interleaving batching]
 \label{thm:interleaving-batch}
-For each $i\in[m]$, let $u_i(X)$ denote the polynomial encoding a vector of
-length $n_i$ over $\mathbb{H}_{n_i}$, where each $n_i$ is a power of two. For
-some (non-linear) constraint $\varphi$, suppose the target claim is that all
-$m$ pointwise relations
+For each $i\in[m]$, let
+\[
+\mathbf{u}_i(X):=\bigl(u_{i,1}(X),\ldots,u_{i,c}(X)\bigr)
+\]
+be a bundle of $c$ polynomial encodings over $\mathbb{H}_{n_i}$, where each
+$n_i$ is a power of two. For some local relation $\varphi$ on $c$ inputs,
+suppose the target claim is that all $m$ pointwise relations
 \[
 \forall i \in [m],\ \forall a\in\mathbb{H}_{n_i}\quad
 \varphi\!\left(
-u_i(a)
+u_{i,1}(a),\ldots,u_{i,c}(a)
 \right)=0.
 \]
 There exists an algorithm that combines these $m$ claims into one
-check over a single virtual polynomial $\widehat{u}(X)$ over domain
-$\mathbb{H}_{\widehat{n}}$, using only domain lifts and pairwise interleaving
-and introducing no new PCS commitment. Using two scans over power-of-two
-domain sizes, it runs in $O(m+\log \hat{n})$ time. This algorithm guarantees:
+check over one interleaved bundle
+\[
+\widehat{\mathbf{u}}(X)=
+\bigl(\widehat{u}_1(X),\ldots,\widehat{u}_c(X)\bigr)
+\]
+over domain $\mathbb{H}_{\widehat{n}}$, using only domain lifts and
+coordinatewise pairwise interleaving and introducing no new PCS commitment.
+Using a bucketed merge process, it runs in $O(m\log \widehat{n})$ time. This
+algorithm guarantees:
 \begin{enumerate}
   \item all original pointwise claims hold if and only if
   \[
   \forall z\in\mathbb{H}_{\widehat{n}}\quad
   \varphi\!\left(
-  \widehat{u}(z)
+  \widehat{u}_1(z),\ldots,\widehat{u}_c(z)
   \right)=0;
   \]
   \item the final domain size satisfies
@@ -157,59 +177,71 @@ domain sizes, it runs in $O(m+\log \hat{n})$ time. This algorithm guarantees:
   =
   2^{\left\lceil \log_2(n_1+\cdots+n_m)\right\rceil}.
   \]
-  \item any opening claim for $\widehat{u}(X)$ is reduced to one opening for each
-  original $u_i(X)$, and the verifier can check the claim in
-  $O(m\log \widehat{n})$ time.
+  \item any opening claim for $\widehat{\mathbf{u}}(X)$ is reduced to one
+  opening for each original bundle $\mathbf{u}_i(X)$, and the verifier can
+  reconstruct the virtual opening in $O(mc\log \widehat{n})$ field operations.
+  Interleaving reduces the number of logical local-check instances and avoids
+  introducing new committed witness columns, but it does not by itself collapse
+  all base PCS openings.
 \end{enumerate}
 \end{theorem}
 
 \begin{proof}
-Start from the active multiset $\{(u_i(X),n_i)\}_{i\in[m]}$.
+Start from the active multiset $\{(\mathbf{u}_i(X),n_i)\}_{i\in[m]}$.
 We first store all pairs with same domain size in the same bucket.
 Then we perform two scans over the buckets.
 In the first scan, process the buckets from small to large domain size and
 merge equal-sized pairs whenever a bucket contains at least two active pairs.
 Each such merge uses pairwise interleaving as in
-\cref{def:pairwise-interleaving}. After this pass, every bucket contains at
-most one active pair, and the total size $\sum_i n_i$ is unchanged.
+\cref{def:pairwise-interleaving} on every coordinate of the bundle. After this
+pass, every bucket contains at most one active pair, and the total size
+$S:=\sum_i n_i$ is unchanged.
 
 In the second scan, repeatedly take the two smallest active pairs. If their
 sizes differ, lift the smaller one to the larger domain using
-$X\mapsto X^r$ with $r=n_j/n_i$; then interleave the pair. Repeat
-until one active pair $(\widehat{u}(X),\widehat{n})$ remains.
+$X\mapsto X^r$ with $r=n_j/n_i$ on every coordinate; then interleave the pair.
+Repeat until one active pair $(\widehat{\mathbf{u}}(X),\widehat{n})$ remains.
 
-Because the domain sizes are powers of two, the two scans touch only
-$O(\log \hat{n})$ buckets, and each merge or lift removes one active pair, so the
-implementation runs in $O(m+\log \hat{n})$ time.
+Because the domain sizes are powers of two, the bucket structure contains only
+$O(\log \widehat{n})$ levels. Each merge removes one active item, and each lift
+or interleaving step changes only one level, so a bucketed implementation runs
+in $O(m\log \widehat{n})$ time.
 
 For property~(1), lifting is exactly the setting of \cref{lem:row-replication}:
-if $r=n_j/n_i$, then $X\mapsto X^r$ repeats the entries of $u_i(X)$ on the
-larger domain $\mathbb{H}_{n_j}$. So the pointwise relation $\varphi(\cdot)=0$
-holds before lifting if and only if it holds after lifting. Pairwise
-interleaving preserves the same relation for the same reason,
-since all entries are preserved.
+if $r=n_j/n_i$, then $X\mapsto X^r$ repeats the entries of every coordinate of
+$\mathbf{u}_i(X)$ on the larger domain $\mathbb{H}_{n_j}$. So the local
+relation remains true before and after lifting. Pairwise interleaving preserves
+the same relation coordinatewise, since every position of the merged bundle
+still contains one original local tuple.
 Repeating these two facts over the two scans proves property~(1).
 
-For property~(2), note that the first scan preserves the total size
-$S:=n_1+\cdots+n_m$. If we denote the
-sizes after the first scan by $n_1'<\cdots<n_s'$, then
+For property~(2), note that the first scan preserves the total size $S$ and
+leaves at most one active bundle in each bucket. Hence the remaining sizes
+after the first scan are exactly the nonzero powers of two appearing in the
+binary expansion of $S$. If we denote them by
 \[
-\sum_{i=1}^m n_i = \sum_{i=1}^s n_s'\implies n_s' = 2^{\left\lfloor \log_2(n_1+\cdots+n_m)\right\rfloor}.
+n_1'<\cdots<n_s',
 \]
-If $n_s' = 2^{\log_2(n_1+\cdots+n_m)}$,
-there $s=1$ and there is no second scan, and the property~(2) holds.
-Otherwise,
-the second scan pushes the size to $2 n_s'$,
-and thus
+then
 \[
-\widehat{n}= 2 n_s' = 2^{\left\lceil \log_2(n_1+\cdots+n_m)\right\rceil}.
+\sum_{i=1}^s n_i' = S
+\qquad\text{and}\qquad
+n_s' = 2^{\lfloor \log_2 S\rfloor}.
 \]
+If $s=1$, then $S$ is already a power of two and $\widehat{n}=S$. Otherwise
+the second scan merges the remaining powers upward and can push the final size
+no higher than $2n_s'$. Since $S>n_s'$ in this case,
+\[
+\widehat{n}= 2n_s' = 2^{\lceil \log_2 S\rceil}.
+\]
+This is exactly the least power of two not smaller than $S$.
 
-For property~(3), note that for interleaving,
-the verifier can compute the sparse selectors by itself.
-And for row-replication $u(X)\mapsto u(X^r) = v(X)$, the opening of $v(x)$ for any $x\in \mathbb{F}$ is trivially reduced to the opening of $u(x^r)$.
-Hence, the verifier can check any opening claim for $\widehat{u}(X)$ by checking one opening claim for each original $u_i(X)$,
-which incurs $O(m\log \widehat{n})$ time to compute the selectors and check the claims.
+For property~(3), the verifier can compute the sparse even/odd selectors
+itself. And for row replication $u(X)\mapsto u(X^r)$, an opening at $x$ reduces
+to an opening of the base polynomial at $x^r$. Hence an opening claim for the
+interleaved bundle reduces to one opening per original bundle, and the verifier
+reconstructs the virtual value by traversing the merge tree and evaluating
+public selectors, which costs $O(mc\log \widehat{n})$ field operations.
 \end{proof}
 
 \subsection{Explicit Lookup Batching Example}
@@ -217,7 +249,9 @@ which incurs $O(m\log \widehat{n})$ time to compute the selectors and check the 
 As a concrete application for interleaving batching, suppose we have several lookup families indexed by
 $i\in[s]$. For each family, there is a public table $\mathbf{t}_i$ and a
 collection of vector queries $\mathbf{f}_{i,1},\ldots,\mathbf{f}_{i,m_i}$ such
-that every query satisfies $\mathbf{f}_{i,j}\subseteq \mathbf{t}_i$.
+that every query satisfies $\mathbf{f}_{i,j}\subseteq \mathbf{t}_i$. Here table
+entries may be either field elements or injectively encoded tuples; in the
+latter case, the random shift is applied after that public encoding.
 
 We batch them in three steps. First, for each fixed $i$, we interleave the
 queries $\mathbf{f}_{i,1},\ldots,\mathbf{f}_{i,m_i}$ into one family-level
@@ -236,7 +270,12 @@ which can be proved with one lookup argument instead of one argument per
 family. The benefit is that the prover amortizes the lookup proof across all
 tables while keeping the query structure explicit. The random shifts prevent
 cross-table collisions, and the interleaving steps preserve the original
-within-family lookup relations.
+within-family lookup relations. Concretely, the bad event is that two entries
+from different shifted tables collide, i.e.
+$\alpha^i+t=\alpha^{i'}+t'$ for some $i\neq i'$ and entries
+$t\in\mathbf{t}_i$, $t'\in\mathbf{t}_{i'}$. For uniformly random $\alpha$, this
+event is absorbed into the lookup soundness error and is negligible over a
+large field.
 
 A second example is fixed-point quantization. Suppose several checks all prove
 relations of the form

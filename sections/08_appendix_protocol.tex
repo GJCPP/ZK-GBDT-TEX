@@ -5,6 +5,30 @@ This appendix records the protocol skeleton used implicitly throughout
 training trace that the prover must justify. The second describes the
 round-by-round proof obligations attached to that trace.
 
+\begin{table}[t]
+\centering
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{p{2.4cm}p{3.0cm}p{2.0cm}p{2.2cm}p{1.8cm}}
+\toprule
+Relation & Objects & Gadget & Batching & Status \\
+\midrule
+Forest well-formedness & $\mathbf{L},\mathbf{R},\mathbf{E},\boldsymbol{\Theta},\mathbf{Root}$ & zero / lookup checks & domain-lifting & new composition \\
+Leaf assignment & $\mathbf{D},\boldsymbol{\ell}^{(t,k)}$ & batched inference & interleaving + lookup & imported + composed \\
+Leaf histogram & $\mathbf{addr}^{(t,k)},\mathbf{G}^{(t)},\mathbf{C}^{\mathrm{leaf}},\mathbf{H}^{\mathrm{leaf}}$ & aggregation & aggregation batching & imported + composed \\
+Propagation / prefix & $\mathbf{C},\mathbf{H},\mathbf{C}_{\leq},\mathbf{H}_{\leq}$ & linear identities & domain-lifting & new composition \\
+Candidate scores & $\Gamma,\boldsymbol{\chi},\mathbf{Q}^{\leftarrow},\mathbf{Q}^{\rightarrow}$ & zero-safe quotient & interleaving by gadget family & new composition \\
+Split optimality & $\Gamma,\mathbf{R},\mathbf{M},\mathbf{E},\boldsymbol{\Theta}$ & max-selection & gadget-local & imported \\
+Leaf values & $\widetilde{\mathbf{n}},\widetilde{\mathbf{a}},\widetilde{\mathbf{W}}$ & zero-safe quotient & interleaving by gadget family & new composition \\
+Softmax / residual & $\mathcal{S},\mathcal{P},\mathcal{Z},\mathcal{I},\mathcal{G}$ & $\Pi_{\mathrm{softmax}}$ & global round tensor & imported \\
+\bottomrule
+\end{tabular}
+}
+\caption{Protocol obligations in Section~5, together with the proof gadget and
+batching mode used for each one.}
+\label{tab:protocol-obligations}
+\end{table}
+
 \begin{algorithm}[t]
 \caption{Quantized multi-class GBDT training trace}
 \label{alg:gbdt-trace}
@@ -38,21 +62,22 @@ round-by-round proof obligations attached to that trace.
 \begin{algorithmic}
 \Require Commitments to the forest, dataset, labels, and the training trace of \cref{alg:gbdt-trace}
 \Ensure Proof of correct batched inference and training
-\State Prove committed-forest well-formedness
+\State Prove forest well-formedness as in \cref{prop:forest-well-formedness}
 \For{$t=0$ to $T-1$}
-  \State Prove score update into $\mathbf{S}^{(t)}$ using lookup into $\widetilde{\mathbf{W}}^{(t-1)}$ when $t>0$
-  \State Prove pseudo-residual relations for $\mathbf{G}^{(t)}$
+  \State Prove boosting-state and pseudo-residual correctness as in \cref{prop:boosting-state}
   \For{$k=0$ to $K-1$}
-    \State Prove leaf assignments $\boldsymbol{\ell}^{(t,k)}$ by batched forest inference
-    \State Prove leaf-supported histograms using aggregation at addresses $\mathbf{addr}^{(t,k)}$
-    \State Prove propagation from leaf-supported histograms to all-node histograms
-    \State Prove prefix statistics, total statistics, and zero-safe gain tensor $\Gamma^{(t,k)}$
-    \State Prove feature and threshold selection against the maxima of $\Gamma^{(t,k)}$
-    \State Prove padded leaf values $\widetilde{\mathbf{W}}^{(t)}[\cdot,k]$
+    \State Prove leaf assignment correctness as in \cref{prop:leaf-assignment}
+    \State Prove leaf histogram correctness by aggregation at addresses $\mathbf{addr}^{(t,k)}$ as in \cref{prop:leaf-hist}
+    \State Prove internal propagation as in \cref{prop:internal-propagation}
+    \State Prove prefix, total, and right-side statistics as in \cref{prop:prefix-total}
+    \State Prove candidate split-score correctness via zero-safe quotient witnesses as in \cref{prop:candidate-score}
+    \State Prove split optimality as in \cref{prop:split-optimality}
+    \State Prove leaf values and round closure as in \cref{prop:leaf-values}
   \EndFor
+  \State Conclude round-level correctness via \cref{thm:round-correctness}
 \EndFor
 \State Batch heterogeneous linear identities using domain-lifting batching
-\State Batch same-form nonlinear checks using interleaving batching after alignment
+\State Batch aligned same-form nonlinear gadgets using interleaving batching
 \State \Return the resulting proof transcript
 \end{algorithmic}
 \end{algorithm}

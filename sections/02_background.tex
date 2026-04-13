@@ -21,7 +21,7 @@ evaluation domain for length-$n$ vectors. Its vanishing polynomial is
 \[
 \nu_n(X) := \prod_{a \in \mathbb{H}_n}(X-a) = X^n-1.
 \]
-Because all domains are derived from the same ambient root $\omega$, we have
+Because all domains are derived from the same root $\omega$, we have
 $\omega_{nm}^m=\omega_n$ whenever $n$, $m$, and $nm$ are powers of two dividing
 $2^L$. This compatibility is used later when we align objects of different
 shapes.
@@ -29,52 +29,116 @@ shapes.
 Let $\lambda_n^{(i)}(X)$ denote the $i$-th Lagrange basis polynomial on
 $\mathbb{H}_n$.
 
-For a vector $\mathbf{v}=(v_0,\ldots,v_{n-1})\in\mathbb{F}^n$, its polynomial
-encoding over $\mathbb{H}_n$ is
+For a vector $\mathbf{v}\in\mathbb{F}^n$, its polynomial encoding over
+$\mathbb{H}_n$ is
 \[
-v(X) := \sum_{i \in [n]} v_i \lambda_n^{(i)}(X).
+v(X) := \sum_{i \in [n]} \mathbf{v}[i] \lambda_n^{(i)}(X),
 \]
-When we want to emphasize vector indexing rather than scalar coordinates, we
-write entries as $\mathbf{v}[i]$.
-If $\mathbf{V}$ is a matrix or higher-order tensor, we flatten it into a vector
-and use the same convention.
+where $\mathbf{v}[i]$ denotes the $i$-th entry of $\mathbf{v}$.
+If $\mathbf{V}$ is a matrix or higher-order tensor, we use $\mathbf{V}[i, j, k,\dots]$.
 
-Throughout the paper, all trees share one global node namespace. We write
-$[N_{\mathrm{int}}]$ for internal nodes and
-$\{N_{\mathrm{int}},\ldots,N_{\mathrm{tot}}-1\}$ for leaves. Therefore, whenever
-$\boldsymbol{\ell}^{(t,k)}$ denotes a leaf-assignment vector, its entries are
-global leaf indices rather than local leaf offsets.
+Throughout the paper, we index all nodes globally across all trees. We write
+$[N_{\mathrm{int}}]$ for indexing internal nodes and
+$\{N_{\mathrm{int}},\ldots,N_{\mathrm{tot}}-1\}$ for leaves.
 
-For a tensor
-$\mathbf{A}\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$, we write
-$\Flat(\mathbf{A})\in\mathbb{F}^{N_{\mathrm{tot}}dB}$ for
-the row-major flattening of the last two axes. This notation is convenient when
-the routing matrices act on histogram tensors. We also distinguish, when
-necessary, between a compact leaf-only object and its padded version embedded
-back into the global node space with zeros on internal rows.
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{lllll}
+\toprule
+Symbol & Shape & Support & Meaning & Status \\
+\midrule
+$\mathbf{D}$ & $M\times d$ & all samples & quantized dataset & committed \\
+$\mathbf{Y}$ & $M\times K$ & all samples & one-hot labels & committed \\
+$\mathbf{S}^{(t)}$ & $M\times K$ & round $t$ & cumulative scores & committed slice \\
+$\mathbf{G}^{(t)}$ & $M\times K$ & round $t$ & pseudo-residuals & committed slice \\
+$\boldsymbol{\ell}^{(t,k)}$ & $M$ & tree $(t,k)$ & leaf assignment & committed slice \\
+$\mathbf{C}^{(t,k)},\mathbf{H}^{(t,k)}$ & $N_{\mathrm{tot}}\times d\times B$ & tree $(t,k)$ & count / sum histograms & committed slice \\
+$\Gamma^{(t,k)}$ & $N_{\mathrm{int}}\times d\times B$ & tree $(t,k)$ & candidate split scores & committed slice \\
+$\widetilde{\mathbf{W}}^{(t)}$ & $N_{\mathrm{tot}}\times K$ & round $t$ & padded leaf values & committed slice \\
+$F(X),\widehat{u}(X)$ & varies & derived & batched virtual polynomials & virtual \\
+\bottomrule
+\end{tabular}
+\caption{Main proof-facing objects used later in Sections~3--5. All tensors are
+flattened in row-major order before commitment.}
+\label{tab:object-glossary}
+\end{table*}
 
-\subsection{Polynomial Commitments}
+\subsection{KZG Polynomial Commitments}
 
-We use KZG commitments \cite{kzg10} as the underlying polynomial commitment
-scheme. A commitment to a vector or tensor always means a commitment to its
-encoding polynomial. We rely on standard KZG properties only: succinct openings,
-linear homomorphism, and the ability to open prover-derived expressions at a
-random verifier challenge.
+We use the KZG polynomial commitment scheme~\cite{kate2010constant}. Let
+$\mathbb{F}$ be a field, and let $\mathcal{P}_{<d}$ denote the set of univariate
+polynomials over $\mathbb{F}$ of degree strictly smaller than $d$.
+A KZG commitment scheme for degree bound $d_{\max}$ consists of the following
+algorithms.
 
-Later, some checks will involve polynomials that are derived from committed
-objects but are not themselves committed. We refer to these as \emph{virtual
-polynomials}. Typical examples include products with public masks, ratios of
-vanishing polynomials such as $\nu_N(X)/\nu_n(X)$, or arithmetic combinations
-of several committed polynomials.
+\begin{itemize}
+    \item $\Setup(1^\lambda, d_{\max}) \to \mathsf{pp}$:
+    on input the security parameter $\lambda$ and a maximum supported degree
+    $d_{\max}$, outputs public parameters $\mathsf{pp}$.
+    In the structured-reference-string setting, $\mathsf{pp}$ contains the KZG
+    commitment key and verification key for polynomials of degree $< d_{\max}$.
+
+    \item $\Commit(\mathsf{pp}, f) \to C$:
+    on input $\mathsf{pp}$ and a polynomial $f \in \mathcal{P}_{<d_{\max}}$,
+    outputs a commitment $C$ to $f$.
+
+    \item $\Open(\mathsf{pp}, f, z) \to (v,\pi)$:
+    on input $\mathsf{pp}$, a polynomial $f \in \mathcal{P}_{<d_{\max}}$, and a point
+    $z \in \mathbb{F}$, outputs the evaluation $v = f(z)$ together with an opening
+    proof $\pi$ attesting that the committed polynomial evaluates to $v$ at $z$.
+
+    \item $\Verify(\mathsf{pp}, C, z, v, \pi) \to \{0,1\}$:
+    on input $\mathsf{pp}$, a commitment $C$, a point $z \in \mathbb{F}$, a value
+    $v \in \mathbb{F}$, and an opening proof $\pi$, outputs $1$ iff $\pi$
+    is a valid proof that the polynomial committed in $C$ evaluates to $v$ at $z$.
+
+    \item $\ProveDegBound(\mathsf{pp}, f, d) \to \pi_{\deg}$:
+    on input $\mathsf{pp}$, a polynomial $f \in \mathcal{P}_{<d_{\max}}$, and a target
+    degree bound $d \le d_{\max}$, outputs a proof $\pi_{\deg}$ that
+    $\deg(f) < d$.
+
+    \item $\VerifyDegBound(\mathsf{pp}, C, d, \pi_{\deg}) \to \{0,1\}$:
+    on input $\mathsf{pp}$, a commitment $C$, a target degree bound $d$,
+    and a degree-bound proof $\pi_{\deg}$, outputs $1$ iff $\pi_{\deg}$
+    is a valid proof that the polynomial committed in $C$ has degree $< d$.
+\end{itemize}
+
+We rely on the following standard properties of the commitment scheme.
+
+\begin{itemize}
+    \item \textbf{Correctness.}
+    If a prover commits to a polynomial $f$ and then honestly generates an opening proof
+    for a point $z$, verification accepts and returns the correct value $f(z)$.
+    Likewise, if the prover honestly generates a degree-bound proof for $f$,
+    then degree verification accepts.
+
+    \item \textbf{Binding.}
+    After publishing a commitment $C$, the prover cannot later open it to two different
+    values at the same point. Intuitively, the commitment uniquely fixes the polynomial
+    being committed to.
+
+    \item \textbf{Sound degree certification.}
+    A prover cannot produce a valid degree-bound proof for a polynomial whose degree
+    exceeds the claimed bound, except with negligible probability.
+\end{itemize}
 
 \subsection{Gradient Boosted Decision Trees}
 
-We consider quantized multi-class GBDT training in the style of
-\cite{friedman01,xgboost16}. Let $\mathbf{D}\in[B]^{M\times d}$ be the
-quantized training dataset, where $M$ is the number of samples, $d$ is the
-number of features, and each feature value lies in one of $B$ bins. Let
-$\mathbf{Y}\in\{0,1\}^{M\times K}$ be the one-hot label matrix for a $K$-class
-task.
+We prove the correct execution of a \emph{fixed quantized trainer semantics}.
+It is closest to Friedman-style gradient boosting with regression trees on
+pseudo-residuals, while borrowing the histogram-based split search familiar
+from quantized systems such as XGBoost \cite{friedman01,xgboost16}. The paper
+does \emph{not} claim to prove the full semantics of a production XGBoost
+trainer with Hessian-based gains, regularization, or implementation-dependent
+heuristics.
+
+Let $\mathbf{D}\in[B]^{M\times d}$ be the quantized training dataset, where
+$M$ is the number of samples, $d$ is the number of features, and each feature
+value lies in one of $B$ bins. Let $\mathbf{Y}\in\{0,1\}^{M\times K}$ be the
+one-hot label matrix for a $K$-class task. We treat the number of rounds $T$,
+the learning rate $\mu$, the quantization parameters, and the tree-shape policy
+as public parameters of the statement being proved.
 
 Training proceeds for $T$ boosting rounds with public learning rate $\mu$. For
 each round $t\in[T]$, the learner maintains a score matrix
@@ -113,14 +177,16 @@ and the final class probabilities are obtained by applying softmax to those
 $K$ accumulated scores.
 
 The proof-critical step is therefore the training of each regression tree. A
-tree is grown recursively. At a node $u$, let $I_u \subseteq [M]$ denote the
-training samples that currently reach $u$, and let
+tree is grown according to a fixed public shape policy; the proof then
+certifies that the committed split metadata and leaf values are compatible with
+that policy. At a node $u$, let $I_u \subseteq [M]$ denote the training samples
+that currently reach $u$, and let
 $g_r := \mathbf{G}^{(t)}[r,k]$ be the target value attached to sample $r$ for
 the class being trained. For a feature $j$ and threshold bin $b$, splitting on
 $(j,b)$ partitions $I_u$ into
 \begin{align*}
-L_{u,j,b} &:= \{r\in I_u : \mathbf{D}[r,j] \le b\}, \\
-R_{u,j,b} &:= \{r\in I_u : \mathbf{D}[r,j] > b\}.
+L_{u,j,b} &:= \{r\in I_u : \mathbf{D}[r,j] < b\}, \\
+R_{u,j,b} &:= \{r\in I_u : \mathbf{D}[r,j] \ge b\}.
 \end{align*}
 The standard residual-sum-of-squares objective is then
 \begin{equation}\label{eq:rss-plain}
@@ -132,16 +198,19 @@ The standard residual-sum-of-squares objective is then
 \end{equation}
 where $\bar{g}_{L}$ and $\bar{g}_{R}$ are the empirical means on the two sides.
 The trainer selects the feature-threshold pair that minimizes
-\eqref{eq:rss-plain} among valid splits, recurses on the two resulting
-children, and stops when the prescribed tree shape has been reached or when no
-valid split remains. Once the structure is fixed, each leaf $\ell$ receives the
+\eqref{eq:rss-plain} among \emph{valid} splits, namely those with
+$L_{u,j,b}\neq\varnothing$ and $R_{u,j,b}\neq\varnothing$. The semantics proved
+later does not attempt to canonicalize ties: any maximizing valid split is
+accepted. If all candidates at a node are invalid, the masked objective is zero
+for every candidate and the proved semantics is correspondingly nondeterministic
+at that node. Once the structure is fixed, each leaf $\ell$ receives the
 mean target value of the samples routed to that leaf:
 \begin{equation}\label{eq:plain-leaf-value}
 w_{\ell}^{(t,k)}
 :=
 \frac{1}{|I_{\ell}|}\sum_{r\in I_{\ell}} \mathbf{G}^{(t)}[r,k].
 \end{equation}
-In the proof, we will later rewrite the split objective into a form that
+In the proof, we later rewrite the split objective into a form that
 depends only on per-bin counts and sums, because that representation is much
 more amenable to polynomial commitments.
 
@@ -156,29 +225,90 @@ split scores.
 
 \subsection{Quantization and Fixed-Point Reduction}
 
-Our proof does not work with raw floating-point arithmetic. The feature values
-are already quantized into bins, and the remaining real-valued quantities are
-carried in fixed-point form. Concretely, if a real value $x$ is represented
-with $q$ fractional bits, we store the integer
+The proof works over $\mathbb{F}$ and does not emulate floating-point
+arithmetic directly. Feature values already appear as public bin indices in
+$[B]$. All remaining real-valued quantities are represented in fixed-point
+form with one public scale
 \[
-\lfloor 2^q x \rfloor.
+\Delta := 2^q.
 \]
-Decoding means dividing by the same public scale $2^q$, with the floor rule
-fixing the rounding convention.
+For a real value $x$, the stored integer is $\lfloor \Delta x \rfloor$; decoding
+divides by the same public scale. Signed values are first interpreted in the
+intended signed-integer range and only then embedded into $\mathbb{F}$.
 
-This matches the trainer semantics: thresholds are selected as bin indices,
-split gains and leaf values are computed after a fixed-point rescaling, and the
-softmax-related tables are tabulated on a power-of-two grid. The recurring
-proof obligation therefore has the form
+With this convention, addition and subtraction are scale-preserving. If
+$\widehat{x}=\lfloor \Delta x\rfloor$ and
+$\widehat{y}=\lfloor \Delta y\rfloor$, then
+$\widehat{x}\pm\widehat{y}$ already represents the fixed-point value
+$x\pm y$ at the same scale $\Delta$, so no explicit rescaling step is needed.
+
+Multiplication and division are different. The product
+$\widehat{x}\widehat{y}$ lives at scale $\Delta^2$, not at scale $\Delta$; and
+an exact quotient generally leaves the fixed-point grid. Therefore every
+operation that is supposed to return to the standard scale must be accompanied
+by one explicit rounding or reduction step. Algebraically, the recurring check
+is
 \[
-a = \left\lfloor \frac{b}{2^q} \right\rfloor
-\qquad\text{or equivalently}\qquad
-b = a \cdot 2^q + r,
+a = \left\lfloor \frac{b}{\Delta} \right\rfloor
+\qquad\Longleftrightarrow\qquad
+b = a\Delta + r
+\quad\text{with}\quad
+0 \le r < \Delta.
 \]
-with a public divisor $2^q$ and a range condition on the quotient or remainder.
-This is exactly the kind of same-form local check that later fits
-interleaving batching: once the domains are aligned, many fixed-point
-quantization claims can be merged into one virtual instance.
+This is the recurring fixed-point reduction relation used later in the
+protocol: raw products or quotients are formed in the larger integer domain,
+then reduced back to the standard scale by proving the above decomposition.
+Because many such reductions share the same public divisor $\Delta$, they also
+form a canonical family of same-form local checks for interleaving batching.
+
+\subsection{Field Embedding and Range Assumptions}
+
+All arithmetic is carried out in $\mathbb{F}$, but the intended semantics is an
+integer or fixed-point computation. We therefore fix one public bound
+$\mathcal{B}$ such that every scalar appearing in any checked identity admits an
+integer interpretation in the interval $[-\mathcal{B},\mathcal{B}]$ after the
+agreed fixed-point scaling.
+We require that $\mathcal{B}$ is small enough to prevent wraparound in all the checked identities, and we also require that $\mathcal{B} < |\mathbb{F}|/2$ to ensure that the integer interpretation is unambiguous.
+
+\subsection{Formal Statement Being Proved}
+
+The public statement consists of the training dimensions
+$(M,d,B,K,T)$, the learning rate $\mu$, the public tree-shape policy, the
+quantization parameters, the public lookup tables used by imported
+subprotocols, and the KZG setup parameters. The secret witness consists of the
+quantized dataset $\mathbf{D}$, the labels $\mathbf{Y}$, the committed forest
+metadata, the round-indexed boosting-state tensors, the histogram tensors, the
+split metadata, the leaf values, and the auxiliary witnesses required by the
+imported lookup, aggregation, softmax, and max-selection gadgets.
+
+The relation checked by the verifier is:
+there exists a committed witness encoding a valid execution trace of the fixed,
+quantized trainer semantics defined in this section, together with a committed
+forest and leaf values consistent with that trace.
+
+Equivalently, an accepting proof certifies that the committed witness can be
+interpreted as one end-to-end execution of the quantized training trace defined
+by the paper, not as an arbitrary real-valued GBDT trainer.
+
+\begin{theorem}[Informal security statement]
+\label{thm:main-informal}
+Assume the KZG commitment scheme is binding, the imported subprotocols satisfy
+their claimed completeness and soundness properties, and the bounds of
+\cref{prop:no-wraparound} hold. Then the protocol of Sections~4--5 satisfies:
+\begin{enumerate}
+  \item \textbf{Completeness.} Any honestly generated witness for the quantized
+  trainer semantics is accepted.
+  \item \textbf{Soundness.} Any accepting proof implies the existence of a
+  witness corresponding to a valid execution of that same quantized trainer
+  semantics, except with the accumulated soundness error of the imported
+  gadgets and the random linear-combination checks.
+  \item \textbf{Witness privacy.} If the hiding variant of the commitment scheme
+  is used and the imported subprotocols are zero knowledge, then the proof
+  reveals nothing beyond the public statement and the committed outputs.
+\end{enumerate}
+We claim soundness for this protocol, not a separate argument-of-knowledge
+statement.
+\end{theorem}
 
 \subsection{What Must Be Proved}
 
@@ -198,3 +328,9 @@ fetched \cite{cq22,cq++24,baloo25}. The new technical ingredients appear later,
 when we must align heterogeneous domains, aggregate sample contributions into
 histograms, and batch many polynomial identities into a small number of
 openings.
+
+Section~5 will formalize this roadmap as a sequence of propositions: forest
+well-formedness, leaf assignment, leaf histogram construction, internal
+propagation, prefix and total statistics, split-score correctness, split
+optimality, leaf-value correctness, and finally one round-level theorem that
+packages them together.

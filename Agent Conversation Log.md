@@ -1724,3 +1724,54 @@
 - 在 sec 2 新增了 `Quantization and Fixed-Point Reduction` 小节；
 - 用统一的 fixed-point 视角解释了 feature bin、$2^q$ 量化、floor rounding，以及后续的 divisibility / quotient 约束；
 - 在 `4.2` 后补了一个 interleaving batching 的 quantization 例子，强调多个同 divisor + rounding 的固定点检查可以合并成一个虚拟实例。
+
+### 本轮 SUGGESTION 第一批修订
+
+- 按 `SUGGESTION.md` 对 sec 2 增补了 object glossary、PCS 接口说明、formal statement、informal security theorem，以及 `Field Embedding and Range Assumptions`；
+- 明确把 trainer 语义收束为“fixed quantized trainer semantics”，而不是泛化地声称证明任意真实 GBDT / XGBoost 训练；
+- 收紧了 sec 3 的 overview：补了 routing orientation、accepting leaf 的唯一性、valid split 的限制，并弱化了关于 round 数不增长的表述；
+- 收紧了 sec 4 的 batching tools：domain-lifting batching 加入了 residual / degree 语境，interleaving batching 改成 bundle 版本并弱化了复杂度与 opening 的 claim；
+- 将 sec 5 的 protocol 主体改成命题式结构，补了 forest well-formedness、batched inference、boosting-state、leaf assignment、histogram、propagation、prefix / total、split optimality、leaf values 与 round-level theorem。
+
+### 本轮 SUGGESTION 第二批修订
+
+- 在 sec 5 里把 address-based aggregation 的语义补成了显式 statement，并把 prefix operator 明确成 public linear map；
+- 补写了 `Protocol soundness` theorem，把 KZG、imported gadgets、domain-lifting、interleaving 与 aggregation 的误差源统一进一个 union-bound 形式；
+- 更新了 Appendix A：Algorithm 2 现在直接调用 sec 5 的命题名，并新增 relation / gadget / batching / imported-vs-new 的汇总表；
+- 顺手收了两处版面问题：leaf histogram aggregation 那段的长句，以及 appendix relation table 的宽度。
+
+### 本轮 SUGGESTION 收尾
+
+- 明确把 lookup、aggregation、max-selection 与 softmax 一样写成 named imported interfaces，而不再使用含混的 “standard gadget” 口吻；
+- 在 sec 4 的 lookup batching example 里补了 tuple-encoding 的说明；
+- 在 sec 2 与 sec 5 的安全性表述里都明确说明：本文主张 soundness，而不单独主张 argument of knowledge；
+- 将 appendix 关系表直接缩放到版心，进一步压低版面 warning。
+
+### 本轮 ACM CCS 模板切换
+
+- 联网核对了 ACM 官方模板来源：`acmart` 官方文档当前版本为 `v2.16 (2025/08/27)`，并确认 submission / review 模式应使用 `acmart` 的 `manuscript, review` 选项；
+- 将最新 released `acmart` 模板 vendored 到项目根目录，新增 `acmart.cls`、`ACM-Reference-Format.bst`、`acm-jdslogo.png`，覆盖系统里旧的 `acmart v1.81`；
+- 将 `main.tex` 从 `article` 切换为 `\documentclass[manuscript,review,anonymous]{acmart}`，同时改用 `ACM-Reference-Format` 参考文献样式，并修复了 `abstract` 位置与 `amssymb`/`newtx` 的兼容问题；
+- 重新编译 `latexmk -pdf main.tex` 通过；当前剩余的是 `acmart` 自身的元数据提醒，例如 `keywords`、`CCS concepts`、图片 `Description` 尚未补全。
+
+### 本轮按 CCS 2026 CFP 最小样例收口
+
+- 重新核对了 CCS 2026 CFP 页面与其链接的官方最小样例 `sample-ccs2026.tex`，不再沿用通用 `acmart` 的推断配置；
+- 将 `main.tex` 的头部改成 `sample-ccs2026.tex` 的结构：使用 `\documentclass[sigconf]{acmart}`，保留示例 rights-management 字段、CCSXML 块、`\ccsdesc` 与 `\keywords` 区块，并保持匿名提交方式；
+- 将 bibliography 移到 appendix 之前，并新增单独的 `Open Science` appendix 占位文件 `sections/09_open_science.tex`，使整体结构更接近 CFP 要求；
+- 重新编译 `latexmk -pdf main.tex` 通过；当前 PDF 为 `13` 页，剩余主要是正文版面 overfull/underfull、图片 `Description`、以及 appendix 中的个别交叉引用 warning。
+
+### 本轮 sec 2 与记号规范整理
+
+- 参考 `zkPOT_CNN-1.pdf` 的 preliminaries 风格，重写了 `sections/02_background.tex` 中的 `2.4 Quantization and Fixed-Point Reduction`，将其收束为一条统一的固定点缩放语义：公共尺度 `\Delta=2^q`、量化关系 `b=a\Delta+r`、以及它为何是 interleaving batching 的典型应用；
+- 重写了 `2.5 Field Embedding and Range Assumptions`，不再罗列多组细碎的 bounds，而是引入单一的公共幅值上界 `\mathcal{B}`，并用 `2\mathcal{B}<|\mathbb{F}|` 给出 no-wraparound 命题；
+- 顺手把 encoding 约定里的向量项写法统一成 `\mathbf{v}[i]`，避免在 preliminaries 里混用 `v_i` 与 `\mathbf{v}[i]`；
+- 新增 `NOTATION.md`，集中记录当前论文的全局非临时符号和写作约定，包括 bold arrays、方括号索引、`f(X)` 作为向量编码多项式、padding / tilde 语义、以及 forest / histogram / batching tools 的占用符号；
+- 新增 `AGENT.md`，要求后续 agent 在编辑论文前先读 `NOTATION.md`，并在引入新全局符号时同步更新该文档；
+- `latexmk -pdf main.tex` 重新编译通过；未引入新的 LaTeX 错误。
+
+### 本轮 2.4 收口
+
+- 按“固定点算术规则”重写了 `2.4`：不再讨论 softmax 或具体子协议，只保留加减法不需要 rescale、乘除会把尺度推到更大域因而必须显式 reduction 这一条主线；
+- 将量化关系明确写成 `a=\lfloor b/\Delta\rfloor \Leftrightarrow b=a\Delta+r`，并解释它为什么是后文反复出现的 fixed-point reduction relation；
+- 补回了 `2.5` 里的 `No-wraparound regime` 命题与证明，重新强制编译后交叉引用已恢复正常。

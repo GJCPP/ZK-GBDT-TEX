@@ -9,7 +9,8 @@ polynomial domains and tensor layouts. Second, plaintext split search is
 usually implemented through sorting or feature scans, which are awkward proof
 targets. The overview below therefore isolates three ingredients: the
 committed forest interface, the algebraic rewriting of split search, and the
-batching tools that make the resulting checks compose succinctly.
+batching tools that make the resulting checks compose succinctly. Exact
+statements are deferred to Sections~4--5.
 
 \subsection{Forest Representation and Batched Inference}
 
@@ -22,8 +23,8 @@ forest consists of:
 \begin{itemize}
   \item routing matrices
   $\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}$,
-  where an internal-node row is one-hot and selects the left or
-  right child of that node, while leaf rows are zero;
+  where an internal-node row is one-hot and points from a parent node to its
+  left or right child, while leaf rows are zero;
   \item lower and upper node bounds
   $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}\in[B+1]^{N_{\mathrm{tot}}\times d}$,
   where row $u$ stores the $d$-dimensional half-open box of node $u$ and every
@@ -45,7 +46,10 @@ forest consists of:
 The pair $(\mathbf{E},\boldsymbol{\Theta})$ witnesses that
 $\mathbf{N}^{\leftarrow}$ and $\mathbf{N}^{\rightarrow}$ encode a valid
 hyperbox forest. The routing matrices $(\mathbf{L},\mathbf{R})$ are reused in
-training to propagate histogram statistics from leaves to internal nodes.
+training to propagate histogram statistics from leaves to internal nodes. We
+assume a topological node order in which children have larger indices than
+their parents, so the later propagation equations have a unique recursive
+interpretation.
 
 \Cref{fig:forest-encoding-inference} follows the exposition style of
 \cite{cq++24}: the left panel presents two concrete trees in the global node
@@ -68,7 +72,10 @@ from those committed leaf rows. It then proves that the replicated query lies
 inside the fetched half-open box
 $[\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow})$ coordinate-wise, which
 certifies that the fetched row is exactly the accepting leaf of that tree on
-that sample. Finally, the fetched leaf scores are aggregated back along the
+that sample. Uniqueness follows from forest well-formedness: leaf boxes within
+one tree form a partition of the quantized input domain, so two distinct leaf
+rows cannot both contain the same query. Finally, the fetched leaf scores are
+aggregated back along the
 tree axis to obtain the class scores. The remaining forest objects are not used
 directly in this fetch-and-containment check, but they are needed to certify
 that the committed rows do form a valid hyperbox forest and to connect
@@ -92,9 +99,9 @@ round by round. Instead, all score matrices are arranged along one extra round
 axis and committed in a single PCS instance; the same shared commitment pattern
 is used for the aligned boosting-state tensors derived from them. The proof
 then checks all score-update, softmax, and residual identities against that
-shared committed object. Consequently, the proof size does not grow with the
-number of boosting rounds; increasing $T$ enlarges the witness tensor and the
-prover's work, but not the PCS-level proof artifact.
+shared committed object. Consequently, the number of PCS instances and the
+opening pattern can be kept independent of the number of boosting rounds;
+increasing $T$ still enlarges the witness tensor and the prover's work.
 
 Logically, the proof of training establishes that for every round $t\in[T]$,
 all of the following conditions hold:
@@ -172,28 +179,27 @@ prover has committed, for every node $u$, feature $j$, and bin $q$, the sample
 count and residual sum associated with that bin, the quantities
 $|L_{u,j,b}|$, $|R_{u,j,b}|$,
 $\sum_{r\in L_{u,j,b}} g_r$, and $\sum_{r\in R_{u,j,b}} g_r$ become prefix- and
-total-sum expressions over the bin axis. The split objective is then reduced to
+total-sum expressions over the bin axis, namely the later tensors
+$\mathbf{C}_{\leq},\mathbf{H}_{\leq},\mathbf{C}_{>},\mathbf{H}_{>}$.
+The split objective is then reduced to
 tensor algebra over committed counts and sums,
-which becomes much easier to handle.
+which becomes much easier to handle. The maximization is always over valid
+splits only.
 
 \subsection{Domain-Lifted and Interleaved Batching}
 
 The construction repeatedly needs to batch claims that are structurally similar
-but do not initially share one proof shape. In this subsection, we describe two
-general-purpose batching techniques that are used throughout the construction
-to achieve succinctness and modularity. Prior proof systems already rely on
-vanishing-polynomial constraints and random-linear-combination batching on a
-common domain \cite{aurora19,cq++24}. Our claim is narrower: to the best of our
-knowledge, the two batching moves isolated here are new as reusable
-proof-composition tools in this setting. The first lifts heterogeneous linear
-claims to the same largest domain before batching, and the second interleaves
-aligned same-form nonlinear bundles into one pointwise check.
+but do not initially share one proof shape. Here we keep only the intuition.
+Section~4 gives the formal statements. The first batching move lifts
+heterogeneous linear claims to a common ambient domain before applying an
+ordinary divisibility batch. The second batching move interleaves aligned
+same-form local nonlinear checks into one larger virtual instance.
 
 \paragraph{Domain-lifted batch.}
 Most linear constraints in the paper are first expressed over some evaluation
-domain $\mathbb{H}_n$. After moving all terms to one side, we obtain a virtual polynomial $F(X)$, and the constraint is
-reduced to a zero-check over that domain, hence to a divisibility claim of the
-form
+domain $\mathbb{H}_n$. After moving all terms to one side, we obtain a virtual
+polynomial $F(X)$, and the constraint becomes a zero-check over that domain,
+hence a divisibility claim of the form
 \[
 F(X)=Q(X)\nu_n(X),
 \]
@@ -215,20 +221,15 @@ verifier can batch them as
 \]
 for a random challenge $\eta$.
 
-We call this \emph{domain-lifting batching}. It lets us merge linear claims
-that are initially written over different domains by first rewriting the
-smaller one over the larger domain and then applying an ordinary same-domain
-batch.
+This is the basic intuition behind \emph{domain-lifting batching}: lift the
+smaller residual to the larger domain, then batch there.
 
 \paragraph{Interleaving batching.}
 The second batching problem concerns same-form nonlinear checks that are
 \emph{local}: validity at one position depends only on the witness values at
 that position, not on any other entry of the vector. Typical examples in our
-setting include lookup-style checks against one common table and range checks
-against one public range table. If each local instance is proved per PCS, the
-proof size
-scales with the number of instances even though the check itself is always the
-same.
+setting include lookup-style checks and fixed-point quantization checks with one
+shared divisor and rounding rule.
 
 The basic case is two vectors of the same length. Suppose
 $\mathbf{f},\mathbf{g}\in\mathbb{F}^n$ must both satisfy the same local
@@ -257,7 +258,11 @@ $\mathbf{g}$ on the odd positions, so every position of the larger vector still
 corresponds to one concrete original entry.
 
 If the two vectors have different lengths, we first lift the smaller one to the
-larger domain by the substitution $X\mapsto X^r$, exactly as in \cref{lem:row-replication}.
+larger domain by the substitution $X\mapsto X^r$, exactly as in
+\cref{lem:row-replication}. After this alignment step, the same interleaving
+idea applies. The point is not that interleaving magically reduces all base PCS
+openings on its own; rather, it lets the protocol replace many logical local
+checks with one larger check without introducing new committed witness columns.
 The important point is that the merged object is still virtual: it is assembled
 from existing commitments, public sparse masks, and domain-lift substitutions,
 so no new base commitment is required.
