@@ -15,12 +15,12 @@ Relation & Objects & Gadget & Batching & Status \\
 \midrule
 Forest well-formedness & $\mathbf{lc},\mathbf{rc},\mathbf{E},\boldsymbol{\Theta},\mathbf{Root}$ & zero / lookup checks & domain-lifting & new composition \\
 Leaf assignment & $\mathbf{D},\boldsymbol{\ell}^{(t,k)}$ & batched inference & interleaving + lookup & imported + composed \\
-Leaf histogram & $\mathbf{addr}^{(t,k)},\mathbf{G}^{(t)},\mathbf{C}^{\mathrm{leaf}},\mathbf{H}^{\mathrm{leaf}}$ & aggregation & aggregation batching & imported + composed \\
+Leaf histogram & $\mathbf{addr}^{(t,k)},\mathbf{G}[t,k,\cdot],\mathbf{C}^{\mathrm{leaf}},\mathbf{H}^{\mathrm{leaf}}$ & aggregation & aggregation batching & imported + composed \\
 Propagation / prefix & $\mathbf{C},\mathbf{H},\mathbf{C}_{\leq},\mathbf{H}_{\leq}$ & linear identities & domain-lifting & new composition \\
 Candidate scores & $\Gamma,\boldsymbol{\chi},\mathbf{Q}^{\leftarrow},\mathbf{Q}^{\rightarrow}$ & zero-safe quotient & interleaving by gadget family & new composition \\
 Split optimality & $\Gamma,\mathbf{R},\mathbf{M},\mathbf{E},\boldsymbol{\Theta}$ & max-selection & gadget-local & imported \\
 Leaf values & $\widetilde{\mathbf{n}},\widetilde{\mathbf{a}},\widetilde{\mathbf{W}}$ & zero-safe quotient & interleaving by gadget family & new composition \\
-Softmax / residual & $\mathcal{S},\mathcal{P},\mathcal{Z},\mathcal{I},\mathcal{G}$ & $\Pi_{\mathrm{softmax}}$ & global round tensor & imported \\
+Softmax / residual & $\mathbf{S},\mathbf{P},\mathbf{Z},\mathbf{I},\mathbf{G}$ & $\Pi_{\mathrm{softmax}}$ & global round tensor & imported \\
 \bottomrule
 \end{tabular}
 }
@@ -29,18 +29,18 @@ batching mode used for each one.}
 \label{tab:protocol-obligations}
 \end{table}
 
-\begin{algorithm}[t]
+\begin{algorithm}[H]
 \caption{Quantized multi-class GBDT training trace}
 \label{alg:gbdt-trace}
 \begin{algorithmic}
 \Require Quantized dataset $\mathbf{D}\in[B]^{M\times d}$, one-hot labels $\mathbf{Y}\in\{0,1\}^{M\times K}$, rounds $T$, learning rate $\mu$
 \Ensure Forest metadata, leaf values, and proof-facing round trace
-\State Initialize $\mathbf{S}^{(0)} \gets \mathbf{0}\in\mathbb{F}^{M\times K}$
+\State Set virtual initial scores $\mathbf{S}[-1,k,r]\gets 0$ for all $k,r$
+\State Initialize $\mathbf{G}[0,k,r]\gets \mathbf{Y}[r,k]$ for all $k,r$
 \For{$t=0$ to $T-1$}
-  \State Compute pseudo-residuals $\mathbf{G}^{(t)}$ from $\mathbf{S}^{(t)}$ and $\mathbf{Y}$
   \For{$k=0$ to $K-1$}
     \State Infer global leaf indices $\boldsymbol{\ell}^{(t,k)}$ for all samples under the current tree
-    \State Build leaf-supported count and weighted histograms from $\boldsymbol{\ell}^{(t,k)}$, $\mathbf{D}$, and $\mathbf{G}^{(t)}[\cdot,k]$
+    \State Build leaf-supported count and weighted histograms from $\boldsymbol{\ell}^{(t,k)}$, $\mathbf{D}$, and $\mathbf{G}[t,k,\cdot]$
     \State Propagate histograms to internal nodes using the committed child index vectors
     \State Compute prefix statistics and candidate gain tensor $\Gamma^{(t,k)}$
     \State Select the maximizing feature-threshold pair at each internal node
@@ -48,15 +48,18 @@ batching mode used for each one.}
   \EndFor
   \For{$r=0$ to $M-1$}
     \For{$k=0$ to $K-1$}
-      \State $\mathbf{S}^{(t+1)}[r,k] \gets \mathbf{S}^{(t)}[r,k] + \mu\cdot \widetilde{\mathbf{W}}^{(t)}[\boldsymbol{\ell}^{(t,k)}[r],k]$
+      \State $\mathbf{S}[t,k,r] \gets \mathbf{S}[t-1,k,r] + \mu\cdot \widetilde{\mathbf{W}}^{(t)}[\boldsymbol{\ell}^{(t,k)}[r],k]$
     \EndFor
   \EndFor
+  \If{$t<T-1$}
+    \State Compute $\mathbf{G}[t+1,\cdot,\cdot]$ from $\mathbf{S}[t,\cdot,\cdot]$ and $\mathbf{Y}$
+  \EndIf
 \EndFor
 \State \Return committed forest, leaf values, and trace
 \end{algorithmic}
 \end{algorithm}
 
-\begin{algorithm}[t]
+\begin{algorithm}[H]
 \caption{Proof generation for quantized ZK-GBDT training}
 \label{alg:zkgbdt-proof}
 \begin{algorithmic}

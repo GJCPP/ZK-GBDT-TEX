@@ -1,17 +1,21 @@
 \section{Technical Overview}
 
-In this section, we introduce four ingredients: the committed forest
-interface, histogram aggregation, the algebraic rewriting of split search, and
-the batching tools that make the resulting checks compose succinctly.
+In this section, we introduce four ingredients: 
+how to commit the forest and prove inferences,
+how to prove the correctness of training,
+how to prove the correctness of histogram,
+and how to batch claims to reduce the overall proof size.
 
-\subsection{Forest Representation and Batched Inference}
+\subsection{Forest Representation}
 
 We adopt the hyperbox forest encoding of \cite{cq++24}. Each node carries a
 feature-wise half-open interval box, and a sample reaches a leaf exactly when
-its quantized feature vector lies inside that box. All committed objects share
+its quantized feature vector lies inside that box. 
+We assume there are $N_{\mathrm{tot}}$ nodes, and
+all committed objects share
 one global node namespace, so the row index
 $u \in [N_{\mathrm{tot}}]$ refers to the same node everywhere. The committed
-forest consists of:
+forest consists of the commitments of:
 \begin{itemize}
   \item left and right child index vectors
   $\mathbf{lc},\mathbf{rc}\in[N_{\mathrm{tot}}]^{N_{\mathrm{tot}}}$,
@@ -26,14 +30,13 @@ forest consists of:
   whose internal-node rows are one-hot and indicate which feature is split at
   each node, while leaf rows are zero;
   \item a threshold-index vector
-  $\boldsymbol{\Theta}\in[B]^{N_{\mathrm{tot}}}$,
-  whose internal-node entries record the selected threshold bin and whose leaf
-  and padding rows are zero;
+  $\boldsymbol{\Theta}\in\{1, 2,\dots, B\}^{N_{\mathrm{tot}}}$,
+  whose internal-node entries record the selected threshold bin and whose leaf rows are zero;
   \item a tree-index vector $\mathbf{tree}\in[TK]^{N_{\mathrm{tot}}}$ and a
-  root matrix $\mathbf{Root}\in\{0,1\}^{TK\times N_{\mathrm{tot}}}$;
+  root matrix $\mathbf{Root}\in\{0,1\}^{N_{\mathrm{tot}}}$;
   \item a leaf-score vector $\mathbf{score}\in\mathbb{F}^{N_{\mathrm{tot}}}$,
   whose leaf entries store the scalar contribution returned by that tree and
-  whose internal-node entries are zero or padding.
+  whose internal-node entries are zero;
   \item a boolean vector $\mathbf{is\_leaf}\in\{0,1\}^{N_{\mathrm{tot}}}$, 
   where $\mathbf{is\_leaf}[u]=1$ if and only if $u$ is a leaf node.
 \end{itemize}
@@ -53,101 +56,85 @@ while the right panel presents the committed objects.
 
 \input{figures/forest_encoding_inference}
 
-\paragraph{Proof of inference.}
+\subsection{Proof of Inference}
 
 To prove the correctness of inference over batched input $\mathbf{I}\in\mathbb{F}^{b\times d}$,
 the prover commits $\mathbf{U}^{\leftarrow}, \mathbf{U}^{\rightarrow}\in \mathbb{F}^{TKb\times d}$,
 $\mathbf{sc}\in\mathbb{F}^{TKb}$,
 and utilize table lookup to prove
 \begin{align}
-  \mathbf{1} \| \mathbf{ind}  \| \mathbf{U} ^{\leftarrow } \| \mathbf{U} ^{\rightarrow } \| \mathbf{sc} \subseteq
-  \mathbf{is\_leaf} \| \mathbf{tree} \| \mathbf{N} ^{\leftarrow }\| \mathbf{N} ^{\rightarrow }\| \mathbf{score},\label{eq:inference-lookup}
+  \mathbf{1} \| \mathbf{ind\_tree}  \| \mathbf{U} ^{\leftarrow } \| \mathbf{U} ^{\rightarrow } \| \mathbf{sc} \subseteq
+  \mathbf{is\_leaf} \| \mathbf{tree} \| \mathbf{N} ^{\leftarrow }\| \mathbf{N} ^{\rightarrow }\| \mathbf{score},\label{eq:inference-lookup-1}
 \end{align}
 where notation ``$\subseteq$'' means that each row of the left matrix equals some row of the right matrix, and
 \[
-\mathbf{ind} \coloneqq (\underbrace{0, \dots, 0}_b, \underbrace{1, \dots, 1}_{b}, \dots, \underbrace{T-1, \dots, T-1}_b)^\top.
+\mathbf{ind\_tree} \coloneqq (\underbrace{0, \dots, 0}_b, \underbrace{1, \dots, 1}_{b}, \dots, \underbrace{TK-1, \dots, TK-1}_b)^\top.
 \]
-This lookup argument guaranttes that $\mathbf{U}^{\leftarrow}, \mathbf{U}^{\rightarrow}$
-and $\mathbf{sc}$ are fields of the same leaves.
+As a sanity check,
+the LHS of \Cref{eq:inference-lookup-1} has shape $TKb\times (2d+3)$,
+and the RHS has shape $N_{\mathrm{tot}}\times (2d+3)$, so the table lookup is well-defined.
+To prove this lookup, we pad each column vector to a $d$ column matrix,
+randomly combine the matrices with a verifier challenge,
+and utilize the table lookup of~\cite{cq++24} to prove the lookup
+with (online) prover time $O(TKb)$.
+
+This lookup argument guaranttes that each row of 
+$\mathbf{U}^{\leftarrow}, \mathbf{U}^{\rightarrow}$
+and $\mathbf{sc}$ are aligned for the same leaf.
 By further proving
 \begin{align}
-  \mathbf{U} ^{\leftarrow }[t, k, i, j] \leq \mathbf{I}[i][j] \leq \mathbf{U} ^{\rightarrow }[t, k, i, j], \label{eq:inference-interval}
+  \mathbf{U} ^{\leftarrow }_{\{T\times K\times b\times d\}}[t, k, i, j] \leq \mathbf{I}[i,j] \leq \mathbf{U}_{\{T\times K\times b\times d\}} ^{\rightarrow }[t, k, i, j], \label{eq:inference-interval}
 \end{align}
 the prover proves that the leaf reached by each sample is correct.
 What remains is to prove the result of inference from $\mathbf{sc}$,
-where $\mathbf{sc}[tKb + kb + i]$ represents the score sample $i$
-received from the tree trained at round $t$ for class $k$,
-which is relatively easy.
+where $\mathbf{sc}_{\{T\times K\times b\}}[t,k,i]$ represents the score sample $i$
+received from the tree trained at round $t$ for class $k$.
+This includes proving the sum of $\mathbf{sc}_{\{T\times K\times b\}}$
+along the second dimension and proving the location of the maximum.
 
-We note that~\cite{cq++24} already handles table lookup
-for single matrix, e.g. $\mathbf{F}\subseteq \mathbf{T}$,
-where the online complexity depends only upon $|\mathbf{F}|$.
-However, \Cref{eq:inference-lookup} is a more complex lookup over concatenated matrices,
-where matrices may differ by shape.
-We will show how to handle this more complex lookup in \Cref{sec:zkgbdt-protocol}.
+\subsection{Proof of Training}
 
-\subsection{Training Proof Pipeline}
-
-The training proof reuses the same committed forest and is organized around one
-logical statement per boosting round. For every round $t\in[T]$ and class
-$k\in[K]$, the prover exposes a global leaf-assignment vector
+The training proof reuses the same committed forest. 
+The prover first commits the dataset $\mathbf{D}\in [B]^{M\times d}$ and 
+its one-hot label $\mathbf{Y}\in \{0, 1\}^{M\times K}$.
+The prover then commits leaves reached by each sample in the dataset,
+by committing
 \[
-\boldsymbol{\ell}^{(t,k)} \in
-\{N_{\mathrm{int}},\ldots,N_{\mathrm{tot}}-1\}^{M},
+\mathbf{Ind} \in
+\{N_{\mathrm{int}},\ldots,N_{\mathrm{tot}}-1\}^{T\times K\times M},
 \]
-where $\boldsymbol{\ell}^{(t,k)}[r]$ is the global leaf index reached by sample
+where $\mathbf{Ind}[t, k, r]$ 
+is the index of the leaf reached by sample
 $r$ in the tree trained for class $k$ at round $t$.
 
-From this leaf assignment and the residual column $\mathbf{G}^{(t)}[\cdot,k]$,
-the prover next forms leaf-supported count and residual-sum histograms by
-histogram aggregation over the addresses induced by the triples
-$(\boldsymbol{\ell}^{(t,k)}[r],j,\mathbf{D}[r,j])$.
+Likewise, the prover also commits the pseudo-residuals
+$\mathbf{G}\in \mathbb{F}^{T\times K\times M}$ and the current scores
+$\mathbf{S}\in \mathbb{F}^{T\times K\times M}$.
+For round $t$, class $k$, and sample $r$,
+$\mathbf{G}[t,k,r]$ represents the pseudo-residual target of sample $r$ that
+should be approximated by the regression tree for class $k$ at round $t$, and
+$\mathbf{S}[t,k,r]$ represents the cumulative score of sample $r$ for class
+$k$ after round $t$ has been added.
+Initially, $\mathbf{G}[0,k,r]=\mathbf{Y}[r,k]$ for all $k$ and $r$.
 
-A key structural point is that the family
-$(\mathbf{S}^{(0)},\mathbf{S}^{(1)},\ldots,\mathbf{S}^{(T)})$ is not committed
-round by round. Instead, all score matrices are arranged along one extra round
-axis and committed in a single PCS instance; the same shared commitment pattern
-is used for the aligned boosting-state tensors derived from them. The proof
-then checks all score-update, softmax, and residual identities against that
-shared committed object. Consequently, the number of PCS instances and the
-opening pattern can be kept independent of the number of boosting rounds;
-increasing $T$ still enlarges the witness tensor and the prover's work.
-
-Logically, the proof of training establishes that for every round $t\in[T]$,
-all of the following conditions hold:
+Logically, the proof of training sequentially proves that:
 \begin{enumerate}
-  \item the current boosting state is correct:
-  $\mathbf{S}^{(t)}\in\mathbb{F}^{M\times K}$ is the score matrix carried into
-  round $t$, and
-  $\mathbf{G}^{(t)}\in\mathbb{F}^{M\times K}$ is the pseudo-residual matrix
-  derived from $\mathbf{S}^{(t)}$ by the softmax relation;
-  \item for every class-specific tree $(t,k)$, the vector
-  $\boldsymbol{\ell}^{(t,k)}$ records exactly which leaf each sample reaches in
-  the committed tree of that round;
-  \item the histogram tensors derived from $\boldsymbol{\ell}^{(t,k)}$ and
-  $\mathbf{G}^{(t)}[\cdot,k]$ are correct: first the protocol proves
-  leaf-supported histograms by histogram aggregation, and then it propagates
-  them to internal nodes according to the committed child index vectors; these
-  tensors lie in $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ over the
-  node, feature, and bin axes;
-  \item from those histograms, the protocol derives the candidate split-score
-  tensor
-  $\Gamma^{(t,k)}\in\mathbb{F}^{N_{\mathrm{int}}\times d\times B}$ for every
-  internal-node / feature / threshold triple, and the split encoded by
-  $(\mathbf{E},\boldsymbol{\Theta})$ is certified to optimize that tensor;
-  \item the same per-leaf aggregates determine a padded leaf-value matrix
-  $\widetilde{\mathbf{W}}^{(t)}\in\mathbb{F}^{N_{\mathrm{tot}}\times K}$ for
-  the round-$t$ trees, and these leaf values update the boosting state to the
-  next score matrix $\mathbf{S}^{(t+1)}\in\mathbb{F}^{M\times K}$.
+  \item $\mathbf{Ind}$ correctly commits the leaf reached by each sample in the dataset.
+    This is proved in a manner similar to proving batched inference.
+  \item $\mathbf{G}[0, \cdot, \cdot]$ is set correctly from $\mathbf{Y}$,
+    namely $\mathbf{G}[0,k,r]=\mathbf{Y}[r,k]$.
+  \item The tree trained at each round $t$ is the optimal regression tree that fits $\mathbf{G}[t, \cdot, \cdot]$ on the dataset,
+    i.e. each node split is optimal and the score is assigned to the leaves correctly. This is discussed in more detail in the next subsections.
+  \item For each round $t$, the score $\mathbf{S}[t, \cdot, \cdot]$ is updated correctly
+    from the previous score state and the scores each sample obtained from the tree trained at round $t$.
+  \item For each round $t<T-1$, $\mathbf{G}[t+1, \cdot, \cdot]$ is updated correctly from $\mathbf{Y}$ and $\mathbf{S}[t, \cdot, \cdot]$.
+    This includes proving softmax over the second dimension of $\mathbf{S}$.
 \end{enumerate}
 
 Together, these conditions imply that the committed objects encode a valid
-plaintext GBDT training trajectory across all rounds. The tree-specific novelty
-lies in the middle of this statement: instead of proving a sorting procedure,
-the protocol proves the statistics from which split search can be reconstructed
-algebraically.
+plaintext GBDT training trajectory across all rounds.
 
-\subsection{Objective Rewriting for Split Search}
+\subsection{Proving the Correctness of Split}
 
 Consider one node $u$, one feature $j$, and one threshold bin $b$. Let
 $I_u \subseteq [M]$ be the samples reaching node $u$, and let

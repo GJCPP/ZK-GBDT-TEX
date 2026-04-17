@@ -145,31 +145,34 @@ max-selection constraints.
 \paragraph{Round state.}
 At the commitment layer, the boosting state is represented by global tensors
 \[
-\mathcal{S}\in\mathbb{F}^{(T+1)\times M\times K},\qquad
-\mathcal{G}\in\mathbb{F}^{T\times M\times K},\qquad
-\mathcal{P}\in\mathbb{F}^{T\times M\times K},
+\mathbf{S}\in\mathbb{F}^{T\times K\times M},\qquad
+\mathbf{G}\in\mathbb{F}^{T\times K\times M},\qquad
+\mathbf{P}\in\mathbb{F}^{T\times K\times M},
 \]
 \[
-\mathcal{Z}\in\mathbb{F}^{T\times M},\qquad
-\mathcal{I}\in\mathbb{F}^{T\times M},
+\mathbf{Z}\in\mathbb{F}^{T\times M},\qquad
+\mathbf{I}\in\mathbb{F}^{T\times M},
 \]
-all flattened in row-major order before commitment. The slice notation
-$\mathbf{S}^{(t)}$, $\mathbf{G}^{(t)}$, $\mathbf{P}^{(t)}$,
-$\mathbf{Z}^{(t)}$, and $\mathbf{I}^{(t)}$ refers to the corresponding round
-slice of these global tensors. The point of this arrangement is that the number
-of PCS instances and the opening pattern do not depend on $T$, although the
-witness size and prover work still do.
+all flattened in row-major order before commitment. The score and residual
+tensors use the same round-class-sample order as the training overview:
+$\mathbf{G}[t,k,r]$ is the target used by the class-$k$
+tree in round $t$, and $\mathbf{S}[t,k,r]$ is the cumulative score after that
+round. We write the virtual initial state as $\mathbf{S}[-1,k,r]=0$. The point
+of this arrangement is that the number of PCS instances and the opening pattern
+do not depend on $T$, although the witness size and prover work still do.
 
 For each round $t \in [T]$ we maintain:
 \begin{itemize}
-  \item the cumulative score matrix $\mathbf{S}^{(t)} \in \mathbb{F}^{M\times K}$;
-  \item the pseudo-residual matrix $\mathbf{G}^{(t)} \in \mathbb{F}^{M\times K}$;
+  \item the cumulative score slice
+  $\mathbf{S}[t,\cdot,\cdot] \in \mathbb{F}^{K\times M}$;
+  \item the pseudo-residual slice
+  $\mathbf{G}[t,\cdot,\cdot] \in \mathbb{F}^{K\times M}$;
   \item for every class $k$, the leaf-index vector
   $\boldsymbol{\ell}^{(t,k)} \in
   \{N_{\mathrm{int}},\ldots,N_{\mathrm{tot}}-1\}^{M}$ induced by the tree
   trained in round $t$ for class $k$;
   \item leaf-supported and all-node histogram tensors derived from
-  $\boldsymbol{\ell}^{(t,k)}$ and $\mathbf{G}^{(t)}[\cdot,k]$;
+  $\boldsymbol{\ell}^{(t,k)}$ and $\mathbf{G}[t,k,\cdot]$;
   \item the selected feature-threshold pair of every internal node.
 \end{itemize}
 All of these round-indexed views are slices or derived slices of globally
@@ -199,15 +202,15 @@ relations.
     box/.style={draw, rounded corners, align=center, minimum height=8mm, inner sep=4pt, fill=blue!3},
     arr/.style={-{Latex[length=2mm]}, thick}
   ]
-    \node[box] (scores) {$\mathbf{S}^{(t)}$};
-    \node[box, right=of scores] (resid) {$\mathbf{G}^{(t)}$};
+    \node[box] (scores) {$\mathbf{S}[t-1,\cdot,\cdot]$};
+    \node[box, right=of scores] (resid) {$\mathbf{G}[t,\cdot,\cdot]$};
     \node[box, right=of resid] (leaf) {$\boldsymbol{\ell}^{(t,k)}$};
     \node[box, below=of leaf] (hist) {$\mathbf{C}^{\mathrm{leaf},(t,k)},\ \mathbf{H}^{\mathrm{leaf},(t,k)}$};
     \node[box, left=of hist] (allnode) {$\mathbf{C}^{(t,k)},\ \mathbf{H}^{(t,k)}$};
     \node[box, left=of allnode] (gain) {$\Gamma^{(t,k)}$};
     \node[box, below=of gain] (split) {$\mathbf{E},\ \boldsymbol{\Theta}$};
     \node[box, right=of split] (leafvalue) {$\widetilde{\mathbf{W}}^{(t)}$};
-    \node[box, right=of leafvalue] (nextscores) {$\mathbf{S}^{(t+1)}$};
+    \node[box, right=of leafvalue] (nextscores) {$\mathbf{S}[t,\cdot,\cdot]$};
     \draw[arr] (scores) -- node[above, font=\small] {softmax} (resid);
     \draw[arr] (resid) -- node[above, font=\small] {batched inference} (leaf);
     \draw[arr] (leaf) -- node[right, font=\small] {histogram agg.} (hist);
@@ -230,39 +233,37 @@ aggregates that define the current round's leaf values.
 
 \begin{proposition}[Boosting-state and pseudo-residual correctness]
 \label{prop:boosting-state}
-For $t=0$, the protocol sets $\mathbf{S}^{(0)}=\mathbf{0}$. For every
-$t \geq 1$, let
-$\widetilde{\mathbf{W}}^{(t-1)} \in \mathbb{F}^{N_{\mathrm{tot}}\times K}$
-denote the padded leaf-value matrix from the previous round, with zeros on
-internal rows. The cumulative scores satisfy
+The protocol uses the virtual initial state $\mathbf{S}[-1,k,r]=0$ and sets
+$\mathbf{G}[0,k,r]=\mathbf{Y}[r,k]$. For every $t\in[T]$, let
+$\widetilde{\mathbf{W}}^{(t)} \in \mathbb{F}^{N_{\mathrm{tot}}\times K}$
+denote the padded leaf-value matrix from round $t$, with zeros on internal
+rows. The cumulative scores satisfy
 \begin{equation}\label{eq:score-update}
-\mathbf{S}^{(t)}[r,k]
+\mathbf{S}[t,k,r]
 =
-\mathbf{S}^{(t-1)}[r,k]
-+ \mu \cdot \widetilde{\mathbf{W}}^{(t-1)}[\boldsymbol{\ell}^{(t-1,k)}[r],k].
+\mathbf{S}[t-1,k,r]
++ \mu \cdot \widetilde{\mathbf{W}}^{(t)}[\boldsymbol{\ell}^{(t,k)}[r],k].
 \end{equation}
 The right-hand side is proved by a lookup from the leaf-index vector into
-$\widetilde{\mathbf{W}}^{(t-1)}$, followed by a linear consistency check.
+$\widetilde{\mathbf{W}}^{(t)}$, followed by a linear consistency check.
 
-To derive pseudo-residuals, the prover commits auxiliary matrices
-$\mathbf{P}^{(t)}\in\mathbb{F}^{M\times K}$,
-$\mathbf{Z}^{(t)}\in\mathbb{F}^{M}$, and
-$\mathbf{I}^{(t)}\in\mathbb{F}^{M}$ satisfying
+For $t<T-1$, the next pseudo-residual slice is derived from the score slice
+after round $t$. The prover commits auxiliary tensors satisfying
 \begin{align}
-\mathbf{P}^{(t)}[r,k] &= \exp(\mathbf{S}^{(t)}[r,k]), \label{eq:softmax-exp}\\
-\mathbf{Z}^{(t)}[r] &= \sum_{c=0}^{K-1}\mathbf{P}^{(t)}[r,c], \label{eq:softmax-sum}\\
-\mathbf{I}^{(t)}[r] &= \big(\mathbf{Z}^{(t)}[r]\big)^{-1}, \label{eq:softmax-inv}
+\mathbf{P}[t,k,r] &= \exp(\mathbf{S}[t,k,r]), \label{eq:softmax-exp}\\
+\mathbf{Z}[t,r] &= \sum_{c=0}^{K-1}\mathbf{P}[t,c,r], \label{eq:softmax-sum}\\
+\mathbf{I}[t,r] &= \big(\mathbf{Z}[t,r]\big)^{-1}, \label{eq:softmax-inv}
 \end{align}
 and then proves
 \begin{equation}\label{eq:residual-definition}
-\mathbf{G}^{(t)}[r,k]
+\mathbf{G}[t+1,k,r]
 =
-\mathbf{Y}[r,k]-\mathbf{P}^{(t)}[r,k]\mathbf{I}^{(t)}[r].
+\mathbf{Y}[r,k]-\mathbf{P}[t,k,r]\mathbf{I}[t,r].
 \end{equation}
 Equation \eqref{eq:softmax-sum} is checked directly as a linear relation.
 Equations \eqref{eq:softmax-exp} and \eqref{eq:softmax-inv} are delegated to
 the imported interface $\Pi_{\mathrm{softmax}}$. Hence the protocol certifies
-that $(\mathbf{S}^{(t)},\mathbf{G}^{(t)})$ is consistent with the quantized
+that $(\mathbf{S},\mathbf{G})$ is consistent with the quantized
 trainer semantics of Section~2.
 \end{proposition}
 
@@ -299,7 +300,7 @@ satisfy
 \mathbf{H}^{\mathrm{leaf},(t,k)}[u,j,b]
 &=
 \sum_{r=0}^{M-1}
-\mathbf{G}^{(t)}[r,k]\,
+\mathbf{G}[t,k,r]\,
 \mathbf{1}\!\left[
 \boldsymbol{\ell}^{(t,k)}[r]=u \wedge \mathbf{D}[r,j]=b
 \right]. \label{eq:leaf-weight-hist}
@@ -312,7 +313,7 @@ $\Flat(\mathbf{H}^{\mathrm{leaf},(t,k)})$ are viewed as length
 $N_{\mathrm{tot}}dB$ vectors, then the protocol proves by aggregation that
 placing the value $1$ at each address $\mathbf{addr}^{(t,k)}[r,j]$ produces
 $\Flat(\mathbf{C}^{\mathrm{leaf},(t,k)})$. Placing the value
-$\mathbf{G}^{(t)}[r,k]$ at those same addresses produces
+$\mathbf{G}[t,k,r]$ at those same addresses produces
 $\Flat(\mathbf{H}^{\mathrm{leaf},(t,k)})$.
 \end{proposition}
 
@@ -470,7 +471,7 @@ The same leaf-index vector also induces per-leaf counts and residual sums:
 \label{eq:leaf-count}\\
 \widetilde{\mathbf{a}}^{(t,k)}[u]
 &=
-\sum_{r=0}^{M-1}\mathbf{G}^{(t)}[r,k]\,
+\sum_{r=0}^{M-1}\mathbf{G}[t,k,r]\,
 \mathbf{1}\!\left[\boldsymbol{\ell}^{(t,k)}[r]=u\right]. \label{eq:leaf-sum}
 \end{align}
 Both are obtained by aggregating per-sample contributions according to the
@@ -500,7 +501,7 @@ Fix one round $t\in[T]$. If
 \cref{prop:boosting-state,prop:leaf-assignment,prop:leaf-hist,prop:internal-propagation,prop:prefix-total,prop:candidate-score,prop:split-optimality,prop:leaf-values}
 all hold for every class $k\in[K]$, then the committed round-$t$ objects encode
 one valid step of the quantized trainer semantics from
-$\mathbf{S}^{(t)}$ to $\mathbf{S}^{(t+1)}$.
+the previous score state to $\mathbf{S}[t,\cdot,\cdot]$.
 \end{theorem}
 
 \begin{proof}

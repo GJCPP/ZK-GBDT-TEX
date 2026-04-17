@@ -55,8 +55,8 @@ Symbol & Shape & Support & Meaning & Status \\
 \midrule
 $\mathbf{D}$ & $M\times d$ & all samples & quantized dataset & committed \\
 $\mathbf{Y}$ & $M\times K$ & all samples & one-hot labels & committed \\
-$\mathbf{S}^{(t)}$ & $M\times K$ & round $t$ & cumulative scores & committed slice \\
-$\mathbf{G}^{(t)}$ & $M\times K$ & round $t$ & pseudo-residuals & committed slice \\
+$\mathbf{S}$ & $T\times K\times M$ & all rounds & cumulative scores & committed \\
+$\mathbf{G}$ & $T\times K\times M$ & all rounds & pseudo-residuals & committed \\
 $\boldsymbol{\ell}^{(t,k)}$ & $M$ & tree $(t,k)$ & leaf assignment & committed slice \\
 $\mathbf{C}^{(t,k)},\mathbf{H}^{(t,k)}$ & $N_{\mathrm{tot}}\times d\times B$ & tree $(t,k)$ & count / sum histograms & committed slice \\
 $\Gamma^{(t,k)}$ & $N_{\mathrm{int}}\times d\times B$ & tree $(t,k)$ & candidate split scores & committed slice \\
@@ -128,50 +128,58 @@ and the size of dataset $M$
 as public parameters of the statement being proved.
 
 \paragraph{Plaintext training.}
-GBDT trains an additive model over $T$ rounds. In each round $t\in[T]$, the
-learner maintains a score matrix $\mathbf{S}^{(t)}\in\mathbb{F}^{M\times K}$,
-where $\mathbf{S}^{(t)}[r,k]$ denotes the current score of sample $r$ for class
-$k$, before adding the trees of round $t$. We initialize
-$\mathbf{S}^{(0)}=\mathbf{0}$.
+GBDT trains an additive model over $T$ rounds. In the proof-facing notation,
+the cumulative scores and pseudo-residuals are arranged as tensors
+$\mathbf{S},\mathbf{G}\in\mathbb{F}^{T\times K\times M}$, with axes ordered by
+round, class, and sample. The entry $\mathbf{S}[t,k,r]$ denotes the cumulative
+score of sample $r$ for class $k$ after round $t$ has been added, while
+$\mathbf{G}[t,k,r]$ denotes the regression target used by the class-$k$ tree in
+round $t$. For convenience, we write the virtual initial score state as
+$\mathbf{S}[-1,k,r]=0$.
 
-The current class probabilities are obtained by applying softmax row-wise:
+The class probabilities after round $t$ are obtained by applying softmax over
+the class axis:
 \begin{equation}
-\boldsymbol{\pi}^{(t)}[r,k]
+\boldsymbol{\pi}[t,k,r]
 :=
-\frac{\exp(\mathbf{S}^{(t)}[r,k])}
-{\sum_{k'\in[K]} \exp(\mathbf{S}^{(t)}[r,k'])}.
+\frac{\exp(\mathbf{S}[t,k,r])}
+{\sum_{c\in[K]} \exp(\mathbf{S}[t,c,r])}.
 \end{equation}
 Let $\mathbf{Y}\in\{0,1\}^{M\times K}$ be the one-hot label matrix. The
-multinomial logistic loss at round $t$ is
+multinomial logistic loss after round $t$ is
 \begin{equation}
 \mathcal{L}^{(t)}
 :=
 -\sum_{r\in[M]}\sum_{k\in[K]}
-\mathbf{Y}[r,k]\log \boldsymbol{\pi}^{(t)}[r,k].
+\mathbf{Y}[r,k]\log \boldsymbol{\pi}[t,k,r].
 \end{equation}
 Its partial derivative with respect to the score entry
-$\mathbf{S}^{(t)}[r,k]$ is
+$\mathbf{S}[t,k,r]$ is
 \begin{equation}
-\frac{\partial \mathcal{L}^{(t)}}{\partial \mathbf{S}^{(t)}[r,k]}
+\frac{\partial \mathcal{L}^{(t)}}{\partial \mathbf{S}[t,k,r]}
 =
-\boldsymbol{\pi}^{(t)}[r,k]-\mathbf{Y}[r,k].
+\boldsymbol{\pi}[t,k,r]-\mathbf{Y}[r,k].
 \end{equation}
-Therefore, the negative gradient is
+Therefore, after round $t$, the next negative-gradient target is
 \begin{equation}\label{eq:plain-pseudoresidual}
-\mathbf{G}^{(t)}[r,k]
+\mathbf{G}[t+1,k,r]
 :=
--\frac{\partial \mathcal{L}^{(t)}}{\partial \mathbf{S}^{(t)}[r,k]}
+-\frac{\partial \mathcal{L}^{(t)}}{\partial \mathbf{S}[t,k,r]}
 =
-\mathbf{Y}[r,k]-\boldsymbol{\pi}^{(t)}[r,k].
+\mathbf{Y}[r,k]-\boldsymbol{\pi}[t,k,r],
+\qquad t<T-1.
 \end{equation}
-We call $\mathbf{G}^{(t)}$ the pseudo-residual matrix. Similar to the gradient descent
+The initial target is set as $\mathbf{G}[0,k,r]=\mathbf{Y}[r,k]$. We call
+$\mathbf{G}[t,\cdot,\cdot]$ the pseudo-residual slice for round $t$. Similar to the gradient descent
 approach, we want to move the score matrix towards the negative gradient direction, and therefore reduce the loss.
 Thus in round $t$, the
 learner trains one regression tree for each class $k\in[K]$ to fit the target
-vector $\mathbf{G}^{(t)}[\cdot,k]\in\mathbb{F}^{M}$.\footnote{The above describes the training process for typical gradient-boosting decision trees. 
+vector $\mathbf{G}[t,k,\cdot]\in\mathbb{F}^{M}$.\footnote{The above describes the training process for typical gradient-boosting decision trees. 
 It is also possible to adapt our constructions to other variants,
 e.g. XGBoost~\cite{xgboost16},
 by modifying the training target and tree-splitting policy accordingly.
+It is also possible to extend our approach to prove
+the training and inference of random forests.
 See \textcolor{red}{Appendix}.}
 
 \paragraph{Regression tree.}
@@ -193,7 +201,7 @@ sample set into the left and right child sample sets.
 \paragraph{How a node is split.}
 For the class-$k$ tree in round $t$, let
 \[
-g_r := \mathbf{G}^{(t)}[r,k]
+g_r := \mathbf{G}[t,k,r]
 \]
 denote the regression target attached to sample $r$. Consider a node $u$ with
 current sample set $I_u$. For a candidate split specified by a feature
@@ -229,7 +237,7 @@ set of leaf $\ell$, its output value is
 \begin{equation}\label{eq:plain-leaf-value}
 w_{\ell}^{(t,k)}
 :=
-\frac{1}{|I_\ell|}\sum_{r\in I_\ell} \mathbf{G}^{(t)}[r,k].
+\frac{1}{|I_\ell|}\sum_{r\in I_\ell} \mathbf{G}[t,k,r].
 \end{equation}
 Therefore, for every training sample $r$, the tree prediction
 $f^{(t,k)}(\mathbf{D}[r,\cdot])$ is exactly the leaf value associated with the
@@ -240,13 +248,13 @@ After training all $K$ regression trees
 $\{f^{(t,k)}\}_{k\in[K]}$ in round $t$, the learner updates the score matrix by
 adding the tree outputs with learning rate $\mu>0$:
 \begin{equation}\label{eq:plain-score-update}
-\mathbf{S}^{(t+1)}[r,k]
+\mathbf{S}[t,k,r]
 =
-\mathbf{S}^{(t)}[r,k] + \mu\, f^{(t,k)}(\mathbf{D}[r,\cdot]).
+\mathbf{S}[t-1,k,r] + \mu\, f^{(t,k)}(\mathbf{D}[r,\cdot]).
 \end{equation}
 This completes round $t$. The next round recomputes
-$\boldsymbol{\pi}^{(t+1)}$, forms the new pseudo-residual matrix
-$\mathbf{G}^{(t+1)}$ using \eqref{eq:plain-pseudoresidual}, and trains a fresh
+$\boldsymbol{\pi}[t,\cdot,\cdot]$, forms the new pseudo-residual slice
+$\mathbf{G}[t+1,\cdot,\cdot]$ using \eqref{eq:plain-pseudoresidual}, and trains a fresh
 collection of $K$ regression trees against those updated targets. After $T$
 rounds, the forest consists of the $TK$ trees trained all rounds.
 
@@ -280,11 +288,7 @@ q_x = \lfloor x \cdot 2^Q \rfloor,
 \]
 where $Q>0$ is a public quantization parameter. The corresponding fixed-point value is then interpreted as $x \approx q_x / 2^Q$.
 
-Under this representation, addition is scale-preserving: if
-$x_1 \approx q_{x_1}/2^Q$ and $x_2 \approx q_{x_2}/2^Q$, then
-\[
-x_1 + x_2 \approx \frac{q_{x_1}+q_{x_2}}{2^Q}.
-\]
+Under this representation, addition is scale-preserving.
 Multiplication, however, increases the scale and therefore requires an explicit
 rescaling step. In particular, if
 $x \approx q_x/2^Q$ and $y \approx q_y/2^Q$, then their product is represented by
@@ -297,39 +301,28 @@ xy \approx \frac{q_z}{2^Q}.
 \]
 \subsection{Statement and Proof Overview}
 
-Our goal is to prove correct training, not merely well-formedness of the
-committed forest. Concretely, given commitments to a training dataset and to a
-forest, the prover must show that the committed forest is exactly the result of
-running the public quantized GBDT training algorithm on the committed dataset.
+Without loss of generality,
+we assume the prover and the client will engage two phases:
+\begin{itemize}
+    \item \textbf{Training phase.} The prover commits to the training dataset and the trained forest, 
+    and proves that the forest is obtained by honestly running the public quantized trainer on the committed dataset.
 
-The public statement consists of the training parameters
-$(M,d,B,K,T)$, the learning rate $\mu$, the public tree-shape policy, the
-quantization parameters, the public tables used by imported subprotocols, the
-KZG setup parameters, and the commitments to the dataset and the forest. The
-witness consists of the values needed to certify one valid training trace,
-including the labels, the round-wise boosting states, the histogram
-statistics, the split metadata, the leaf values, and the auxiliary witnesses
-required by the imported gadgets.
+    \item \textbf{Inference phase.} Given a batch of public inputs, 
+    the prover proves that a claimed inference output is consistent with the committed forest.
+\end{itemize}
+Our goal is thus to prove the correctness of the training process
+and inference.
 
-Accordingly, the verifier checks the following claim: there exists a witness
-such that, starting from the committed dataset, the public quantized training
-procedure produces exactly the committed forest. Thus, an accepting proof
-certifies not only that the committed forest has valid syntax, but that it is
-consistent with one end-to-end execution of the trainer semantics fixed by this
-paper.
-
-At a high level, the proof of training must establish four facts:
-\begin{enumerate}
-    \item the committed forest derives the claimed inference over the dataset;
-    \item each boosting round correctly derives the pseudo-residuals and updates
-    the score state;
-    \item in each boosting round, each tree is trained according to the public training algorithm.
-\end{enumerate}
-
-The rest of the protocol decomposes this global claim into local checks for
-forest semantics, routing, histogram construction, split-score correctness,
-split optimality, and leaf-value correctness, and then batches these checks
-into a small number of polynomial openings.
+In the training phase, the public statement consists of the parameters
+that fix the training procedure,
+including the number of rounds $T$, the number of classes $K$, the dataset size $M$, the feature dimension $d$, 
+the size of dataset $M$, etc.
+The (optionally private) witness consists of the committed dataset and the committed forest,
+which includes the split metadata and leaf values of all trees.
+The proof is generated by showing that the committed forest is 
+consistent with a valid execution of the training procedure on the committed dataset.
+Based on the application,
+the dataset and the forest is optionally public.
 
 \begin{theorem}[Informal security statement]
 \label{thm:main-informal}
@@ -340,15 +333,14 @@ their claimed completeness and soundness properties. Then the protocol satisfies
     running the public quantized trainer on the committed dataset, then the
     prover can produce an accepting proof.
 
-    \item \textbf{Soundness.} If the verifier accepts, then, except with the
-    accumulated soundness error of the imported gadgets and the batching
-    checks, the committed forest is consistent with a valid execution of that
+    \item \textbf{Soundness.} If the verifier accepts, then
+    with overwhelming probability,
+    the committed forest is consistent with a valid execution of that
     same trainer on the committed dataset.
 
     \item \textbf{(Optional) Witness privacy.} If the hiding variant of the commitment
     scheme is used and the imported subprotocols are zero knowledge, then the
-    proof reveals nothing beyond the public statement and the committed
-    outputs.
+    proof reveals nothing beyond the correctness
+    of the training and the public information.
 \end{enumerate}
-We claim soundness, not a separate argument-of-knowledge statement.
 \end{theorem}

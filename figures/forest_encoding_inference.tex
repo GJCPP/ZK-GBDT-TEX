@@ -174,10 +174,10 @@
 
   \end{tikzpicture}%
   }
-  \caption{A multi-tree explanation in the style of \cite{cq++24}, adapted to
-  our committed-forest setting. The left panel shows two compact trees with
-  global node identifiers, and the right panel shows the row-oriented committed
-  state used by inference. The highlighted entries are the fetched rows for one
+  \caption{An illustration of the forest encoding and inference semantics.
+  The left panel shows two compact trees with
+  global node identifiers, and the right panel shows the committed
+  objects used by inference. The highlighted entries are the fetched rows for one
   query, one per tree. Batched inference performs this fetch for every
   tree-sample pair in one shot and then aggregates scores across trees for
   each sample-class pair.}
