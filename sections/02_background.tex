@@ -35,11 +35,16 @@ $\mathbb{H}_n$ is
 v(X) := \sum_{i \in [n]} \mathbf{v}[i] \lambda_n^{(i)}(X),
 \]
 where $\mathbf{v}[i]$ denotes the $i$-th entry of $\mathbf{v}$.
-If $\mathbf{V}$ is a matrix or higher-order tensor, we use $\mathbf{V}[i, j, k,\dots]$.
 
-Throughout the paper, we index all nodes globally across all trees. We write
-$[N_{\mathrm{int}}]$ for indexing internal nodes and
-$\{N_{\mathrm{int}},\ldots,N_{\mathrm{tot}}-1\}$ for leaves.
+Throughout the paper, we need to manipulate the shapes
+of a high-dimensional tensor. Given $\mathbf{V}\in \mathbb{F}^{a\times b\times c}$,
+we write $\mathbf{V}_{\{abc\}}\in \mathbb{F}^{abc}$ for its flatten form,
+and $\mathbf{V}_{\{a\times bc\}}\in \mathbb{F}^{a\times bc}$ for its flatten form with the first dimension preserved.
+As a sanity check, note that
+\[
+\mathbf{V}_{\{a\times b\times c\}}[i, j, k] = \mathbf{V}_{\{a\times bc\}}[i, j \cdot c + k] = \mathbf{V}_{\{abc\}}[i \cdot bc + j \cdot c + k].
+\]
+A similar notation applies to tensors of other dimensions.
 
 \begin{table*}[t]
 \centering
@@ -103,13 +108,12 @@ allows the prover to open multiple evaluation claims together.
 \end{itemize}
 
 \paragraph{Properties.}
-We rely on the following standard properties. First, honestly generated openings
-and batched openings always verify. Second, commitments are binding: after a
+We rely on the following standard properties. \emph{Completeness}: honestly generated openings
+and batched openings always verify.  \emph{Binding}: after a
 commitment is published, the prover cannot later open it to a different value at
-the same point. Third, batched verification is sound: a prover cannot convince
-the verifier of incorrect evaluation claims, except with negligible probability.
+the same point. 
 
-\subsection{Gradient Boosted Decision Trees}
+\subsection{Gradient Boosted Decision Trees in Plaintext}
 
 Given a commitment to a forest, the task of proof of training is to show that
 the forest arises from a valid execution of the GBDT training procedure.
@@ -118,14 +122,16 @@ Let $\mathbf{D}\in[B]^{M\times d}$ be the quantized training dataset, where
 $M$ is the number of samples, $d$ is the number of features, and each feature
 value lies in one of $B$ bins. Let $\mathbf{Y}\in\{0,1\}^{M\times K}$ be the
 one-hot label matrix for a $K$-class classification task. We treat the number
-of boosting rounds $T$, the learning rate $\mu$, the quantization parameters,
-and the tree-shape policy as public parameters of the statement being proved.
+of boosting rounds $T$,
+the number of classes $K$,
+and the size of dataset $M$
+as public parameters of the statement being proved.
 
-\paragraph{Boosting view.}
+\paragraph{Plaintext training.}
 GBDT trains an additive model over $T$ rounds. In each round $t\in[T]$, the
 learner maintains a score matrix $\mathbf{S}^{(t)}\in\mathbb{F}^{M\times K}$,
-where $\mathbf{S}^{(t)}[r,k]$ is the current score of sample $r$ for class $k$
-before the trees of round $t$ are added. We initialize
+where $\mathbf{S}^{(t)}[r,k]$ denotes the current score of sample $r$ for class
+$k$, before adding the trees of round $t$. We initialize
 $\mathbf{S}^{(0)}=\mathbf{0}$.
 
 The current class probabilities are obtained by applying softmax row-wise:
@@ -135,16 +141,38 @@ The current class probabilities are obtained by applying softmax row-wise:
 \frac{\exp(\mathbf{S}^{(t)}[r,k])}
 {\sum_{k'\in[K]} \exp(\mathbf{S}^{(t)}[r,k'])}.
 \end{equation}
-For the multinomial logistic loss, the negative gradient with respect to the
-score matrix is
+Let $\mathbf{Y}\in\{0,1\}^{M\times K}$ be the one-hot label matrix. The
+multinomial logistic loss at round $t$ is
+\begin{equation}
+\mathcal{L}^{(t)}
+:=
+-\sum_{r\in[M]}\sum_{k\in[K]}
+\mathbf{Y}[r,k]\log \boldsymbol{\pi}^{(t)}[r,k].
+\end{equation}
+Its partial derivative with respect to the score entry
+$\mathbf{S}^{(t)}[r,k]$ is
+\begin{equation}
+\frac{\partial \mathcal{L}^{(t)}}{\partial \mathbf{S}^{(t)}[r,k]}
+=
+\boldsymbol{\pi}^{(t)}[r,k]-\mathbf{Y}[r,k].
+\end{equation}
+Therefore, the negative gradient is
 \begin{equation}\label{eq:plain-pseudoresidual}
 \mathbf{G}^{(t)}[r,k]
 :=
+-\frac{\partial \mathcal{L}^{(t)}}{\partial \mathbf{S}^{(t)}[r,k]}
+=
 \mathbf{Y}[r,k]-\boldsymbol{\pi}^{(t)}[r,k].
 \end{equation}
-We refer to $\mathbf{G}^{(t)}$ as the pseudo-residual matrix. Thus, in round
-$t$, the learner trains one regression tree for each class $k\in[K]$ to fit the
-target vector $\mathbf{G}^{(t)}[\cdot,k]\in\mathbb{F}^{M}$.
+We call $\mathbf{G}^{(t)}$ the pseudo-residual matrix. Similar to the gradient descent
+approach, we want to move the score matrix towards the negative gradient direction, and therefore reduce the loss.
+Thus in round $t$, the
+learner trains one regression tree for each class $k\in[K]$ to fit the target
+vector $\mathbf{G}^{(t)}[\cdot,k]\in\mathbb{F}^{M}$.\footnote{The above describes the training process for typical gradient-boosting decision trees. 
+It is also possible to adapt our constructions to other variants,
+e.g. XGBoost~\cite{xgboost16},
+by modifying the training target and tree-splitting policy accordingly.
+See \textcolor{red}{Appendix}.}
 
 \paragraph{Regression tree.}
 Fix a round $t$ and a class $k$. The learner constructs a regression tree
@@ -157,7 +185,7 @@ $u$; otherwise it is sent to the right child. The output
 $f^{(t,k)}(\mathbf{x})$ is the value stored at the leaf reached by this routing
 procedure.
 
-Equivalently, during training, each node $u$ is associated with the set
+Similarly, during training, each node $u$ is associated with the set
 $I_u\subseteq[M]$ of samples currently reaching $u$. The root contains all
 samples, i.e., $I_{\mathrm{root}}=[M]$, and each split partitions the parent
 sample set into the left and right child sample sets.
@@ -191,9 +219,9 @@ where
 are the empirical means on the two sides. Intuitively, the split is good if the
 targets assigned to each child are well concentrated around a single mean.
 
-Among all \emph{valid} candidates, namely those for which both
-$L_{u,j,b}\neq\varnothing$ and $R_{u,j,b}\neq\varnothing$, the trainer selects a
+Among all valid candidates, i.e. those for which both $L_{u,j,b}\neq\emptyset$ and $R_{u,j,b}\neq\emptyset$, the trainer selects a
 feature-threshold pair minimizing \eqref{eq:rss-plain}.
+If valid split is not possible, the node is not split and becomes a leaf.
 
 Once the tree structure is fixed, each leaf $\ell$ is assigned the mean target
 value of the samples that reach it. Writing $I_\ell\subseteq[M]$ for the sample
@@ -210,7 +238,7 @@ leaf reached by sample $r$.
 \paragraph{Round update.}
 After training all $K$ regression trees
 $\{f^{(t,k)}\}_{k\in[K]}$ in round $t$, the learner updates the score matrix by
-adding the tree outputs with learning rate $\mu$:
+adding the tree outputs with learning rate $\mu>0$:
 \begin{equation}\label{eq:plain-score-update}
 \mathbf{S}^{(t+1)}[r,k]
 =
@@ -245,7 +273,7 @@ split scores.
 
 \subsection{Quantization}
 
-We follow the fixed-point quantization approach used in prior works~\cite{sparrow24,zkboost26}. 
+We follow the fixed-point quantization approach used in prior ZKP for ML works~\cite{sparrow24,zkdt20,zkboost26}. 
 Given a real number $x$, we encode it as a signed integer
 \[
 q_x = \lfloor x \cdot 2^Q \rfloor,
