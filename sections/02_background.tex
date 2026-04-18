@@ -312,11 +312,15 @@ Given matrix $\mathbf{F}\in \mathbb{F}^{n\times m}$
     where the online prover time is independent of $\mathbf{T}$.
 
 In our construction, we need a variant of this argument,
-    where the prover has a batch of $\mathbf{F}_i\in \mathbb{F}^{n_i\times m}$
-    and $\mathbf{T}_i \in \mathbb{F}^{N_i\times m}$
+    where the prover has a batch of $\mathbf{F}_i\in \mathbb{F}^{n\times m_i}$
+    and $\mathbf{T}_i \in \mathbb{F}^{N\times m_i}$
     for $i\in [k]$,
     and want to prove that
     \[\mathbf{F}_0\| \cdots \| \mathbf{F}_{k-1} \subseteq \mathbf{T}_0\| \cdots \| \mathbf{T}_{k-1}.\]
+    This can be achieved by first padding each matrix to the same
+    number of columns,
+    and then randomly combine them with a verifier challenge.
+    \textcolor{red}{Appendix} gives the details of this argument and its properties.
 
 \subsection{Statement and Proof Overview}
 

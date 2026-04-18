@@ -8,19 +8,20 @@ the committed objects and relations that the proof must certify.
 \subsection{Committed Forest Representation}
 
 We commit the forest using the hyperbox encoding of \cite{cq++24}. Nodes are
-indexed from one: internal nodes lie in $\{1,\ldots,N_{\mathrm{int}}\}$ and
-leaves lie in $\{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}\}$. The value $0$
-is reserved as the null child pointer for leaf and padding rows. When a node
+indexed in one global namespace $\{0,\ldots,N_{\mathrm{tot}}-1\}$, where node
+$0$ is a dummy node and all of its attributes are fixed to the dummy value
+$0$. Internal nodes lie in $\{1,\ldots,N_{\mathrm{int}}\}$ and leaves lie in
+$\{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}-1\}$. When a node
 identifier $u$ labels a committed row, its physical row in the flattened array
-is $u-1$. Trees are ordered first by
+is $u$. Trees are ordered first by
 boosting round and then by class, so tree $(tK+k)$ is the tree trained for
 class $k$ in round $t$.
 
 The committed forest consists of the following objects.
 \begin{itemize}
   \item Left and right child index vectors
-  $\mathbf{lc},\mathbf{rc}\in\{0,1,\ldots,N_{\mathrm{tot}}\}^{N_{\mathrm{tot}}}$
-  encoding the one-based node identifiers of the left and right child of each
+  $\mathbf{lc},\mathbf{rc}\in\{0,1,\ldots,N_{\mathrm{tot}}-1\}^{N_{\mathrm{tot}}}$
+  encoding the node identifiers of the left and right child of each
   internal node.
   \item Lower and upper hyperbox bounds
   $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}
@@ -43,7 +44,7 @@ for the virtual sparse routing operators induced by
 $\mathbf{lc},\mathbf{rc}$, namely
 $\mathbf{L}[u,v]=1 \iff \mathbf{lc}[u]=v$ and
 $\mathbf{R}[u,v]=1 \iff \mathbf{rc}[u]=v$ for nonzero node identifiers
-$u,v\in\{1,\ldots,N_{\mathrm{tot}}\}$.
+$u,v\in\{1,\ldots,N_{\mathrm{tot}}-1\}$.
 
 \begin{proposition}[Forest well-formedness]
 \label{prop:forest-well-formedness}
@@ -173,7 +174,7 @@ For each round $t \in [T]$ we maintain:
   $\mathbf{G}[t,\cdot,\cdot] \in \mathbb{F}^{K\times M}$;
   \item for every class $k$, the leaf-index vector
   $\boldsymbol{\ell}^{(t,k)} \in
-  \{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}\}^{M}$ induced by the tree
+  \{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}-1\}^{M}$ induced by the tree
   trained in round $t$ for class $k$;
   \item leaf-supported and all-node histogram tensors derived from
   $\boldsymbol{\ell}^{(t,k)}$ and $\mathbf{G}[t,k,\cdot]$;
@@ -275,7 +276,7 @@ trainer semantics of Section~2.
 \label{prop:leaf-assignment}
 For every round-class pair $(t,k)$, the vector
 $\boldsymbol{\ell}^{(t,k)}\in
-\{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}\}^{M}$ is proved by applying
+\{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}-1\}^{M}$ is proved by applying
 \cref{prop:batched-forest-inference} to the training dataset $\mathbf{D}$ and
 the tree $(t,k)$. Consequently, $\boldsymbol{\ell}^{(t,k)}[r]$ is the unique
 accepting leaf for sample $r$ in that tree.
@@ -287,7 +288,7 @@ For each class $k$, define the address tensor
 \begin{equation}\label{eq:hist-address}
 \mathbf{addr}^{(t,k)}[r,j]
 :=
-\bigl((\boldsymbol{\ell}^{(t,k)}[r]-1)d+j\bigr)B + \mathbf{D}[r,j].
+\bigl(\boldsymbol{\ell}^{(t,k)}[r]d+j\bigr)B + \mathbf{D}[r,j].
 \end{equation}
 The prover first commits leaf-supported tensors
 $\mathbf{C}^{\mathrm{leaf},(t,k)}$ and

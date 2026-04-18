@@ -14,14 +14,15 @@ its quantized feature vector lies inside that box.
 We assume there are $N_{\mathrm{tot}}$ nodes, and
 all committed objects share
 one global node namespace, so node identifiers are
-$u \in \{1,\ldots,N_{\mathrm{tot}}\}$ everywhere. When a node identifier labels
+$u \in \{0,\ldots,N_{\mathrm{tot}}-1\}$ everywhere. Node $0$ is a dummy node, and
+all of its committed attributes are fixed to the dummy value $0$. When a node identifier labels
 a committed row, the corresponding physical row in the row-major encoding is
-$u-1$. The committed
+$u$. The committed
 forest consists of the commitments of:
 \begin{itemize}
   \item left and right child index vectors
-  $\mathbf{lc},\mathbf{rc}\in\{0,1,\ldots,N_{\mathrm{tot}}\}^{N_{\mathrm{tot}}}$,
-  whose internal-node entries record the one-based node identifiers of the left and
+  $\mathbf{lc},\mathbf{rc}\in\{0,1,\ldots,N_{\mathrm{tot}}-1\}^{N_{\mathrm{tot}}}$,
+  whose internal-node entries record the node identifiers of the left and
   right child of each parent node, while leaf and padding entries are zero;
   \item lower and upper node bounds
   $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}\in[B+1]^{N_{\mathrm{tot}}\times d}$,
@@ -32,7 +33,7 @@ forest consists of the commitments of:
   whose internal-node rows are one-hot and indicate which feature is split at
   each node, while leaf rows are zero;
   \item a threshold-index vector
-  $\boldsymbol{\Theta}\in\{1, 2,\dots, B\}^{N_{\mathrm{tot}}}$,
+  $\boldsymbol{\Theta}\in\{0,1,\ldots,B\}^{N_{\mathrm{tot}}}$,
   whose internal-node entries record the selected threshold bin and whose leaf rows are zero;
   \item a tree-index vector $\mathbf{tree}\in[TK]^{N_{\mathrm{tot}}}$ and a
   root indicator $\mathbf{root}\in\{0,1\}^{N_{\mathrm{tot}}}$;
@@ -45,7 +46,7 @@ forest consists of the commitments of:
 
 We assume there are $N_{\mathrm{int}}$ internal nodes and $N_{\mathrm{leaf}}$ leaf nodes
 in the forest, where internal nodes are indexed by $\{1,\ldots,N_{\mathrm{int}}\}$ and leaf nodes are indexed by
-$\{N_{\mathrm{int}}+1, \dots, N_{\mathrm{tot}}\}$.
+$\{N_{\mathrm{int}}+1, \dots, N_{\mathrm{tot}}-1\}$.
 
 Note that $\mathbf{N}^{\leftarrow}$, $\mathbf{N}^{\rightarrow}$, $\mathbf{lc}$
 and $\mathbf{rc}$ together fix the entire forest.
@@ -94,7 +95,7 @@ received from the tree trained at round $t$ for class $k$.
 This includes proving the sum of $\mathbf{sc}_{\{T\times K\times b\}}$
 along the second dimension and proving the location of the maximum.
 
-\subsection{Proof of Forest Well-formedness}
+\subsection{Proof of Forest Well-formedness}\label{subsec:proof of well-formedness}
 
 First, the prover proves that the committed forest is well-formed, by showing
 \begin{enumerate}
@@ -128,7 +129,7 @@ First, the prover proves that the committed forest is well-formed, by showing
     \end{align}
   \item There are in total $TK$ trees, i.e.
   \begin{align}
-    \sum_{u=1}^{N_{\mathrm{tot}}} \mathbf{root}[u] = TK.
+    \sum_{u=0}^{N_{\mathrm{tot}}-1} \mathbf{root}[u] = TK.
   \end{align}
   \end{enumerate}
 
@@ -136,17 +137,25 @@ Note that since for any node $u$, its hyper-box is full-range if and only if
   $\mathbf{root}[u]=1$,
   any node $v$ marked by $\mathbf{root}[v]=1$ must be a true root.
 
-To prove $\mathbf{tree}[\mathbf{lc}[u]]=\mathbf{tree}[u]$ for all internal nodes $u$, the prover first
+The above involves essentially two kinds of techniques:
+  proving routing, and proving sum.
+  To prove $\mathbf{tree}[\mathbf{lc}[u]]=\mathbf{tree}[u]$ for all internal nodes $u$, the prover first
   commits $\mathbf{tree\_lc}$ where
   \[\mathbf{tree\_lc}[u] = \mathbf{tree}[\mathbf{lc}[u]]\]
   for all internal nodes $u$.
   It then proves
   \[
     \mathbf{lc}\|\mathbf{tree\_lc} \subseteq \left(\begin{matrix}
-    0\\ 1\\ \vdots\\ N_{\mathrm{tot}}
+    0\\ 1\\ \vdots\\ N_{\mathrm{tot}}-1
     \end{matrix}\right)\|\mathbf{tree},
   \]
   alongside $\mathbf{is\_leaf}\odot(\mathbf{tree\_lc} - \mathbf{tree}) = \mathbf{0}$.
+
+For sum over vector, we utilize the Aurora's sum-check protocol~\cite{aurora19}.
+  To prove sum along one dimension of the matrix,
+  we adopt a Quarks-style proof~\cite{quarks20},
+  where the prover commits the prefix sum and total sum, 
+  and proves the consistency between them and the original matrix.
 
 \subsection{Proof of Training}
 
@@ -157,7 +166,7 @@ The prover then commits leaves reached by each sample in the dataset,
 by committing
 \[
 \mathbf{Ind} \in
-\{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}\}^{T\times K\times M},
+\{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}-1\}^{T\times K\times M},
 \]
 where $\mathbf{Ind}[t, k, r]$ 
 is the index of the leaf reached by sample
@@ -190,7 +199,7 @@ Logically, the proof of training sequentially proves that:
 Together, these conditions imply that the committed objects encode a valid
 plaintext GBDT training trace across all rounds.
 
-\subsection{Proving the Correctness of Split}
+\subsection{Proving the Correctness of Node Split}
 
 Consider one node $u$, one feature $j$, and one threshold bin $b$. Let
 $I_u \subseteq [M]$ be the samples reaching node $u$, and let
@@ -233,24 +242,26 @@ prover has committed, for every node $u$, feature $j$, and bin $q$, the sample
 count and residual sum associated with that bin, the quantities
 $|L_{u,j,b}|$, $|R_{u,j,b}|$,
 $\sum_{r\in L_{u,j,b}} g_r$, and $\sum_{r\in R_{u,j,b}} g_r$ become prefix- and
-total-sum expressions over the bin axis, namely the later tensors
-$\mathbf{C}_{\leq},\mathbf{H}_{\leq},\mathbf{C}_{>},\mathbf{H}_{>}$.
-The split objective is then reduced to
-tensor algebra over committed counts and sums,
-which becomes much easier to handle. The maximization is always over valid
-splits only.
+total-sum expressions over the bin axis.
+Our proof thus follows by committing the statistics,
+proving its prefix and suffix sums,
+computing RSS for all possible splits,
+and finally prove that the optimal ones are chosen and applied.
 
 \subsection{Domain-Lifting and Interleaving Batching}
 
-The construction repeatedly needs to batch claims that are structurally similar
-but do not initially share one proof shape. Here we keep only the intuition.
-Section~4 gives the formal statements. The first batching move lifts
-heterogeneous linear claims to a common ambient domain before applying an
-ordinary divisibility batch. The second batching move interleaves aligned
-same-form local nonlinear checks into one larger virtual instance.
+As can be already noticed, our construction repeatedly 
+encounter checks of similar forms, e.g. in \Cref{subsec:proof of well-formedness},
+we repeatedly require proof that a polynomial evaluates to zero
+everywhere on a domain (zero-check), or repeatedly require lookup argument.
+What makes the problem tricky is that these checks
+happens over different domains, and a usual random linear
+combination will not help.
+In this subsection, we discuss the two approaches
+we propose to solve this problem.
 
 \paragraph{Domain-lifted batch.}
-Most linear constraints in the paper are first expressed over some evaluation
+As stated, most linear constraints in the paper are first expressed over some evaluation
 domain $\mathbb{H}_n$. After moving all terms to one side, we obtain a virtual
 polynomial $F(X)$, and the constraint becomes a zero-check over that domain,
 hence a divisibility claim of the form
@@ -313,10 +324,8 @@ corresponds to one concrete original entry.
 
 If the two vectors have different lengths, we first lift the smaller one to the
 larger domain by the substitution $X\mapsto X^r$, exactly as in
-\cref{lem:row-replication}. After this alignment step, the same interleaving
-idea applies. The point is not that interleaving magically reduces all base PCS
-openings on its own; rather, it lets the protocol replace many logical local
-checks with one larger check without introducing new committed witness columns.
-The important point is that the merged object is still virtual: it is assembled
+\Cref{lem:row-replication}. After this alignment step, the same interleaving
+idea applies.
+The important point here is that the merged object is still virtual: it is assembled
 from existing commitments, public sparse masks, and domain-lift substitutions,
-so no new base commitment is required.
+so no new commitment is required.
