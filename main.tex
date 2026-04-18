@@ -64,6 +64,18 @@
 \newtheorem{corollary}[theorem]{Corollary}
 \theoremstyle{definition}
 \newtheorem{definition}[theorem]{Definition}
+\crefname{definition}{Definition}{Definitions}
+\Crefname{definition}{Definition}{Definitions}
+\makeatletter
+\let\definition@orig\definition
+\let\enddefinition@orig\enddefinition
+\renewenvironment{definition}{%
+  \crefalias{theorem}{definition}%
+  \definition@orig
+}{%
+  \enddefinition@orig
+}
+\makeatother
 \theoremstyle{remark}
 \newtheorem{remark}[theorem]{Remark}
 \newcommand{\Flat}{\mathsf{Flat}}

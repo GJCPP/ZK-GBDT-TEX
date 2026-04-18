@@ -1,15 +1,15 @@
 \section{Proof-Batching Tools}\label{sec:tools}
 
-This section presents the two batching tools used repeatedly in the protocol.
-The first handles heterogeneous linear identities whose natural domains
-differ. The second merges many same-form local nonlinear checks into one
-larger virtual instance. Together they cover the two batching patterns that
-recur throughout the rest of the construction.
-Standard divisibility-based zero checks and same-domain batching already appear
-in prior proof systems such as Aurora and CQ++ \cite{aurora19,cq++24}. Our
-contribution here is to isolate two reusable tools: domain-lifting batching for
-heterogeneous linear claims, and interleaving batching for aligned same-form
-nonlinear claims.
+% This section presents the two batching tools used repeatedly in the protocol.
+% The first handles heterogeneous linear identities whose natural domains
+% differ. The second merges many same-form local nonlinear checks into one
+% larger virtual instance. Together they cover the two batching patterns that
+% recur throughout the rest of the construction.
+% Standard divisibility-based zero checks and same-domain batching already appear
+% in prior proof systems such as Aurora and CQ++ \cite{aurora19,cq++24}. Our
+% contribution here is to isolate two reusable tools: domain-lifting batching for
+% heterogeneous linear claims, and interleaving batching for aligned same-form
+% nonlinear claims.
 
 \subsection{Domain-Lifting Batching}
 
@@ -77,10 +77,6 @@ uniformly random $\eta$ causes accidental acceptance with probability at most
 $(m-1)/|\mathbb{F}|$.
 \end{proof}
 
-Theorem~\ref{thm:domain-lifting-batching} is the protocol's main tool for batching
-heterogeneous linear identities. Later we apply it to routing equations,
-padding-induced tensor equalities, and other zero-check-style relations whose
-natural domains are not identical.
 
 \subsection{Interleaving Batching}
 
@@ -141,61 +137,46 @@ Its evaluation vector over $\mathbb{H}_{2n}$ is
 \begin{theorem}[Interleaving batching]
 \label{thm:interleaving-batch}
 For each $i\in[m]$, let
+$u_i(X)$ be a polynomial encoding $\mathbf{u}_i$
+over $\mathbb{H}_{n_i}$, where each
+$n_i$ is a power of two. For some local relation $\varphi$,
+the target claim is that
 \[
-\mathbf{u}_i(X):=\bigl(u_{i,1}(X),\ldots,u_{i,c}(X)\bigr)
-\]
-be a bundle of $c$ polynomial encodings over $\mathbb{H}_{n_i}$, where each
-$n_i$ is a power of two. For some local relation $\varphi$ on $c$ inputs,
-suppose the target claim is that all $m$ pointwise relations
-\[
-\forall i \in [m],\ \forall a\in\mathbb{H}_{n_i}\quad
-\varphi\!\left(
-u_{i,1}(a),\ldots,u_{i,c}(a)
-\right)=0.
+\forall i \in [m],\ \forall a\in\mathbb{H}_{n_i}.\ \varphi(u_i(a))=0.
 \]
 There exists an algorithm that combines these $m$ claims into one
-check over one interleaved bundle
+check over one polynomial $\widehat{\mathbf{u}}(X)$ and $\mathbb{H}_{\widehat{n}}$:
 \[
-\widehat{\mathbf{u}}(X)=
-\bigl(\widehat{u}_1(X),\ldots,\widehat{u}_c(X)\bigr)
+\forall a\in \mathbb{H}_{\widehat{n}}.\ \varphi(\widehat{\mathbf{u}}(a))=0.
 \]
-over domain $\mathbb{H}_{\widehat{n}}$, using only domain lifts and
-coordinatewise pairwise interleaving and introducing no new PCS commitment.
-Using a bucketed merge process, it runs in $O(m\log \widehat{n})$ time. This
-algorithm guarantees:
+The algorithm runs in $O(m\log \widehat{n})$ time
+and guarantees:
 \begin{enumerate}
-  \item all original pointwise claims hold if and only if
-  \[
-  \forall z\in\mathbb{H}_{\widehat{n}}\quad
-  \varphi\!\left(
-  \widehat{u}_1(z),\ldots,\widehat{u}_c(z)
-  \right)=0;
-  \]
+  \item all original claims over $u_i$ and $\mathbb{H}_{n_i}$ hold if and only if
+    the claim over $\widehat{u}_i$ and $\mathbb{H}_{\widehat{n}}$ holds;
   \item the final domain size satisfies
   \[
-  \widehat{n}
+  \log \widehat{n}
   =
-  2^{\left\lceil \log_2(n_1+\cdots+n_m)\right\rceil}.
+  \left\lceil \log_2(n_1+\cdots+n_m)\right\rceil.
   \]
-  \item any opening claim for $\widehat{\mathbf{u}}(X)$ is reduced to one
-  opening for each original bundle $\mathbf{u}_i(X)$, and the verifier can
-  reconstruct the virtual opening in $O(mc\log \widehat{n})$ field operations.
-  Interleaving reduces the number of logical local-check instances and avoids
-  introducing new committed witness columns, but it does not by itself collapse
-  all base PCS openings.
+  \item any opening claim for $\widehat{\mathbf{u}}(X)$ is reduced to
+  $m$ openings over $\{u_i\}_{i\in [m]}$, one per polynomial,
+  with $O(m\log \widehat{n})$ field operations on the verifier side.
 \end{enumerate}
 \end{theorem}
 
 \begin{proof}
-Start from the active multiset $\{(\mathbf{u}_i(X),n_i)\}_{i\in[m]}$.
+Start from the active multiset $\{(u_i(X),n_i)\}_{i\in[m]}$.
 We first store all pairs with same domain size in the same bucket.
 Then we perform two scans over the buckets.
 In the first scan, process the buckets from small to large domain size and
 merge equal-sized pairs whenever a bucket contains at least two active pairs.
-Each such merge uses pairwise interleaving as in
-\cref{def:pairwise-interleaving} on every coordinate of the bundle. After this
-pass, every bucket contains at most one active pair, and the total size
-$S:=\sum_i n_i$ is unchanged.
+Each such merge removes two equal-sized pairs,
+uses pairwise interleaving as in
+\Cref{def:pairwise-interleaving} to create a new pair,
+and insert the new pair into the appropriate bucket. After this
+pass, each bucket contains at most one active pair.
 
 In the second scan, repeatedly take the two smallest active pairs. If their
 sizes differ, lift the smaller one to the larger domain using
@@ -207,7 +188,7 @@ $O(\log \widehat{n})$ levels. Each merge removes one active item, and each lift
 or interleaving step changes only one level, so a bucketed implementation runs
 in $O(m\log \widehat{n})$ time.
 
-For property~(1), lifting is exactly the setting of \cref{lem:row-replication}:
+For property~(1), lifting is exactly the setting of \Cref{lem:row-replication}:
 if $r=n_j/n_i$, then $X\mapsto X^r$ repeats the entries of every coordinate of
 $\mathbf{u}_i(X)$ on the larger domain $\mathbb{H}_{n_j}$. So the local
 relation remains true before and after lifting. Pairwise interleaving preserves
@@ -226,22 +207,22 @@ then
 \[
 \sum_{i=1}^s n_i' = S
 \qquad\text{and}\qquad
-n_s' = 2^{\lfloor \log_2 S\rfloor}.
+\log n_s' = \lfloor \log_2 S\rfloor.
 \]
 If $s=1$, then $S$ is already a power of two and $\widehat{n}=S$. Otherwise
 the second scan merges the remaining powers upward and can push the final size
 no higher than $2n_s'$. Since $S>n_s'$ in this case,
 \[
-\widehat{n}= 2n_s' = 2^{\lceil \log_2 S\rceil}.
+\log \widehat{n}= 1 + \log n_s' = \lceil \log S\rceil.
 \]
 This is exactly the least power of two not smaller than $S$.
 
 For property~(3), the verifier can compute the sparse even/odd selectors
 itself. And for row replication $u(X)\mapsto u(X^r)$, an opening at $x$ reduces
 to an opening of the base polynomial at $x^r$. Hence an opening claim for the
-interleaved bundle reduces to one opening per original bundle, and the verifier
+interleaved bundle reduces to one opening per original polynomial, and the verifier
 reconstructs the virtual value by traversing the merge tree and evaluating
-public selectors, which costs $O(mc\log \widehat{n})$ field operations.
+public selectors, which costs $O(m\log \widehat{n})$ field operations.
 \end{proof}
 
 \subsection{Explicit Lookup Batching Example}
