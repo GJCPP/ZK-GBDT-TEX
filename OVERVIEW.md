@@ -63,20 +63,20 @@ $$
 $$
 one-hot 标签记为
 $$
-\mathbf{Y} \in \{0,1\}^{M \times K}.
+\mathbf{Y} \in \{0,1\}^{K \times M}.
 $$
 
 第 $t$ 轮的累计分数矩阵、pseudo-residual 矩阵分别记为
 $$
-\mathbf{S}^{(t)} \in \mathbb{F}^{M \times K},
+\mathbf{S}^{(t)} \in \mathbb{F}^{K \times M},
 \qquad
-\mathbf{G}^{(t)} \in \mathbb{F}^{M \times K}.
+\mathbf{G}^{(t)} \in \mathbb{F}^{K \times M}.
 $$
 
 其中：
 
-- $\mathbf{S}^{(t)}[r,k]$ 表示在第 $t$ 轮开始训练下一批树之前，当前 ensemble 对样本 $r$、类别 $k$ 给出的累计 score；
-- $\mathbf{G}^{(t)}[r,k]$ 表示第 $t$ 轮用于训练类别 $k$ 对应回归树的 pseudo-residual。
+- $\mathbf{S}^{(t)}[k,r]$ 表示在第 $t$ 轮开始训练下一批树之前，当前 ensemble 对类别 $k$、样本 $r$ 给出的累计 score；
+- $\mathbf{G}^{(t)}[k,r]$ 表示第 $t$ 轮用于训练类别 $k$ 对应回归树的 pseudo-residual。
 
 对每轮训练得到的叶值，我们记
 $$
@@ -96,9 +96,9 @@ $$
 $$
 满足
 $$
-\mathcal{S}[t,k,r] := \mathbf{S}^{(t)}[r,k],
+\mathcal{S}[t,k,r] := \mathbf{S}^{(t)}[k,r],
 \qquad
-\mathcal{G}[t,k,r] := \mathbf{G}^{(t)}[r,k].
+\mathcal{G}[t,k,r] := \mathbf{G}^{(t)}[k,r].
 $$
 在这个视角下，softmax 的归一化轴就是类别轴 $K$。
 
@@ -110,15 +110,19 @@ $$
 
 首先，所有树共享同一个全局节点编号空间：
 $$
-[N_{\mathrm{tot}}] = [N_{\mathrm{int}}] \ \sqcup\ \{N_{\mathrm{int}},\dots,N_{\mathrm{tot}}-1\},
+\{1,\dots,N_{\mathrm{tot}}\}
+=
+\{1,\dots,N_{\mathrm{int}}\}
+\ \sqcup\
+\{N_{\mathrm{int}}+1,\dots,N_{\mathrm{tot}}\},
 $$
-其中前一部分是内部节点，后一部分是叶子。因此，若
+其中前一部分是内部节点，后一部分是叶子。节点编号从 $1$ 开始；若节点编号 $u$ 用来索引某个承诺数组的行，则其 row-major 展平中的物理行是 $u-1$。编号 $0$ 保留给 leaf/padding 行的空孩子指针。因此，若
 $$
 \boldsymbol{\ell}^{(t,k)}[r]
 $$
 表示样本 $r$ 在第 $t$ 轮、类别 $k$ 对应树中到达的叶子，我们默认它取值于
 $$
-\{N_{\mathrm{int}},\dots,N_{\mathrm{tot}}-1\}.
+\{N_{\mathrm{int}}+1,\dots,N_{\mathrm{tot}}\}.
 $$
 
 其次，对任意张量
@@ -291,7 +295,7 @@ $$
 
 在训练场景中，我们还会得到 leaf-assignment vector
 $$
-\boldsymbol{\ell}^{(t,k)} \in \{N_{\mathrm{int}},\dots,N_{\mathrm{tot}}-1\}^{M},
+\boldsymbol{\ell}^{(t,k)} \in \{N_{\mathrm{int}}+1,\dots,N_{\mathrm{tot}}\}^{M},
 $$
 其第 $r$ 项表示样本 $r$ 在第 $t$ 轮、类别 $k$ 对应树中到达的全局叶子编号。
 
@@ -305,7 +309,7 @@ $$
 形式上，score update 应满足
 
 $$
-\mathbf{S}^{(t)}[r,k] = \mathbf{S}^{(t-1)}[r,k] + \mu \cdot \widetilde{\mathbf{W}}^{(t-1)}[\boldsymbol{\ell}^{(t-1,k)}[r],k],
+\mathbf{S}^{(t)}[k,r] = \mathbf{S}^{(t-1)}[k,r] + \mu \cdot \widetilde{\mathbf{W}}^{(t-1)}[\boldsymbol{\ell}^{(t-1,k)}[r],k],
 $$
 
 其中：
@@ -317,9 +321,9 @@ $$
 pseudo-residual 应满足
 
 $$
-\mathbf{G}^{(t)}[r,k] = \mathbf{Y}[r,k] -
-\frac{\exp(\mathbf{S}^{(t)}[r,k])}
-{\sum_{c=0}^{K-1}\exp(\mathbf{S}^{(t)}[r,c])}.
+\mathbf{G}^{(t)}[k,r] = \mathbf{Y}[k,r] -
+\frac{\exp(\mathbf{S}^{(t)}[k,r])}
+{\sum_{c=0}^{K-1}\exp(\mathbf{S}^{(t)}[c,r])}.
 $$
 
 若改用堆叠张量视角，则可写成
@@ -329,7 +333,7 @@ $$
 \mathcal{Z}[t,r] := \sum_{c=0}^{K-1}\mathcal{P}[t,c,r],
 $$
 $$
-\mathcal{G}[t,k,r] = \mathbf{Y}[r,k] - \frac{\mathcal{P}[t,k,r]}{\mathcal{Z}[t,r]}.
+\mathcal{G}[t,k,r] = \mathbf{Y}[k,r] - \frac{\mathcal{P}[t,k,r]}{\mathcal{Z}[t,r]}.
 $$
 
 这个写法也说明 softmax 可以自然看成一个“按类别轴归一化”的三维张量关系。若写成协议参数，其最自然的轴识别是
@@ -349,7 +353,7 @@ $$
 $$
 \mathbf{H}^{(t,k)}[u,j,b] :=
 \sum_{r:\ \boldsymbol{\ell}^{(t,k)}[r]=u,\ \mathbf{D}[r,j]=b}
-\mathbf{G}^{(t)}[r,k].
+\mathbf{G}^{(t)}[k,r].
 $$
 
 这里 $\mathbf{C}^{(t,k)}$ 是 count histogram，$\mathbf{H}^{(t,k)}$ 是 weighted histogram。
@@ -422,7 +426,7 @@ $$
 $$
 
 $$
-\mathbf{a}^{(t,k)}[u] := \sum_{r:\ \boldsymbol{\ell}^{(t,k)}[r]=u}\mathbf{G}^{(t)}[r,k],
+\mathbf{a}^{(t,k)}[u] := \sum_{r:\ \boldsymbol{\ell}^{(t,k)}[r]=u}\mathbf{G}^{(t)}[k,r],
 $$
 
 $$
@@ -642,7 +646,7 @@ histogram relation 是 aggregation 在 ZK-GBDT 中的结构化实例化。
 对固定 $(t,k)$，定义 address tensor
 $$
 \mathbf{addr}^{(t,k)}[r,j] :=
-(\boldsymbol{\ell}^{(t,k)}[r]d + j)B + \mathbf{D}[r,j].
+\bigl((\boldsymbol{\ell}^{(t,k)}[r]-1)d + j\bigr)B + \mathbf{D}[r,j].
 $$
 
 该地址将样本 $r$ 在特征 $j$ 上的贡献送入三元桶 $(u,j,b)$，其中
@@ -653,7 +657,7 @@ $$
 然后用 aggregation 同时构造：
 
 - count histogram：令输入值恒为 $1$；
-- weighted histogram：令输入值为 $\mathbf{G}^{(t)}[r,k]$。
+- weighted histogram：令输入值为 $\mathbf{G}^{(t)}[k,r]$。
 
 也即：
 
@@ -667,7 +671,7 @@ $$
 $$
 \mathbf{H}^{(t,k)}[u,j,b] =
 \sum_{r=0}^{M-1}
-\mathbf{G}^{(t)}[r,k]
+\mathbf{G}^{(t)}[k,r]
 \cdot
 \mathbf{1}\!\left[
 \boldsymbol{\ell}^{(t,k)}[r]=u \land \mathbf{D}[r,j]=b
@@ -883,10 +887,10 @@ $$
    $$
    \mathbf{addr}^{(t,k)}[r,j]
    :=
-   (\boldsymbol{\ell}^{(t,k)}[r]d+j)B+\mathbf{D}[r,j];
+   \bigl((\boldsymbol{\ell}^{(t,k)}[r]-1)d+j\bigr)B+\mathbf{D}[r,j];
    $$
 3. 对输入值 $1$ 做 aggregation，得到 count histogram；
-4. 对输入值 $\mathbf{G}^{(t)}[r,k]$ 做 aggregation，得到 weighted histogram。
+4. 对输入值 $\mathbf{G}^{(t)}[k,r]$ 做 aggregation，得到 weighted histogram。
 
 这是本文第二条核心贡献线的第一核心技术点。
 

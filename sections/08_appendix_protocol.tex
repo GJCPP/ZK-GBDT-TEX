@@ -33,10 +33,10 @@ batching mode used for each one.}
 \caption{Quantized multi-class GBDT training trace}
 \label{alg:gbdt-trace}
 \begin{algorithmic}
-\Require Quantized dataset $\mathbf{D}\in[B]^{M\times d}$, one-hot labels $\mathbf{Y}\in\{0,1\}^{M\times K}$, rounds $T$, learning rate $\mu$
+\Require Quantized dataset $\mathbf{D}\in[B]^{M\times d}$, one-hot labels $\mathbf{Y}\in\{0,1\}^{K\times M}$, rounds $T$, learning rate $\mu$
 \Ensure Forest metadata, leaf values, and proof-facing round trace
 \State Set virtual initial scores $\mathbf{S}[-1,k,r]\gets 0$ for all $k,r$
-\State Initialize $\mathbf{G}[0,k,r]\gets \mathbf{Y}[r,k]$ for all $k,r$
+\State Initialize $\mathbf{G}[0,k,r]\gets \mathbf{Y}[k,r]$ for all $k,r$
 \For{$t=0$ to $T-1$}
   \For{$k=0$ to $K-1$}
     \State Infer global leaf indices $\boldsymbol{\ell}^{(t,k)}$ for all samples under the current tree

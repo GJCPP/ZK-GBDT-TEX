@@ -45,6 +45,8 @@ As a sanity check, note that
 \mathbf{V}_{\{a\times b\times c\}}[i, j, k] = \mathbf{V}_{\{a\times bc\}}[i, j \cdot c + k] = \mathbf{V}_{\{abc\}}[i \cdot bc + j \cdot c + k].
 \]
 A similar notation applies to tensors of other dimensions.
+For tensors of same shape, we write $\mathbf{V}+\mathbf{W}$ for their entrywise sum, and
+$\mathbf{V}\odot\mathbf{W}$ for their Hadamard product.
 
 \begin{table*}[t]
 \centering
@@ -54,7 +56,7 @@ A similar notation applies to tensors of other dimensions.
 Symbol & Shape & Support & Meaning & Status \\
 \midrule
 $\mathbf{D}$ & $M\times d$ & all samples & quantized dataset & committed \\
-$\mathbf{Y}$ & $M\times K$ & all samples & one-hot labels & committed \\
+$\mathbf{Y}$ & $K\times M$ & all samples & one-hot labels & committed \\
 $\mathbf{S}$ & $T\times K\times M$ & all rounds & cumulative scores & committed \\
 $\mathbf{G}$ & $T\times K\times M$ & all rounds & pseudo-residuals & committed \\
 $\boldsymbol{\ell}^{(t,k)}$ & $M$ & tree $(t,k)$ & leaf assignment & committed slice \\
@@ -120,8 +122,8 @@ the forest arises from a valid execution of the GBDT training procedure.
 
 Let $\mathbf{D}\in[B]^{M\times d}$ be the quantized training dataset, where
 $M$ is the number of samples, $d$ is the number of features, and each feature
-value lies in one of $B$ bins. Let $\mathbf{Y}\in\{0,1\}^{M\times K}$ be the
-one-hot label matrix for a $K$-class classification task. We treat the number
+value lies in one of $B$ bins. Let $\mathbf{Y}\in\{0,1\}^{K\times M}$ be the
+one-hot label matrix, with class-sample axes, for a $K$-class classification task. We treat the number
 of boosting rounds $T$,
 the number of classes $K$,
 and the size of dataset $M$
@@ -145,20 +147,20 @@ the class axis:
 \frac{\exp(\mathbf{S}[t,k,r])}
 {\sum_{c\in[K]} \exp(\mathbf{S}[t,c,r])}.
 \end{equation}
-Let $\mathbf{Y}\in\{0,1\}^{M\times K}$ be the one-hot label matrix. The
+Let $\mathbf{Y}\in\{0,1\}^{K\times M}$ be the one-hot label matrix. The
 multinomial logistic loss after round $t$ is
 \begin{equation}
 \mathcal{L}^{(t)}
 :=
 -\sum_{r\in[M]}\sum_{k\in[K]}
-\mathbf{Y}[r,k]\log \boldsymbol{\pi}[t,k,r].
+\mathbf{Y}[k,r]\log \boldsymbol{\pi}[t,k,r].
 \end{equation}
 Its partial derivative with respect to the score entry
 $\mathbf{S}[t,k,r]$ is
 \begin{equation}
 \frac{\partial \mathcal{L}^{(t)}}{\partial \mathbf{S}[t,k,r]}
 =
-\boldsymbol{\pi}[t,k,r]-\mathbf{Y}[r,k].
+\boldsymbol{\pi}[t,k,r]-\mathbf{Y}[k,r].
 \end{equation}
 Therefore, after round $t$, the next negative-gradient target is
 \begin{equation}\label{eq:plain-pseudoresidual}
@@ -166,10 +168,10 @@ Therefore, after round $t$, the next negative-gradient target is
 :=
 -\frac{\partial \mathcal{L}^{(t)}}{\partial \mathbf{S}[t,k,r]}
 =
-\mathbf{Y}[r,k]-\boldsymbol{\pi}[t,k,r],
+\mathbf{Y}[k,r]-\boldsymbol{\pi}[t,k,r],
 \qquad t<T-1.
 \end{equation}
-The initial target is set as $\mathbf{G}[0,k,r]=\mathbf{Y}[r,k]$. We call
+The initial target is set as $\mathbf{G}[0,k,r]=\mathbf{Y}[k,r]$. We call
 $\mathbf{G}[t,\cdot,\cdot]$ the pseudo-residual slice for round $t$. Similar to the gradient descent
 approach, we want to move the score matrix towards the negative gradient direction, and therefore reduce the loss.
 Thus in round $t$, the
@@ -299,13 +301,31 @@ so that
 \[
 xy \approx \frac{q_z}{2^Q}.
 \]
+
+\subsection{Table Lookup Argument}
+Given matrix $\mathbf{F}\in \mathbb{F}^{n\times m}$
+    and matrix $\mathbf{T}\in \mathbb{F}^{N\times m}$,
+    the lookup relation
+    \[\mathbf{F}\subseteq \mathbf{T}\]
+    means that every row of $\mathbf{F}$ appears as a row of $\mathbf{T}$.
+    Based on KZG PCS~\cite{kzg10}, \citet{cq++24} give a zero-knowledge argument for this relation
+    where the online prover time is independent of $\mathbf{T}$.
+
+In our construction, we need a variant of this argument,
+    where the prover has a batch of $\mathbf{F}_i\in \mathbb{F}^{n_i\times m}$
+    and $\mathbf{T}_i \in \mathbb{F}^{N_i\times m}$
+    for $i\in [k]$,
+    and want to prove that
+    \[\mathbf{F}_0\| \cdots \| \mathbf{F}_{k-1} \subseteq \mathbf{T}_0\| \cdots \| \mathbf{T}_{k-1}.\]
+
 \subsection{Statement and Proof Overview}
 
 Without loss of generality,
 we assume the prover and the client will engage two phases:
 \begin{itemize}
     \item \textbf{Training phase.} The prover commits to the training dataset and the trained forest, 
-    and proves that the forest is obtained by honestly running the public quantized trainer on the committed dataset.
+    and proves that the forest is obtained by honestly running the public quantized trainer on the committed dataset. The prover also proves that the committed forest is
+    well-formed in this phase.
 
     \item \textbf{Inference phase.} Given a batch of public inputs, 
     the prover proves that a claimed inference output is consistent with the committed forest.
