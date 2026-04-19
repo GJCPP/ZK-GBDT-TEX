@@ -225,9 +225,18 @@ reconstructs the virtual value by traversing the merge tree and evaluating
 public selectors, which costs $O(m\log \widehat{n})$ field operations.
 \end{proof}
 
-\subsection{Explicit Lookup Batching Example}
+\subsection{Usage of Interleaving Batching}
 
-As a concrete application for interleaving batching, suppose we have several lookup families indexed by
+In our proof system, we use interleaving batching mainly to combine
+  two types of check:
+  lookup argument and fixed-point quantization check.
+
+\paragraph{Batching lookup.}
+We first note that, like~\cite{cq++24}, all table lookups in our construction are
+  first reduced to vector lookups.
+  It is hence without loss of generality to focus on batching vector lookups.
+
+Suppose we have several lookup families indexed by
 $i\in[s]$. For each family, there is a public table $\mathbf{t}_i$ and a
 collection of vector queries $\mathbf{f}_{i,1},\ldots,\mathbf{f}_{i,m_i}$ such
 that every query satisfies $\mathbf{f}_{i,j}\subseteq \mathbf{t}_i$. Here table

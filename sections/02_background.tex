@@ -308,8 +308,7 @@ Given matrix $\mathbf{F}\in \mathbb{F}^{n\times m}$
     the lookup relation
     \[\mathbf{F}\subseteq \mathbf{T}\]
     means that every row of $\mathbf{F}$ appears as a row of $\mathbf{T}$.
-    Based on KZG PCS~\cite{kzg10}, \citet{cq++24} give a zero-knowledge argument for this relation
-    where the online prover time is independent of $\mathbf{T}$.
+
 
 In our construction, we need a variant of this argument,
     where the prover has a batch of $\mathbf{F}_i\in \mathbb{F}^{n\times m_i}$
@@ -319,8 +318,38 @@ In our construction, we need a variant of this argument,
     \[\mathbf{F}_0\| \cdots \| \mathbf{F}_{k-1} \subseteq \mathbf{T}_0\| \cdots \| \mathbf{T}_{k-1}.\]
     This can be achieved by first padding each matrix to the same
     number of columns,
-    and then randomly combine them with a verifier challenge.
+    and then randomly combine them with a verifier challenge,
+    so it is reduced to a single-table lookup argument.
     \textcolor{red}{Appendix} gives the details of this argument and its properties.
+
+Our construction mainly relies on the single-table lookup argument of \citet{cq++24},
+    which reduces a table lookup argument to a basic lookup argument
+    where the table is single-column.
+    Additionally, in our construction, we utilize
+    two types of (single) table lookup arguments:
+    with preprocessing, and without preprocessing.
+    
+\paragraph{With preprocessing.}
+Based on KZG PCS~\cite{kzg10}, \citet{cq++24} give a zero-knowledge argument for this relation
+    where the online prover time is independent of $\mathbf{T}$.
+    The key is to first reduce the problem to a single-column lookup, and then
+    use logup~\cite{logup22} for proving the relation,
+    while preprocessing $\mathbf{T}$ by storing the ``cached quotient''~\cite{cq22}.
+    The drawback is that the preprocessing requires extra prover work,
+    and the benefit is only significant when $\mathbf{T}$ is large.
+
+\paragraph{Without preprocessing.}
+For table lookup without preprocessing,
+    we utilize the construction of \cite{cq++24} without running
+    its preprocessing phase.
+    The benefit for using this construction is that,
+    as we will demonstrate later,
+    we can batch all lookup instances for all (differently shaped) tables
+    into one single lookup argument, and therefore achieve significant 
+    reduction in proof size and prover time.\footnote{
+        We do not know if it's possible to batch the lookup arguments with preprocessing, because the preprocessing is specific to each table and cannot be easily aligned across different tables.
+        We leave this question for future work.
+    }
 
 \subsection{Statement and Proof Overview}
 
