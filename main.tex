@@ -62,6 +62,38 @@
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{proposition}[theorem]{Proposition}
 \newtheorem{corollary}[theorem]{Corollary}
+\crefname{lemma}{Lemma}{Lemmas}
+\Crefname{lemma}{Lemma}{Lemmas}
+\crefname{proposition}{Proposition}{Propositions}
+\Crefname{proposition}{Proposition}{Propositions}
+\crefname{corollary}{Corollary}{Corollaries}
+\Crefname{corollary}{Corollary}{Corollaries}
+\makeatletter
+\let\lemma@orig\lemma
+\let\endlemma@orig\endlemma
+\renewenvironment{lemma}{%
+  \crefalias{theorem}{lemma}%
+  \lemma@orig
+}{%
+  \endlemma@orig
+}
+\let\proposition@orig\proposition
+\let\endproposition@orig\endproposition
+\renewenvironment{proposition}{%
+  \crefalias{theorem}{proposition}%
+  \proposition@orig
+}{%
+  \endproposition@orig
+}
+\let\corollary@orig\corollary
+\let\endcorollary@orig\endcorollary
+\renewenvironment{corollary}{%
+  \crefalias{theorem}{corollary}%
+  \corollary@orig
+}{%
+  \endcorollary@orig
+}
+\makeatother
 \theoremstyle{definition}
 \newtheorem{definition}[theorem]{Definition}
 \crefname{definition}{Definition}{Definitions}

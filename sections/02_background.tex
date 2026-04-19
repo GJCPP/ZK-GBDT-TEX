@@ -47,6 +47,7 @@ As a sanity check, note that
 A similar notation applies to tensors of other dimensions.
 For tensors of same shape, we write $\mathbf{V}+\mathbf{W}$ for their entrywise sum, and
 $\mathbf{V}\odot\mathbf{W}$ for their Hadamard product.
+We denote by $|\mathbf{V}|$ for the size of tensor $\mathbf{V}$.
 
 \begin{table*}[t]
 \centering
@@ -346,7 +347,9 @@ For table lookup without preprocessing,
     as we will demonstrate later,
     we can batch all lookup instances for all (differently shaped) tables
     into one single lookup argument, and therefore achieve significant 
-    reduction in proof size and prover time.\footnote{
+    reduction in proof size and prover time.
+    The efficiency and proof size gain is enormous
+    when the table is small.\footnote{
         We do not know if it's possible to batch the lookup arguments with preprocessing, because the preprocessing is specific to each table and cannot be easily aligned across different tables.
         We leave this question for future work.
     }
