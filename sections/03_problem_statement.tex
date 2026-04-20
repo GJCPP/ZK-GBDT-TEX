@@ -1,4 +1,4 @@
-\section{Technical Overview}
+\section{Technical Overview}\label{sec:technical-overview}
 
 In this section, we introduce four ingredients: 
 how to commit the forest and prove inferences,
@@ -230,23 +230,78 @@ the candidate split. Therefore minimizing $\operatorname{RSS}(u,j,b)$ is
 equivalent to maximizing
 \begin{equation}\label{eq:split-objective}
 \Phi(u,j,b)
-:=
+\coloneqq
 \frac{\left(\sum_{r\in L_{u,j,b}} g_r\right)^2}{|L_{u,j,b}|}
 +
 \frac{\left(\sum_{r\in R_{u,j,b}} g_r\right)^2}{|R_{u,j,b}|},
 \end{equation}
 subject to the validity condition that both children are nonempty.
 
-This rewriting explains why histograms are sufficient proof objects. Once the
-prover has committed, for every node $u$, feature $j$, and bin $q$, the sample
-count and residual sum associated with that bin, the quantities
-$|L_{u,j,b}|$, $|R_{u,j,b}|$,
-$\sum_{r\in L_{u,j,b}} g_r$, and $\sum_{r\in R_{u,j,b}} g_r$ become prefix- and
-total-sum expressions over the bin axis.
-Our proof thus follows by committing the statistics,
-proving its prefix and suffix sums,
-computing RSS for all possible splits,
-and finally prove that the optimal ones are chosen and applied.
+If we denote $\mathbf{C}[i, j, k]$ the number of samples falling to node $i$ with $d$-th feature being $k$,
+  and $\mathbf{V}[i, j, k]$ the sum of residuals for samples falling to node $i$ with $d$-th feature being $k$,
+  then we can rewrite \eqref{eq:split-objective} as
+\begin{equation}
+\Phi(u,j,b)
+\coloneqq
+\frac{\left(\sum_{k=0}^{b-1} \mathbf{V}[u, j, k]\right)^2}{\sum_{k=0}^{b-1} \mathbf{C}[u, j, k]}
++
+\frac{\left(\sum_{k=b}^{B-1} \mathbf{V}[u, j, k]\right)^2}{\sum_{k=b}^{B-1} \mathbf{C}[u, j, k]}.
+\end{equation}
+
+This rewriting indicates that \emph{histograms} are sufficient proof objects. 
+Once $\mathbf{C}$ and $\mathbf{V}$ are available, by proving the prefix and suffix sums of them,
+the prover can prove the split gain $\Phi(u,j,b)$ for all candidate splits in one shot.
+
+\subsection{Proving Histogram}
+
+Given $\mathbf{Ind}$ and $\mathbf{G}$,
+  the prover needs to prove the correctness of $\mathbf{C}$ and $\mathbf{V}$.
+  Following the approach of \cite{sparrow24,zkboost26},
+  we first construct the leaf-wise histogram $\mathbf{C}_{\mathrm{leaf}}$ and $\mathbf{V}_{\mathrm{leaf}}$,
+  where $\mathbf{C}_{\mathrm{leaf}}[i, j, k]$ and $\mathbf{V}_{\mathrm{leaf}}[i, j, k]$ are 
+  the number of samples and sum of residuals for node $i$ (which is a leaf), feature $j$, and feature value $k$.
+  The prover then proves $\mathbf{C}$ and $\mathbf{V}$ by showing that for all nodes,
+  \begin{align}
+  \mathbf{C}[i, j, k] =&\ \mathbf{C}_{\mathrm{leaf}}[l, j, k]\cdot \mathbf{is\_leaf}[l] +\nonumber\\
+    &(\mathbf{C}[\mathbf{lc}[i], j, k] + \mathbf{C}[\mathbf{rc}[i], j, k])\cdot (1- \mathbf{is\_leaf}[l]),\\
+  \mathbf{V}[i, j, k] =&\ \mathbf{V}_{\mathrm{leaf}}[l, j, k]\cdot \mathbf{is\_leaf}[l] +\nonumber\\
+    &(\mathbf{V}[\mathbf{lc}[i], j, k] + \mathbf{V}[\mathbf{rc}[i], j, k])\cdot (1- \mathbf{is\_leaf}[l]),
+  \end{align}
+  where again, the prover proves the routing with lookup.
+
+Hence, the prover first needs to prove that
+  \begin{align}
+    \mathbf{C}_{\mathrm{leaf}}[i, j, k] =&\ \sum_{r: \mathbf{Ind}[t, k, r]=i \land \mathbf{D}[r, j]=k} 1,\\
+    \mathbf{V}_{\mathrm{leaf}}[i, j, k] =&\ \sum_{r: \mathbf{Ind}[t, k, r]=i \land \mathbf{D}[r, j]=k} \mathbf{G}[t, k, r].
+  \end{align}
+  Sparrow~\cite{sparrow24} and ZKBoost~\cite{zkboost26} prove this by modeling it as an RAM argument.
+  That is, consider an RAM array $\mathbf{C}'$ and $\mathbf{V}'$, for each sample $r$, we update
+  \[
+  \begin{aligned}
+    \mathbf{C}'[\mathbf{Ind}[t, k, r], j, \mathbf{D}[r, j]] &\gets \mathbf{C}'[\mathbf{Ind}[t, k, r], j, \mathbf{D}[r, j]] + 1,\\
+    \mathbf{V}'[\mathbf{Ind}[t, k, r], j, \mathbf{D}[r, j]] &\gets \mathbf{V}'[\mathbf{Ind}[t, k, r], j, \mathbf{D}[r, j]] + \mathbf{G}[t, k, r].
+  \end{aligned}
+  \]
+  They then prove this by utilizing the RAM argument of Spartan~\cite{spartan20} and of~\cite{twoshuffleRAM24}, respectively.
+
+However, we note that the problem of proving histogram is one
+  that is much simpler than general RAM argument, since the update pattern is fixed and known in advance, and the update operation is just addition.
+  Over the flattened tensors, we instead prove
+  \begin{align}
+    \sum_{i\in [TKM]} \mathbf{C}_{\{TKM\}}[i]\cdot \alpha^i &= \sum_{t, k, r, j} \alpha^{\mathsf{ind}(t, k, r, j)}\cdot 1,\\
+    \sum_{i\in [TKM]} \mathbf{V}_{\{TKM\}}[i]\cdot \alpha^i &= \sum_{t, k, r, j} \alpha^{\mathsf{ind}(t, k, r, j)}\cdot \mathbf{G}[t, k, r],
+  \end{align}
+  where $\alpha$ is a random challenge and $\mathsf{ind}(t, k, r, j)$ is the flattened index of the tuple $(t, k, r, j)$,
+  namely
+  \[\mathsf{ind}(t, k, r, j) = \mathbf{Ind}[t, k, r]\cdot KM + j\cdot M + \mathbf{D}[r, j].\]
+  Intuitively, we bind each $i$-th memory slot to an $\alpha^i$,
+  and prove the correctness of the final state by proving the sum of all memory slots weighted by $\alpha^i$.
+  
+Hence in our construction, the prover
+  first commits and proves a tensor encoding $\mathsf{ind}(t, k, r, j)$
+  for all $(t, k, r, j)$,
+  then utilizes lookup argument to prove the correctness of power-of-$\alpha$,
+  and finally proves the statement with a Aurora-style sum-check protocol~\cite{aurora19}.
 
 \subsection{Domain-Lifting and Interleaving Batching}
 

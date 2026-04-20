@@ -1,5 +1,7 @@
 \documentclass[sigconf]{acmart} %% CCS: DO NOT REMOVE
 
+\settopmatter{printfolios=true}
+
 %%
 %% \BibTeX command to typeset BibTeX logo in the docs
 \AtBeginDocument{%
@@ -178,19 +180,21 @@ supports both batched inference and end-to-end training proofs.
 
 \maketitle
 
+\pagestyle{plain}
+
 \input{sections/01_introduction}
 \input{sections/02_background}
 \input{sections/03_problem_statement}
 \input{sections/04_protocol}
 \input{sections/05_zkgbdt}
-\input{sections/05_evaluation}
-\input{sections/06_related_work}
-\input{sections/07_conclusion}
+\input{sections/06_evaluation}
+\input{sections/07_related_work}
+\input{sections/08_conclusion}
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{bibliography/references}
 
 \appendix
-\input{sections/08_appendix_protocol}
+\input{sections/09_appendix_protocol}
 
 \end{document}

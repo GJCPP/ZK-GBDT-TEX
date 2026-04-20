@@ -1,590 +1,117 @@
-\section{ZK-GBDT Protocol}\label{sec:zkgbdt-protocol}
+\section{ZK-GBDT}\label{sec:zkgbdt-protocol}
 
-This section instantiates the tools of \cref{sec:tools} in the ZK-GBDT
-protocol. Appendix~\ref{app:pseudocode} gives pseudocode for the round
-structure of quantized GBDT training and proof generation. Here we focus on
-the committed objects and relations that the proof must certify.
+As outlined in \Cref{sec:technical-overview},
+    we commit the forest by committing
+    \begin{align}
+        \mathcal{F} = (\mathbf{lc}, \mathbf{rc}, \mathbf{N}^{\leftarrow}, \mathbf{N}^{\rightarrow}, \mathbf{E}, \mathbf{\Theta}, \mathbf{tree}, \mathbf{score}, \mathbf{is\_leaf}).
+    \end{align}
 
-\subsection{Committed Forest Representation}
+\subsection{Proof Primitives}
+\paragraph{Zero-check.}
+Given $f(X)$ encoding vector $\mathbf{f}$ over $\mathbb{H}_n$,
+    the zero-check validates that $\mathbf{f} = \mathbf{0}$ by proving the existence of $q(X)$ such that
+    \begin{align}
+        f(X) = q(X)\cdot \nu_n(X).
+    \end{align}
 
-We commit the forest using the hyperbox encoding of \cite{cq++24}. Nodes are
-indexed in one global namespace $\{0,\ldots,N_{\mathrm{tot}}-1\}$, where node
-$0$ is a dummy node and all of its attributes are fixed to the dummy value
-$0$. Internal nodes lie in $\{1,\ldots,N_{\mathrm{int}}\}$ and leaves lie in
-$\{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}-1\}$. When a node
-identifier $u$ labels a committed row, its physical row in the flattened array
-is $u$. Trees are ordered first by
-boosting round and then by class, so tree $(tK+k)$ is the tree trained for
-class $k$ in round $t$.
+We note that as noted in \Cref{thm:domain-lifting-batching}, all zero-checks can be batched together.
+    
+\paragraph{Sum-check.}
+Given $f(X)$ encoding vector $\mathbf{f}$ over $\mathbb{H}_n$,
+    the Aurora sum-check~\cite{aurora19} validates that $\sum_{i=0}^{n-1} \mathbf{f}[i] = s$ by proving the existence of $q(X)$
+    and $r(X)$ such that
+    \begin{align}
+        \deg r(X) < n-1, \\
+        f(X) - s/n = r(X) \cdot X + q(X)\cdot \nu_n(X).
+    \end{align}
+    
+We note that as noted in \Cref{thm:domain-lifting-batching}, all sum-checks can be batched together.
 
-The committed forest consists of the following objects.
-\begin{itemize}
-  \item Left and right child index vectors
-  $\mathbf{lc},\mathbf{rc}\in\{0,1,\ldots,N_{\mathrm{tot}}-1\}^{N_{\mathrm{tot}}}$
-  encoding the node identifiers of the left and right child of each
-  internal node.
-  \item Lower and upper hyperbox bounds
-  $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}
-  \in [B+1]^{N_{\mathrm{tot}}\times d}$.
-  \item A feature-selection matrix
-  $\mathbf{E}\in\{0,1\}^{N_{\mathrm{tot}}\times d}$ whose support records the
-  split feature of each internal node.
-  \item A threshold-index vector
-  $\boldsymbol{\Theta}\in[B]^{N_{\mathrm{tot}}}$ whose internal-node entries
-  record the selected threshold bin.
-  \item A tree-index vector
-  $\mathbf{tree}\in[TK]^{N_{\mathrm{tot}}}$ and a sparse root matrix
-  $\mathbf{Root}\in\{0,1\}^{TK\times N_{\mathrm{tot}}}$.
-  \item A leaf-score vector
-  $\mathbf{score}\in\mathbb{F}^{N_{\mathrm{tot}}}$.
-\end{itemize}
-Whenever a matrix form is convenient, we write
-$\mathbf{L},\mathbf{R}\in\{0,1\}^{N_{\mathrm{tot}}\times N_{\mathrm{tot}}}$
-for the virtual sparse routing operators induced by
-$\mathbf{lc},\mathbf{rc}$, namely
-$\mathbf{L}[u,v]=1 \iff \mathbf{lc}[u]=v$ and
-$\mathbf{R}[u,v]=1 \iff \mathbf{rc}[u]=v$ for nonzero node identifiers
-$u,v\in\{1,\ldots,N_{\mathrm{tot}}-1\}$.
+\paragraph{Table lookup.}
+Given $(\mathbf{F}_i)_{i\in [k]}$ and $(\mathbf{T}_i)_{i\in [k]}$
+    encoding matrices $\mathbf{F}_i\in \mathbb{F}^{n\times m_i}$
+    and $\mathbf{T}_i\in \mathbb{F}^{N\times m_i}$,
+    the lookup relation validates that there exist
+    $\mathbf{j}\in [N]^n$, such that
+    \[
+        \mathbf{F}_i[r, c] = \mathbf{T}_i[\mathbf{j}[r], c], \forall r\in [n], c\in [m_i], i\in [k].
+    \]
+    This is reduced to a logup instance~\cite{logup22},
+    which is further batched together by 
+    interleaving batching, c.f. \Cref{lem:interleaving}.
+    See \textcolor{red}{Appendix}.
 
-\begin{proposition}[Forest well-formedness]
-\label{prop:forest-well-formedness}
-The committed forest is well formed if the following hold:
-\begin{enumerate}
-  \item every active internal entry of
-  $\mathbf{lc},\mathbf{rc}$ points to one child row,
-  leaf and padding entries of these vectors are zero, and every active
-  internal row of $\mathbf{E}$ is one-hot while leaf and padding rows are
-  zero;
-  \item $\boldsymbol{\Theta}$ is zero on leaf and padding rows, and
-  $\mathbf{score}$ is zero on internal and padding rows;
-  \item the child rows selected by
-  $\mathbf{lc},\mathbf{rc}$ belong to the same tree
-  as their parent, and the root selector $\mathbf{Root}$ chooses exactly one
-  root row per tree;
-  \item the selected coordinate updates exactly one box bound at the chosen
-  threshold, while every non-selected coordinate is inherited unchanged by both
-  children;
-  \item root rows carry the global box, and inactive padding rows are zeroed.
-\end{enumerate}
-In matrix form, the root and tree-consistency constraints are
-\begin{align}
-\mathbf{Root}\mathbf{N}^{\leftarrow} &= \mathbf{0}_{TK\times d}, &
-\mathbf{Root}\mathbf{N}^{\rightarrow} &= (B+1)\mathbf{1}_{TK\times d},
-\label{eq:root-boxes}\\
-\mathbf{Root}\mathbf{tree} &= (0,1,\ldots,TK-1)^\top, \label{eq:root-tree}\\
-\mathbf{L}\mathbf{tree} &= \mathbf{R}\mathbf{tree}
-= \mathbf{tree}_{\mathrm{int}}. \label{eq:tree-consistency}
-\end{align}
-Here $\mathbf{tree}_{\mathrm{int}}\in[TK]^{N_{\mathrm{tot}}}$ denotes the
-tree-index vector on internal rows, extended by zeros on leaf and padding rows.
-\end{proposition}
+\paragraph{Quantization.}
+Given $f(X)$ and $g(X)$ encoding vectors $\mathbf{f}$ and $\mathbf{g}$ over $\mathbb{H}_n$,
+    and given a public quantization factor $q$,
+    the quantization relation validates that
+    \begin{align}
+        \mathbf{f}[i] = \left\lfloor \frac{\mathbf{g}[i]}{2^q} \right\rfloor, \forall i\in [n].
+    \end{align}
+    This is reduced to proving the existence of $\mathbf{q}$ and $\mathbf{r}$ such that
+    \begin{align}
+        \mathbf{g}[i] = 2^q \cdot \mathbf{f}[i] + \mathbf{r}[i], \forall i\in [n], \\
+        0 \leq \mathbf{r}[i] < 2^q, \forall i\in [n].
+    \end{align}
 
-\subsection{Batched Forest Inference}
+As discussed earlier, we first batch all quantization checks
+    by \Cref{lem:interleaving}.
+    Then proving the range of $\mathbf{r}$ with lookup argument.
 
-Let $\mathbf{X}\in[B]^{b\times d}$ be a batch of query inputs. Depending on the
-surrounding application, $\mathbf{X}$ may be public or may itself be a
-committed witness object. We write
-$\mathbf{X}^{\mathrm{rep}}$ for the row-replicated tensor that repeats
-$\mathbf{X}$ once per tree. By \cref{lem:row-replication}, the verifier can
-reason about $\mathbf{X}^{\mathrm{rep}}$ through the replicated encoding
-obtained by the substitution $X \mapsto X^{TK}$ rather than asking for a
-separate commitment.
+\paragraph{Prefix sum.}
+Given $f(X)$ encoding vector $\mathbf{f}$ over $\mathbb{H}_{abc}$,
+    we require three types of prefix sums:
+    prove $\mathbf{g}$ and $\mathbf{h}$ such that
+    \begin{enumerate}
+        \item $\mathbf{g}[i, j, k] = \sum_{k'=0}^{k} \mathbf{f}[i, j, k']$ and $\mathbf{h}[i, j] = \sum_{k'=0}^{c} \mathbf{f}[i, j, k']$;
+        \item $\mathbf{g}[i, j, k] = \sum_{j'=0}^{j} \mathbf{f}[i, j', k]$ and $\mathbf{h}[i, k] = \sum_{j'=0}^{b} \mathbf{f}[i, j', k]$;
+        \item $\mathbf{g}[i, j, k] = \sum_{i'=0}^{i} \mathbf{f}[i', j, k]$ and $\mathbf{h}[j, k] = \sum_{i'=0}^{a} \mathbf{f}[i', j, k]$.
+    \end{enumerate}
+    We note that higher dimensional prefix sums can be reduced to 
+    one of the three types,
+    e.g. the prefix sum along the second dimension of
+    $\mathbf{V}\in \mathbb{F}^{a\times b\times c\times d}$
+    is reduced to proving the second type over
+    $\mathbf{V}_{\{a\times b\times cd\}}$.
+    
+For brevity, we defer the concrete constructions to \textcolor{red}{Appendix}.
 
-The inference proof has two stages: row fetch and box containment. For every
-tree-sample pair, the prover identifies the accepting leaf and then proves that
-this leaf is the correct one.
-\begin{enumerate}
-  \item It proves a concatenated matrix lookup
-  \begin{equation}\label{eq:inference-lookup}
-  \mathbf{ind}\ \|\ \mathbf{U}^{\leftarrow}\ \|\ \mathbf{U}^{\rightarrow}
-  \ \|\ \mathbf{s}
-  \subseteq
-  \mathbf{tree}_{\mathrm{ext}}\ \|\ \mathbf{F}^{\leftarrow}\ \|\ 
-  \mathbf{F}^{\rightarrow}\ \|\ \mathbf{score},
-  \end{equation}
-  where
-  $\mathbf{ind}\in[TK]^{bTK}$,
-  $\mathbf{U}^{\leftarrow},\mathbf{U}^{\rightarrow}\in[B+1]^{bTK\times d}$,
-  and $\mathbf{s}\in\mathbb{F}^{bTK}$ are the fetched tree indices, lower and
-  upper boxes, and leaf scores for the $bTK$ tree-sample pairs; and
-  $\mathbf{tree}_{\mathrm{ext}}, \mathbf{F}^{\leftarrow},
-  \mathbf{F}^{\rightarrow}$ denote the leaf-row restrictions of
-  $\mathbf{tree}, \mathbf{N}^{\leftarrow}, \mathbf{N}^{\rightarrow}$.
-  \item It proves the range relation
-  \begin{equation}\label{eq:inference-range}
-  \mathbf{U}^{\leftarrow} \leq \mathbf{X}^{\mathrm{rep}} <
-  \mathbf{U}^{\rightarrow}.
-  \end{equation}
-\end{enumerate}
+\subsection{Proof of Well-formedness}
 
-\begin{proposition}[Batched forest inference]
-\label{prop:batched-forest-inference}
-Let $\mathbf{tree}_{\mathrm{ext}}$,
-$\mathbf{F}^{\leftarrow}$, and
-$\mathbf{F}^{\rightarrow}$ denote the restrictions of
-$\mathbf{tree}$, $\mathbf{N}^{\leftarrow}$, and
-$\mathbf{N}^{\rightarrow}$ to leaf rows only. If
-\eqref{eq:inference-lookup} and \eqref{eq:inference-range} hold and the forest
-is well formed, then every tree-sample pair fetches exactly one leaf row from
-the correct tree, and that row is the unique accepting leaf for the replicated
-query.
-\end{proposition}
+Following \Cref{subsec:proof of well-formedness},
+    we prove the well-formedness of the committed forest by proving the following properties.
 
-This same statement is reused later for the training witness
-$\boldsymbol{\ell}^{(t,k)}$: proving leaf assignments is nothing more than
-running the same fetch-and-containment argument on the training dataset instead
-of on an external inference batch.
+\paragraph{Tree index consistency.}
+The prover commits $\mathbf{tree\_lc}$ and $\mathbf{tree\_rc}$ such that
+    \begin{align}
+        \mathbf{tree\_lc}[i] = \mathbf{tree}[\mathbf{lc}[i]], \\
+        \mathbf{tree\_rc}[i] = \mathbf{tree}[\mathbf{rc}[i]],
+    \end{align}
+    and prove their correctness by proving the lookup relation
+    \begin{align}
+        \mathbf{lc}\| \mathbf{tree\_lc} \subseteq (0, 1, \dots, N_{\mathrm{tot}}-1)^\top \| \mathbf{tree},\\
+        \mathbf{rc}\| \mathbf{tree\_rc} \subseteq (0, 1, \dots, N_{\mathrm{tot}}-1)^\top \| \mathbf{tree}.
+    \end{align}
+    The prover additionally proves that
+    there exist $q_1(X)$ and $q_2(X)$ such that
+    \begin{align}
+        is\_leaf(X)\cdot (tree\_lc(X)-tree(X)) = q_1(X)\cdot \nu_{N_{\mathrm{tot}}}(X), \\
+        is\_leaf(X)\cdot (tree\_rc(X)-tree(X)) = q_2(X)\cdot \nu_{N_{\mathrm{tot}}}(X),
+    \end{align}
+    i.e. zero-checks.
 
-The fetched leaf scores are then summed across trees to obtain the final
-class-score vector of each sample. Operationally, this is aggregation along the
-tree axis after reshaping into round and class axes.
+\paragraph{Consistency of leaf nodes.}
+To prove that leaves have no child, the prover proves
+    the existence of $q_1(X)$ and $q_2(X)$ such that
+    \begin{align}
+        is\_leaf(X)\cdot lc(X) = q_1(X)\cdot \nu_{N_{\mathrm{tot}}}(X), \\
+        is\_leaf(X)\cdot rc(X) = q_2(X)\cdot \nu_{N_{\mathrm{tot}}}(X).
+    \end{align}
 
-\subsection{Round-Level Training Proof}
-
-The training proof is best read as a round-level dependency graph rather than a
-single monolithic argument. Each round introduces a small family of committed
-tensors, and each one is linked to earlier objects through a short list of
-recurring checks: lookup, aggregation, prefix sums, zero-safe divisions, and
-max-selection constraints.
-
-\paragraph{Round state.}
-At the commitment layer, the boosting state is represented by global tensors
-\[
-\mathbf{S}\in\mathbb{F}^{T\times K\times M},\qquad
-\mathbf{G}\in\mathbb{F}^{T\times K\times M},\qquad
-\mathbf{P}\in\mathbb{F}^{T\times K\times M},
-\]
-\[
-\mathbf{Z}\in\mathbb{F}^{T\times M},\qquad
-\mathbf{I}\in\mathbb{F}^{T\times M},
-\]
-all flattened in row-major order before commitment. The score and residual
-tensors use the same round-class-sample order as the training overview:
-$\mathbf{G}[t,k,r]$ is the target used by the class-$k$
-tree in round $t$, and $\mathbf{S}[t,k,r]$ is the cumulative score after that
-round. We write the virtual initial state as $\mathbf{S}[-1,k,r]=0$. The point
-of this arrangement is that the number of PCS instances and the opening pattern
-do not depend on $T$, although the witness size and prover work still do.
-
-For each round $t \in [T]$ we maintain:
-\begin{itemize}
-  \item the cumulative score slice
-  $\mathbf{S}[t,\cdot,\cdot] \in \mathbb{F}^{K\times M}$;
-  \item the pseudo-residual slice
-  $\mathbf{G}[t,\cdot,\cdot] \in \mathbb{F}^{K\times M}$;
-  \item for every class $k$, the leaf-index vector
-  $\boldsymbol{\ell}^{(t,k)} \in
-  \{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}-1\}^{M}$ induced by the tree
-  trained in round $t$ for class $k$;
-  \item leaf-supported and all-node histogram tensors derived from
-  $\boldsymbol{\ell}^{(t,k)}$ and $\mathbf{G}[t,k,\cdot]$;
-  \item the selected feature-threshold pair of every internal node.
-\end{itemize}
-All of these round-indexed views are slices or derived slices of globally
-committed objects. In particular, the score-update relations of all rounds are
-batched into one shared boosting-state proof rather than proved in separate PCS
-instances.
-
-\paragraph{Imported softmax interface.}
-We treat softmax as an imported subprotocol interface. Concretely, the main
-protocol assumes a proof system $\Pi_{\mathrm{softmax}}$ which, given committed
-score, exponential, denominator, and inverse tensors, proves the relations
-\eqref{eq:softmax-exp}--\eqref{eq:softmax-inv} with its own
-completeness, soundness, and zero-knowledge guarantees. The security statement
-of ZK-GBDT is parameterized by this imported interface.
-
-Likewise, we treat lookup, aggregation, and max-selection as named imported
-interfaces $\Pi_{\mathrm{lookup}}$, $\Pi_{\mathrm{agg}}$, and
-$\Pi_{\mathrm{max}}$. The new contribution of this paper is therefore not these
-gadgets in isolation, but the way Sections~4--5 compose them with
-domain-lifting batching, interleaving batching, and the GBDT-specific tensor
-relations.
-
-\begin{figure}[t]
-  \centering
-  \begin{tikzpicture}[
-    node distance=0.95cm and 0.55cm,
-    box/.style={draw, rounded corners, align=center, minimum height=8mm, inner sep=4pt, fill=blue!3},
-    arr/.style={-{Latex[length=2mm]}, thick}
-  ]
-    \node[box] (scores) {$\mathbf{S}[t-1,\cdot,\cdot]$};
-    \node[box, right=of scores] (resid) {$\mathbf{G}[t,\cdot,\cdot]$};
-    \node[box, right=of resid] (leaf) {$\boldsymbol{\ell}^{(t,k)}$};
-    \node[box, below=of leaf] (hist) {$\mathbf{C}^{\mathrm{leaf},(t,k)},\ \mathbf{H}^{\mathrm{leaf},(t,k)}$};
-    \node[box, left=of hist] (allnode) {$\mathbf{C}^{(t,k)},\ \mathbf{H}^{(t,k)}$};
-    \node[box, left=of allnode] (gain) {$\Gamma^{(t,k)}$};
-    \node[box, below=of gain] (split) {$\mathbf{E},\ \boldsymbol{\Theta}$};
-    \node[box, right=of split] (leafvalue) {$\widetilde{\mathbf{W}}^{(t)}$};
-    \node[box, right=of leafvalue] (nextscores) {$\mathbf{S}[t,\cdot,\cdot]$};
-    \draw[arr] (scores) -- node[above, font=\small] {softmax} (resid);
-    \draw[arr] (resid) -- node[above, font=\small] {batched inference} (leaf);
-    \draw[arr] (leaf) -- node[right, font=\small] {histogram agg.} (hist);
-    \draw[arr] (hist) -- node[above, font=\small] {child-index pull-up} (allnode);
-    \draw[arr] (allnode) -- node[above, font=\small] {prefix / zero-safe score} (gain);
-    \draw[arr] (gain) -- node[right, font=\small] {argmax bind} (split);
-    \draw[arr] (hist) -- node[right, font=\small] {leaf aggregation} (leafvalue);
-    \draw[arr] (leafvalue) -- node[above, font=\small] {boosting update} (nextscores);
-  \end{tikzpicture}
-  \caption{Round-level proof flow for one boosting round. The same leaf
-  assignments support both split certification and the computation of the
-  current round's leaf values.}
-  \label{fig:round-proof-flow}
-\end{figure}
-
-\noindent\Cref{fig:round-proof-flow} shows the dependency structure of one
-round. The same leaf assignments drive two downstream tasks: they generate the
-histograms used for split certification, and they determine the per-leaf
-aggregates that define the current round's leaf values.
-
-\begin{proposition}[Boosting-state and pseudo-residual correctness]
-\label{prop:boosting-state}
-The protocol uses the virtual initial state $\mathbf{S}[-1,k,r]=0$ and sets
-$\mathbf{G}[0,k,r]=\mathbf{Y}[k,r]$. For every $t\in[T]$, let
-$\widetilde{\mathbf{W}}^{(t)} \in \mathbb{F}^{N_{\mathrm{tot}}\times K}$
-denote the padded leaf-value matrix from round $t$, with zeros on internal
-rows. The cumulative scores satisfy
-\begin{equation}\label{eq:score-update}
-\mathbf{S}[t,k,r]
-=
-\mathbf{S}[t-1,k,r]
-+ \mu \cdot \widetilde{\mathbf{W}}^{(t)}[\boldsymbol{\ell}^{(t,k)}[r],k].
-\end{equation}
-The right-hand side is proved by a lookup from the leaf-index vector into
-$\widetilde{\mathbf{W}}^{(t)}$, followed by a linear consistency check.
-
-For $t<T-1$, the next pseudo-residual slice is derived from the score slice
-after round $t$. The prover commits auxiliary tensors satisfying
-\begin{align}
-\mathbf{P}[t,k,r] &= \exp(\mathbf{S}[t,k,r]), \label{eq:softmax-exp}\\
-\mathbf{Z}[t,r] &= \sum_{c=0}^{K-1}\mathbf{P}[t,c,r], \label{eq:softmax-sum}\\
-\mathbf{I}[t,r] &= \big(\mathbf{Z}[t,r]\big)^{-1}, \label{eq:softmax-inv}
-\end{align}
-and then proves
-\begin{equation}\label{eq:residual-definition}
-\mathbf{G}[t+1,k,r]
-=
-\mathbf{Y}[k,r]-\mathbf{P}[t,k,r]\mathbf{I}[t,r].
-\end{equation}
-Equation \eqref{eq:softmax-sum} is checked directly as a linear relation.
-Equations \eqref{eq:softmax-exp} and \eqref{eq:softmax-inv} are delegated to
-the imported interface $\Pi_{\mathrm{softmax}}$. Hence the protocol certifies
-that $(\mathbf{S},\mathbf{G})$ is consistent with the quantized
-trainer semantics of Section~2.
-\end{proposition}
-
-\begin{proposition}[Leaf assignment correctness]
-\label{prop:leaf-assignment}
-For every round-class pair $(t,k)$, the vector
-$\boldsymbol{\ell}^{(t,k)}\in
-\{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}-1\}^{M}$ is proved by applying
-\cref{prop:batched-forest-inference} to the training dataset $\mathbf{D}$ and
-the tree $(t,k)$. Consequently, $\boldsymbol{\ell}^{(t,k)}[r]$ is the unique
-accepting leaf for sample $r$ in that tree.
-\end{proposition}
-
-\begin{proposition}[Leaf histogram correctness]
-\label{prop:leaf-hist}
-For each class $k$, define the address tensor
-\begin{equation}\label{eq:hist-address}
-\mathbf{addr}^{(t,k)}[r,j]
-:=
-\bigl(\boldsymbol{\ell}^{(t,k)}[r]d+j\bigr)B + \mathbf{D}[r,j].
-\end{equation}
-The prover first commits leaf-supported tensors
-$\mathbf{C}^{\mathrm{leaf},(t,k)}$ and
-$\mathbf{H}^{\mathrm{leaf},(t,k)}$ of shape
-$N_{\mathrm{tot}}\times d\times B$. They are supported only on leaf rows and
-satisfy
-\begin{align}
-\mathbf{C}^{\mathrm{leaf},(t,k)}[u,j,b]
-&=
-\sum_{r=0}^{M-1}
-\mathbf{1}\!\left[
-\boldsymbol{\ell}^{(t,k)}[r]=u \wedge \mathbf{D}[r,j]=b
-\right], \label{eq:leaf-count-hist}\\
-\mathbf{H}^{\mathrm{leaf},(t,k)}[u,j,b]
-&=
-\sum_{r=0}^{M-1}
-\mathbf{G}[t,k,r]\,
-\mathbf{1}\!\left[
-\boldsymbol{\ell}^{(t,k)}[r]=u \wedge \mathbf{D}[r,j]=b
-\right]. \label{eq:leaf-weight-hist}
-\end{align}
-These are the two basic histogram relations used by the rest of the protocol:
-one for counts and one for weighted sums. Internal-node rows of these
-leaf-supported tensors are constrained to zero. Equivalently, if
-$\Flat(\mathbf{C}^{\mathrm{leaf},(t,k)})$ and
-$\Flat(\mathbf{H}^{\mathrm{leaf},(t,k)})$ are viewed as length
-$N_{\mathrm{tot}}dB$ vectors, then the protocol proves by aggregation that
-placing the value $1$ at each address $\mathbf{addr}^{(t,k)}[r,j]$ produces
-$\Flat(\mathbf{C}^{\mathrm{leaf},(t,k)})$. Placing the value
-$\mathbf{G}[t,k,r]$ at those same addresses produces
-$\Flat(\mathbf{H}^{\mathrm{leaf},(t,k)})$.
-\end{proposition}
-
-\begin{proposition}[Internal histogram propagation]
-\label{prop:internal-propagation}
-Leaf-supported histograms determine the full all-node histograms
-$\mathbf{C}^{(t,k)}$ and $\mathbf{H}^{(t,k)}$. After flattening the last two
-dimensions, they satisfy
-\begin{align}
-\Flat\!\bigl(\mathbf{C}^{(t,k)}\bigr)
-&=
-\Flat\!\bigl(\mathbf{C}^{\mathrm{leaf},(t,k)}\bigr)
-+ \mathbf{L}\Flat\!\bigl(\mathbf{C}^{(t,k)}\bigr)
-+ \mathbf{R}\Flat\!\bigl(\mathbf{C}^{(t,k)}\bigr),
-\label{eq:internal-C}\\
-\Flat\!\bigl(\mathbf{H}^{(t,k)}\bigr)
-&=
-\Flat\!\bigl(\mathbf{H}^{\mathrm{leaf},(t,k)}\bigr)
-+ \mathbf{L}\Flat\!\bigl(\mathbf{H}^{(t,k)}\bigr)
-+ \mathbf{R}\Flat\!\bigl(\mathbf{H}^{(t,k)}\bigr).
-\label{eq:internal-H}
-\end{align}
-These are linear identities, so they are absorbed into the batched polynomial
-identity used for the round. If padding places the participating tensors on
-different subgroup sizes, \cref{thm:domain-lifting-batching} lifts them to a common
-ambient domain first. Because nodes are topologically ordered, the operator
-induced by $\mathbf{L}+\mathbf{R}$ is nilpotent on each tree, so these
-equations have a unique intended solution: upward accumulation from leaves to
-ancestors. The histograms are also masked to zero outside the support of the
-tree $(t,k)$.
-\end{proposition}
-
-\begin{proposition}[Prefix, total, and right-side statistics]
-\label{prop:prefix-total}
-Let $\mathsf{Pref}_B$ denote the public linear prefix operator along the bin
-axis. For each class $k$, the prover next commits prefix tensors
-$\mathbf{C}^{(t,k)}_{\leq}, \mathbf{H}^{(t,k)}_{\leq}
-\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ satisfying
-\begin{align}
-\mathbf{C}^{(t,k)}_{\leq}[u,j,b]
-&=
-\sum_{q=0}^{b}\mathbf{C}^{(t,k)}[u,j,q], \label{eq:prefix-count}\\
-\mathbf{H}^{(t,k)}_{\leq}[u,j,b]
-&=
-\sum_{q=0}^{b}\mathbf{H}^{(t,k)}[u,j,q]. \label{eq:prefix-weight}
-\end{align}
-The corresponding totals
-\[
-\mathbf{C}^{(t,k)}_{\Sigma},\mathbf{H}^{(t,k)}_{\Sigma}
-\in\mathbb{F}^{N_{\mathrm{tot}}\times d}
-\]
-are
-\begin{align}
-\mathbf{C}^{(t,k)}_{\Sigma}[u,j]
-&=
-\sum_{q=0}^{B-1}\mathbf{C}^{(t,k)}[u,j,q], &
-\mathbf{H}^{(t,k)}_{\Sigma}[u,j]
-&=
-\sum_{q=0}^{B-1}\mathbf{H}^{(t,k)}[u,j,q]
-\end{align}
-ordinary sums over the bin dimension. The right-side statistics
-\[
-\mathbf{C}^{(t,k)}_{>},\mathbf{H}^{(t,k)}_{>}
-\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}
-\]
-are then derived by subtraction:
-\begin{align}
-\mathbf{C}^{(t,k)}_{>}[u,j,b]
-&=
-\mathbf{C}^{(t,k)}_{\Sigma}[u,j]-\mathbf{C}^{(t,k)}_{\leq}[u,j,b], \\
-\mathbf{H}^{(t,k)}_{>}[u,j,b]
-&=
-\mathbf{H}^{(t,k)}_{\Sigma}[u,j]-\mathbf{H}^{(t,k)}_{\leq}[u,j,b].
-\end{align}
-All of these are linear identities, so they are eligible for
-domain-lifting batching together with the other tensor-linear relations of the
-round.
-\end{proposition}
-
-\begin{proposition}[Candidate split-score correctness]
-\label{prop:candidate-score}
-To avoid undefined divisions, the prover commits a validity mask
-$\boldsymbol{\chi}^{(t,k)} \in \{0,1\}^{N_{\mathrm{int}}\times d\times B}$ such that
-\[
-\boldsymbol{\chi}^{(t,k)}[u,j,b]=1
-\iff
-\mathbf{C}^{(t,k)}_{\leq}[u,j,b] > 0
-\ \wedge\
-\mathbf{C}^{(t,k)}_{>}[u,j,b] > 0.
-\]
-The candidate split-score tensor
-$\Gamma^{(t,k)}\in\mathbb{F}^{N_{\mathrm{int}}\times d\times B}$ is then
-represented by a zero-safe quotient relation. Concretely, the prover supplies
-auxiliary quotient witnesses
-$\mathbf{Q}^{\leftarrow,(t,k)},\mathbf{Q}^{\rightarrow,(t,k)}$ and enforces
-\begin{align}
-\bigl(\mathbf{C}^{(t,k)}_{\leq}+1-\boldsymbol{\chi}^{(t,k)}\bigr)
-\odot \mathbf{Q}^{\leftarrow,(t,k)}
-&=
-\bigl(\mathbf{H}^{(t,k)}_{\leq}\bigr)^{\odot 2}, \\
-\bigl(\mathbf{C}^{(t,k)}_{>}+1-\boldsymbol{\chi}^{(t,k)}\bigr)
-\odot \mathbf{Q}^{\rightarrow,(t,k)}
-&=
-\bigl(\mathbf{H}^{(t,k)}_{>}\bigr)^{\odot 2},
-\end{align}
-followed by
-\begin{equation}\label{eq:gain-tensor}
-\Gamma^{(t,k)}
-=
-\boldsymbol{\chi}^{(t,k)} \odot
-\bigl(\mathbf{Q}^{\leftarrow,(t,k)}+\mathbf{Q}^{\rightarrow,(t,k)}\bigr).
-\end{equation}
-When the mask equals one, \eqref{eq:gain-tensor} is exactly the objective in
-\eqref{eq:split-objective}. When the mask equals zero, the score is forced to
-zero so that the division remains well defined.
-\end{proposition}
-
-\begin{proposition}[Split optimality]
-\label{prop:split-optimality}
-For each internal node, the prover commits feature-wise maxima
-$\mathbf{R}^{(t,k)} \in \mathbb{F}^{N_{\mathrm{int}}\times d}$ and node-wise
-maxima $\mathbf{M}^{(t,k)} \in \mathbb{F}^{N_{\mathrm{int}}}$ satisfying
-\begin{align}
-\mathbf{R}^{(t,k)}[u,j] &= \max_{b \in [B]} \Gamma^{(t,k)}[u,j,b],
-\label{eq:feature-max}\\
-\mathbf{M}^{(t,k)}[u] &= \max_{j \in [d]} \mathbf{R}^{(t,k)}[u,j].
-\label{eq:node-max}
-\end{align}
-The selected feature matrix $\mathbf{E}$ and threshold vector
-$\boldsymbol{\Theta}$ must satisfy the following constraints for every internal
-node $u$ belonging to tree $(t,k)$:
-\begin{align}
-\sum_{j=0}^{d-1}\mathbf{E}[u,j] &= 1, \label{eq:selection-onehot}\\
-\mathbf{E}[u,j] = 1 &\Longrightarrow \mathbf{R}^{(t,k)}[u,j] = \mathbf{M}^{(t,k)}[u],
-\label{eq:feature-argmax}\\
-\mathbf{E}[u,j] = 1 &\Longrightarrow
-\Gamma^{(t,k)}[u,j,\boldsymbol{\Theta}[u]] = \mathbf{R}^{(t,k)}[u,j].
-\label{eq:threshold-argmax}
-\end{align}
-Equations \eqref{eq:feature-max}--\eqref{eq:threshold-argmax} are delegated to
-the imported interface $\Pi_{\mathrm{max}}$ over committed tensors. The first
-relation identifies the maximizing feature, and the second fixes the maximizing
-threshold bin on that feature. Under the trainer semantics fixed in
-Section~2, this proves that $(\mathbf{E},\boldsymbol{\Theta})$ is an arbitrary
-maximizing valid split; ties are not further canonicalized.
-\end{proposition}
-
-\begin{proposition}[Leaf values and round closure]
-\label{prop:leaf-values}
-The same leaf-index vector also induces per-leaf counts and residual sums:
-\begin{align}
-\widetilde{\mathbf{n}}^{(t,k)}[u]
-&=
-\sum_{r=0}^{M-1}\mathbf{1}\!\left[\boldsymbol{\ell}^{(t,k)}[r]=u\right],
-\label{eq:leaf-count}\\
-\widetilde{\mathbf{a}}^{(t,k)}[u]
-&=
-\sum_{r=0}^{M-1}\mathbf{G}[t,k,r]\,
-\mathbf{1}\!\left[\boldsymbol{\ell}^{(t,k)}[r]=u\right]. \label{eq:leaf-sum}
-\end{align}
-Both are obtained by aggregating per-sample contributions according to the
-global leaf index. Here
-$\widetilde{\mathbf{n}}^{(t,k)},\widetilde{\mathbf{a}}^{(t,k)}
-\in\mathbb{F}^{N_{\mathrm{tot}}}$.
-The padded leaf-value matrix
-$\widetilde{\mathbf{W}}^{(t)}\in\mathbb{F}^{N_{\mathrm{tot}}\times K}$ is then
-defined by a second zero-safe division relation; equivalently, the protocol
-enforces
-\begin{equation}\label{eq:leaf-value}
-\widetilde{\mathbf{n}}^{(t,k)}[u]\cdot \widetilde{\mathbf{W}}^{(t)}[u,k]
-=
-\widetilde{\mathbf{a}}^{(t,k)}[u]
-\end{equation}
-on active leaves, together with zero masks on padded or unused leaves. The
-compact leaf-only matrix
-$\mathbf{W}^{(t)}\in\mathbb{F}^{(N_{\mathrm{tot}}-N_{\mathrm{int}})\times K}$
-is obtained by restricting
-$\widetilde{\mathbf{W}}^{(t)}$ to leaf rows. Finally, the next-round score
-matrix is proved using \eqref{eq:score-update}.
-\end{proposition}
-
-\begin{theorem}[Round-level correctness]
-\label{thm:round-correctness}
-Fix one round $t\in[T]$. If
-\cref{prop:boosting-state,prop:leaf-assignment,prop:leaf-hist,prop:internal-propagation,prop:prefix-total,prop:candidate-score,prop:split-optimality,prop:leaf-values}
-all hold for every class $k\in[K]$, then the committed round-$t$ objects encode
-one valid step of the quantized trainer semantics from
-the previous score state to $\mathbf{S}[t,\cdot,\cdot]$.
-\end{theorem}
-
-\begin{proof}
-The cited propositions certify, in order, the correctness of the round input,
-the unique routing of every sample to one leaf, the induced histogram
-statistics, the reconstruction of the masked split objective, the optimality of
-the committed split metadata, and the computation of the leaf values used in
-the next score update. Together these are exactly the conditions defining one
-valid round of the trainer semantics from Section~2.
-\end{proof}
-
-\subsection{Soundness Composition}
-
-For aggregation, the imported interface $\Pi_{\mathrm{agg}}$ checks
-\[
-\sum_{a=0}^{N-1}\mathbf{h}[a]\rho^a
-\quad\text{with}\quad
-\sum_{t=0}^{n-1}\mathbf{v}[t]\rho^{\mathbf{ind}[t]}
-\]
-at a random challenge $\rho$. If the aggregation is incorrect, the difference is
-a nonzero polynomial of degree at most $N-1$, so the probability of accidental
-acceptance is at most $(N-1)/|\mathbb{F}|$.
-
-Likewise, if a round uses at most $s$ lifted identities under a shared batching
-challenge and aggregation range at most $N$, the algebraic contribution to the
-round soundness error is
-\[
-\frac{s-1}{|\mathbb{F}|} + \frac{N-1}{|\mathbb{F}|},
-\]
-plus the error terms of the imported subprotocols. Domain lifting introduces no
-additional soundness term beyond the random linear combination in
-\eqref{eq:domain-lifting-batching}; it only rewrites smaller-domain claims into the
-same ambient divisibility check.
-
-\begin{theorem}[Protocol soundness]
-\label{thm:protocol-soundness}
-Assume the KZG opening protocol is sound, the imported lookup, softmax, and
-max-selection subprotocols are sound, and all verifier challenges used for
-domain-lifting batches, interleaving reductions, and aggregation checks are
-sampled independently. Then any accepting proof for a false statement implies a
-failure in at least one of the following components:
-\begin{enumerate}
-  \item KZG binding or opening soundness;
-  \item one of the imported subprotocols;
-  \item a domain-lifting random linear combination;
-  \item an interleaving-batched local check;
-  \item an aggregation check.
-\end{enumerate}
-Consequently, if the protocol uses at most
-$N_{\mathrm{agg}}$ aggregation challenges with ranges bounded by
-$R_1,\ldots,R_{N_{\mathrm{agg}}}$, at most
-$N_{\mathrm{dl}}$ domain-lifting batches with arities
-$s_1,\ldots,s_{N_{\mathrm{dl}}}$, and imported subprotocols with total failure
-probability $\epsilon_{\mathrm{imp}}$, then the total soundness error is at
-most
-\[
-\epsilon_{\mathrm{KZG}}
-\;+\;
-\epsilon_{\mathrm{imp}}
-\;+\;
-\sum_{i=1}^{N_{\mathrm{dl}}}\frac{s_i-1}{|\mathbb{F}|}
-\;+\;
-\sum_{j=1}^{N_{\mathrm{agg}}}\frac{R_j-1}{|\mathbb{F}|}
-\;+\;
-\epsilon_{\mathrm{int}},
-\]
-where $\epsilon_{\mathrm{KZG}}$ is the KZG failure probability and
-$\epsilon_{\mathrm{int}}$ is the total soundness error contributed by the
-interleaving-batched local gadgets.
-We again emphasize that this is a soundness statement, not a separate
-argument-of-knowledge claim.
-\end{theorem}
-
-\begin{proof}
-Combine \cref{thm:domain-lifting-batching} with the standard aggregation bound
-above and a union bound over all imported subprotocol invocations and KZG
-openings. Independence of the verifier challenges justifies summing the
-individual failure probabilities. The interleaving step contributes no extra
-algebraic error beyond the soundness error of the local gadgets themselves; it
-only rewrites several local instances into one larger virtual instance.
-\end{proof}
+\paragraph{Hyper-box of roots.}
+To prove that the hyper-box of any root is full,
+    the prover proves the existence of $q_1(X)$ and $q_2(X)$ such that
+    \begin{align}
+        Root(X)\cdot N_{\mathrm{tot}}^{\leftarrow}(X) &= q_1(X)\cdot \nu_{N_{\mathrm{tot}}}(X), \\
+        Root(X)\cdot N_{\mathrm{tot}}^{\rightarrow}(X) - B - 1 &= q_2(X)\cdot \nu_{N_{\mathrm{tot}}}(X).
+    \end{align}

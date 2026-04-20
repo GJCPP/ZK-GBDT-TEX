@@ -29,56 +29,62 @@ Let
 \]
 be powers of two. For each $i \in [m]$, let $F_i(X)$ be a virtual polynomial
 and suppose the target claim is
-\[
-F_i(X)=Q_i(X)\nu_{n_i}(X)
-\]
-for some polynomial $Q_i(X)$, which may itself be virtual or prover-supplied.
+\begin{align}
+\deg r_i(X) &< n_i-2,\\
+F_i(X) &= r_i(X)\cdot X + q_i(X)\nu_{n_i}(X),
+\end{align}
+for some polynomial $q_i(X)$ and $r_i(X)$.
 Because $n_i \mid N$, the ratio $\nu_N(X)/\nu_{n_i}(X)$ is again a polynomial.
 Define the lifted polynomial
 \[
 \widehat{F}_i(X):=
 F_i(X)\frac{\nu_N(X)}{\nu_{n_i}(X)}.
 \]
-Then:
-\begin{enumerate}
-  \item $F_i(X)=Q_i(X)\nu_{n_i}(X)$ holds if and only if
-  $\widehat{F}_i(X)$ is divisible by $\nu_N(X)$.
-  \item For a verifier challenge $\eta$, all $m$ claims can be combined into
+Then for a verifier challenge $\eta$, all $m$ claims can be combined into
   the single identity
-  \begin{equation}\label{eq:domain-lifting-batching}
-  \sum_{i=1}^{m}\eta^{i-1}\widehat{F}_i(X)=Q(X)\nu_N(X).
-  \end{equation}
-  In particular, the PCS only needs to support openings up to the largest
-  degree induced by the lifted residuals on $\mathbb{H}_N$.
-  \item If at least one original claim is false, then
+  \begin{align}\label{eq:domain-lifting-batching}
+    \deg r(X) &< N-2,\\
+    \sum_{i=1}^{m}\eta^{i-1}\widehat{F}_i(X) &= r(X)\cdot X + q(X)\nu_N(X).
+  \end{align}
+  And if at least one original claim is false, then
   \eqref{eq:domain-lifting-batching} holds for at most $m-1$ values of $\eta$, i.e. the soundness error is at most $(m-1)/|\mathbb{F}|$.
-\end{enumerate}
 \end{theorem}
 
 \begin{proof}
-The first item is immediate from
-\[
-F_i(X)=Q_i(X)\nu_{n_i}(X)
-\iff
-F_i(X)\frac{\nu_N(X)}{\nu_{n_i}(X)} = Q_i(X)\nu_N(X).
-\]
-For soundness, define the reduced residual
-\[
-R_i(X):=\widehat{F}_i(X)\bmod \nu_N(X).
-\]
-If all claims are true then every $R_i$ vanishes. Otherwise at least one
-$R_i$ is nonzero, and the left-hand side of
-\eqref{eq:domain-lifting-batching} reduced modulo $\nu_N(X)$ becomes
-\[
-\sum_{i=1}^{m}\eta^{i-1}R_i(X),
-\]
-which is a nonzero polynomial in $\eta$ of degree at most $m-1$. Hence a
-uniformly random $\eta$ causes accidental acceptance with probability at most
-$(m-1)/|\mathbb{F}|$.
+Consider there exists $i^*\in [m]$ such that the original
+  claim over $F_{i^*}(X)$ is false. 
+  This means that $F_{i^*}(X)$ has non-zero
+  constant term $c$ when modulo $\nu_{n_{i^*}}(X)$, i.e.
+  \begin{align}
+    F_{i^*}(X) = r_{i^*}(X)\cdot X + q_{i^*}(X)\nu_{n_{i^*}}(X) + c.
+  \end{align}
+  For $\widehat{F}_{i^*}(X)$, the constant term will not vanish
+  when modulo $\nu_N(X)$, because
+  \begin{align}
+    \widehat{F}_{i^*}(X) &= F_{i^*}(X)\frac{\nu_N(X)}{\nu_{n_{i^*}}(X)}\\
+    &= r_{i^*}(X)\cdot X\frac{\nu_N(X)}{\nu_{n_{i^*}}(X)} + q_{i^*}(X)\nu_N(X) + c\frac{\nu_N(X)}{\nu_{n_{i^*}}(X)}.
+  \end{align}
+  Since $v_N(X)/v_{n_{i^*}}(X)$ is a non-zero constant when modulo $\nu_N(X)$, as the last term is the only term contributing to the constant term,
+  the constant term of $\widehat{F}_{i^*}(X)$ is also non-zero when modulo $\nu_N(X)$.
+
+Thus, after the random linear combination,
+  the constant term remains non-zero except for a probability at most $(m-1)/|\mathbb{F}|$.
 \end{proof}
 
+We note two use cases for this batching.
 
-\subsection{Interleaving Batching}
+\paragraph{Zero-check.} When $r(X) = 0$ and $r_i(X) = 0$ is required for every $i\in [m]$, the original
+claim becomes $F_i(X) = q_i(X)\nu_{n_i}(X)$, which means
+$F_i(X)$ vanishes everywhere over $\mathbb{H}_{n_i}$.
+
+\paragraph{Sum-check.} When $r_i(X)$ is a witness committed by the prover,
+the original claim becomes $F_i(X) - s_i/n_i = r_i(X)\cdot X + q_i(X)\nu_{n_i}(X)$, which, by the merit of Aurora~\cite{aurora19}, means $F_i(X)$ sums to $s_i$ over $\mathbb{H}_{n_i}$.
+
+We note that we cannot batch zero-check with sum-check due to soundness
+considerations. The above theorem only applies to claims of the same form, so we can batch zero-checks together and sum-checks together, but not mix them.
+
+
+\subsection{Interleaving}
 
 The intended setting for interleaving batching is that many checks share the
 same local rule and the same public parameters, but arrive as separate
@@ -266,7 +272,7 @@ operations.
 % claims are exactly the efficiency guarantees of Lemma~\ref{lem:interleaving}.
 % \end{proof}
 
-\subsection{Usage of Interleaving Batching}
+\subsection{Interleaving Batching}
 
 In our proof system, we use interleaving batching mainly to combine
   two types of check:

@@ -11,16 +11,16 @@ reuse the symbols below unless there is a strong reason to change them.
 - For `n \in \mathbb{N}`, `[n] := \{0,1,\ldots,n-1\}`.
 - Bold symbols denote committed arrays.
   - Bold lowercase is preferred for one-dimensional vectors introduced in new text.
-  - Bold uppercase is used for matrices and tensors, and also for legacy global objects already fixed in the paper, such as `\mathbf{D}`, `\mathbf{Y}`, `\mathbf{S}^{(t)}`, `\mathbf{G}^{(t)}`.
+  - Bold uppercase is used for matrices and tensors, and also for global objects already fixed in the paper, such as `\mathbf{D}`, `\mathbf{Y}`, `\mathbf{S}`, `\mathbf{G}`.
 - Array entries use bracket notation:
   - vector entry: `\mathbf{v}[i]`
   - matrix entry: `\mathbf{V}[i,j]`
-  - tensor entry: `\mathbf{A}[i,j,k]`
+  - tensor entry: `\mathbf{A}[t,k,r]`
 - Do not use nested indexing such as `A[i][j]`.
 - If `\mathbf{v}\in\mathbb{F}^n` is a vector, then `v(X)` denotes its polynomial encoding over `\mathbb{H}_n`.
 - More generally, lowercase roman polynomials such as `f(X)`, `g(X)`, `u(X)`, `v(X)` denote encodings of the corresponding bold arrays after row-major flattening.
-- Superscripts like `^{(t)}` and `^{(t,k)}` indicate round/class indices, not powers.
-- A tilde indicates a padded or ambient-space version of an object, e.g. `\widetilde{\mathbf{W}}^{(t)}`.
+- Tensor slice notation is preferred for round/class indices, e.g. `\mathbf{S}[t,k,r]` and `\widetilde{\mathbf{W}}[t,u,k]`.
+- A tilde indicates a padded or ambient-space version of an object, e.g. `\widetilde{\mathbf{W}}`.
 - `\Flat(\mathbf{A})` denotes row-major flattening of a tensor into a vector.
 
 ## Field and domain symbols
@@ -59,13 +59,12 @@ reuse the symbols below unless there is a strong reason to change them.
 
 - `\mathbf{D}\in[B]^{M\times d}`: quantized dataset.
 - `\mathbf{Y}\in\{0,1\}^{K\times M}`: one-hot label matrix.
-- `\mathbf{S}^{(t)}\in\mathbb{F}^{K\times M}`: score matrix before round `t`.
-- `\mathbf{P}^{(t)}\in\mathbb{F}^{K\times M}`: exponentiated score matrix.
-- `\mathbf{Z}^{(t)}\in\mathbb{F}^{M}`: sample-wise softmax denominator.
-- `\boldsymbol{\pi}^{(t)}\in\mathbb{F}^{K\times M}`: softmax probability matrix.
-- `\mathbf{I}^{(t)}\in\mathbb{F}^{M}`: inverse-denominator vector used by the imported softmax interface.
-- `\mathbf{G}^{(t)}\in\mathbb{F}^{K\times M}`: pseudo-residual matrix.
-- `\mathcal{S}, \mathcal{P}, \mathcal{Z}, \mathcal{I}, \mathcal{G}`: globally committed tensors whose round slices are the objects above.
+- `\mathbf{S}\in\mathbb{F}^{T\times K\times M}`: score tensor.
+- `\mathbf{P}\in\mathbb{F}^{T\times K\times M}`: exponentiated score tensor.
+- `\mathbf{Z}\in\mathbb{F}^{T\times M}`: sample-wise softmax denominator tensor.
+- `\boldsymbol{\pi}\in\mathbb{F}^{T\times K\times M}`: softmax probability tensor.
+- `\mathbf{I}\in\mathbb{F}^{T\times M}`: inverse-denominator tensor used by the imported softmax interface.
+- `\mathbf{G}\in\mathbb{F}^{T\times K\times M}`: pseudo-residual tensor.
 
 ## Forest objects
 
@@ -91,15 +90,15 @@ reuse the symbols below unless there is a strong reason to change them.
 
 ## Training and histogram objects
 
-- `\boldsymbol{\ell}^{(t,k)}\in\{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}\}^{M}`: leaf-assignment vector for tree `(t,k)`.
-- `\mathbf{addr}^{(t,k)}\in[N_{\mathrm{tot}}dB]^{M\times d}`: zero-based histogram-aggregation addresses induced by `\boldsymbol{\ell}^{(t,k)}` and `\mathbf{D}`, using physical row `\boldsymbol{\ell}^{(t,k)}[r]-1`.
-- `\mathbf{C}^{(t,k)}, \mathbf{H}^{(t,k)}\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}`: all-node count and residual-sum histograms.
-- `\mathbf{C}^{\mathrm{leaf},(t,k)}, \mathbf{H}^{\mathrm{leaf},(t,k)}`: leaf-supported histogram tensors before propagation.
-- `\mathbf{C}_{\le}^{(t,k)}, \mathbf{H}_{\le}^{(t,k)}`: prefix histograms along the bin axis.
-- `\mathbf{C}_{>}^{(t,k)}, \mathbf{H}_{>}^{(t,k)}`: right-side histograms derived from totals minus prefixes.
-- `\Gamma^{(t,k)}\in\mathbb{F}^{N_{\mathrm{int}}\times d\times B}`: candidate split-score tensor.
-- `\widetilde{\mathbf{W}}^{(t)}\in\mathbb{F}^{N_{\mathrm{tot}}\times K}`: padded leaf-value matrix for round `t`.
-- `\mathbf{W}^{(t)}`: compact leaf-only version of the same object when needed.
+- `\mathbf{L}\in\{N_{\mathrm{int}}+1,\ldots,N_{\mathrm{tot}}\}^{T\times K\times M}`: leaf-assignment tensor.
+- `\operatorname{addr}\in[N_{\mathrm{tot}}dB]^{T\times K\times M\times d}`: zero-based histogram-aggregation addresses induced by `\mathbf{L}` and `\mathbf{D}`.
+- `\mathbf{C}, \mathbf{H}\in\mathbb{F}^{T\times K\times N_{\mathrm{tot}}\times d\times B}`: count and residual-sum histogram tensors.
+- `\mathbf{C}^{\mathrm{leaf}}, \mathbf{H}^{\mathrm{leaf}}`: leaf-supported histogram tensors before propagation.
+- `\mathbf{C}_{\le}, \mathbf{H}_{\le}`: prefix histograms along the bin axis.
+- `\mathbf{C}_{>}, \mathbf{H}_{>}`: right-side histograms derived from totals minus prefixes.
+- `\Gamma\in\mathbb{F}^{T\times K\times N_{\mathrm{int}}\times d\times B}`: candidate split-score tensor.
+- `\widetilde{\mathbf{W}}\in\mathbb{F}^{T\times N_{\mathrm{tot}}\times K}`: padded leaf-value tensor.
+- `\mathbf{W}`: compact leaf-only version of the same object when needed.
 
 ## Batching-tool symbols
 
