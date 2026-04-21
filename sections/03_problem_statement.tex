@@ -35,7 +35,8 @@ forest consists of the commitments of:
   \item a threshold-index vector
   $\boldsymbol{\Theta}\in\{0,1,\ldots,B\}^{N_{\mathrm{tot}}}$,
   whose internal-node entries record the selected threshold bin and whose leaf rows are zero;
-  \item a tree-index vector $\mathbf{tree}\in[TK]^{N_{\mathrm{tot}}}$ and a
+  \item a tree-index vector $\mathbf{tree}\in[TK+1]^{N_{\mathrm{tot}}}$, where trees are ranked from $1$ to $TK$
+  except dummy node $0$, and a
   root indicator $\mathbf{root}\in\{0,1\}^{N_{\mathrm{tot}}}$;
   \item a leaf-score vector $\mathbf{score}\in\mathbb{F}^{N_{\mathrm{tot}}}$,
   whose leaf entries store the scalar contribution returned by that tree and
@@ -112,12 +113,18 @@ First, the prover proves that the committed forest is well-formed, by showing
   where $\mathbf{Root} = (\mathbf{root}\|\cdots\|\mathbf{root})$.
   \item The hyper-box of left and right children are consistent with the parent and the split, i.e. for each internal node $u$ and feature $j$,
     \begin{align}
-    \mathbf{N}^{\leftarrow}[u, j] - \mathbf{N}^{\leftarrow}[\mathbf{lc}[u], j] &= 0\land\\
-    \mathbf{N}^{\rightarrow}[u, j] - \mathbf{N}^{\rightarrow}[\mathbf{rc}[u], j] &= 0\land\\
-    \mathbf{E}[u, j](\mathbf{N}^{\rightarrow}[\mathbf{lc}[u], j] - \mathbf{N}^{\leftarrow}[\mathbf{rc}[u], j]) &= 0\land\\
-    (1-\mathbf{E}[u, j])(\mathbf{N}^{\leftarrow}[u, j] - \mathbf{N}^{\leftarrow}[\mathbf{rc}[u], j]) &= 0\land\\
-    (1-\mathbf{E}[u, j])(\mathbf{N}^{\rightarrow}[u, j] - \mathbf{N}^{\rightarrow}[\mathbf{lc}[u], j]) &= 0.
+    \mathbf{N}^{\leftarrow}[u, j] - \mathbf{N}^{\leftarrow}[\mathbf{lc}[u], j] &= 0\land\label{eq:left-child-inherits-lowerbound}\\
+    \mathbf{N}^{\rightarrow}[u, j] - \mathbf{N}^{\rightarrow}[\mathbf{rc}[u], j] &= 0\land\label{eq:right-child-inherits-upperbound}\\
+    \mathbf{E}[u, j](\mathbf{N}^{\rightarrow}[\mathbf{lc}[u], j] - \mathbf{N}^{\leftarrow}[\mathbf{rc}[u], j]) &= 0\land\label{eq:split-child-consistency}\\
+    (1-\mathbf{E}[u, j])(\mathbf{N}^{\leftarrow}[u, j] - \mathbf{N}^{\leftarrow}[\mathbf{rc}[u], j]) &= 0\land\label{eq:non-split-child-inherits-1}\\
+    (1-\mathbf{E}[u, j])(\mathbf{N}^{\rightarrow}[u, j] - \mathbf{N}^{\rightarrow}[\mathbf{lc}[u], j]) &= 0.\label{eq:non-split-child-inherits-2}
     \end{align}
+    \Cref{eq:left-child-inherits-lowerbound} and \ref{eq:right-child-inherits-upperbound} ensure that 
+    left child inherits the lower bound of the parent and right child inherits the upper bound.
+    \Cref{eq:split-child-consistency} ensures that for the split feature, 
+    the left child's upper bound meets the right child's lower bound.
+    \Cref{eq:non-split-child-inherits-1} and \ref{eq:non-split-child-inherits-2} together ensure that 
+    for non-split features, the child hyper-box inherits the parent hyper-box.
   \item $\mathbf{E}$ is boolean and one-hot on internal nodes and zero on leaves, i.e. for each node $u$,
     \begin{align}
     \sum_{j=1}^d \mathbf{E}[u, j] - \mathbf{is\_leaf}[u] + 1 &= 0,\\
@@ -131,6 +138,12 @@ First, the prover proves that the committed forest is well-formed, by showing
   \begin{align}
     \sum_{u=0}^{N_{\mathrm{tot}}-1} \mathbf{root}[u] = TK.
   \end{align}
+  \item Node $0$ is dummy, i.e.
+    \begin{align}
+    \mathbf{lc}[0] = \mathbf{rc}[0] &= 0,\\
+    \forall j\in [d].\ \mathbf{N}^{\leftarrow}[0, j] = \mathbf{N}^{\rightarrow}[0, j] &= 0,\\
+    \mathbf{tree}[0] = \mathbf{root}[0] = \mathbf{is\_leaf}[0] &= 0.
+    \end{align}
   \end{enumerate}
 
 Note that since for any node $u$, its hyper-box is full-range if and only if
