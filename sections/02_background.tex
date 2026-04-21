@@ -303,6 +303,10 @@ so that
 xy \approx \frac{q_z}{2^Q}.
 \]
 
+Throughout the paper, we assume the encoding of a fixed-point number
+    is in range $[-\mathcal{B}, \mathcal{B})$ for some public $\mathcal{B}>0$.
+    We assume also that the field $\mathbb{F}$ is large enough to support all intermediate values without modular wraparound, so that the arithmetic over $\mathbb{F}$ corresponds to integer arithmetic on the fixed-point encodings.
+
 \subsection{Table Lookup Argument}
 Given matrix $\mathbf{F}\in \mathbb{F}^{n\times m}$
     and matrix $\mathbf{T}\in \mathbb{F}^{N\times m}$,
