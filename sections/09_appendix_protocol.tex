@@ -1,3 +1,70 @@
+\section{Deferred Constructions}\label{app:deferred-constructions}
+
+This appendix collects the technical details deferred from the main text. Each
+subsection below records the statement to be proved, the expected witness
+objects, the proof shape, and the soundness/completeness points that should be
+filled in.
+
+\subsection{Batched Table Lookup}\label{app:batched-lookup}
+
+\paragraph{Goal.}
+Give the concrete reduction from many shaped lookup relations
+$\mathbf{F}_i\subseteq\mathbf{T}_i$ to one lookup instance, and then explain how
+same-form lookup checks are batched by interleaving.
+
+\paragraph{Framework to fill in.}
+\begin{itemize}
+    \item Define padding from width $m_i$ to a common width $m_{\max}$ and state
+    how dummy columns are fixed.
+    \item Define the random linear combination of rows under a verifier
+    challenge and the resulting single-table lookup relation.
+    \item State the collision/soundness bound from the random combination.
+    \item Describe how the resulting single-column/basic lookup is instantiated
+    using the lookup argument of~\cite{cq++24} and logup~\cite{logup22}.
+    \item Explain how interleaving batching merges multiple lookup instances
+    without new commitments once their local constraints have the same form.
+\end{itemize}
+
+\subsection{Prefix-Sum Relations}\label{app:prefix-sum}
+
+\paragraph{Goal.}
+Provide concrete PCS checks for the three prefix-sum forms used in
+\Cref{sec:zkgbdt-protocol}: prefix along the last, middle, and first tensor
+dimension.
+
+\paragraph{Framework to fill in.}
+\begin{itemize}
+    \item State the tensor flattening convention and the ambient domain
+    $\mathbb{H}_{abc}$.
+    \item For each prefix direction, define the committed prefix tensor
+    $\mathbf{g}$ and total tensor $\mathbf{h}$.
+    \item Write the local recurrence identities for adjacent entries and the
+    boundary identities that bind the first prefix value and the total value.
+    \item Convert each recurrence and boundary identity into zero-checks over
+    the appropriate domain.
+    \item State how these linear checks are batched by domain-lifting batching.
+\end{itemize}
+
+\subsection{Replication Relations}\label{app:replication}
+
+\paragraph{Goal.}
+Give the concrete proof for row- and column-replication relations used to align
+objects before lookup, range checks, histogram addressing, and internal-node
+masks.
+
+\paragraph{Framework to fill in.}
+\begin{itemize}
+    \item State the row-replication relation and its polynomial identity, e.g.,
+    when replication can be represented by a substitution $X\mapsto X^r$.
+    \item State the column-replication relation from
+    $\mathbf{f}\in\mathbb{F}^n$ to
+    $\mathbf{G}\in\mathbb{F}^{n\times m}$.
+    \item Give the zero-check identities proving that every replicated row or
+    column equals its source entry.
+    \item Record any domain-size assumptions needed for nested domains.
+    \item Explain how these linear identities join the domain-lifting batch.
+\end{itemize}
+
 \section{Protocol Pseudocode}\label{app:pseudocode}
 
 This appendix records the protocol skeleton used implicitly throughout

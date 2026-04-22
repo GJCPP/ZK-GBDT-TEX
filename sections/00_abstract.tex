@@ -1,0 +1,35 @@
+\begin{abstract}
+Gradient boosted decision trees (GBDTs) are widely used for tabular prediction in
+high-stakes domains, and have recently been used in blockchain-facing tasks such
+as cryptocurrency fraud detection, phishing-account detection, and smart-contract
+risk analysis. In these settings, a model provider may need to convince an
+auditor, regulator, or smart-contract-mediated application that a prediction or
+model update was produced by a specified GBDT pipeline, without revealing the
+private training data, model parameters, or user queries. This makes
+zero-knowledge proofs for GBDT training and inference a natural tool for
+accountable off-chain machine learning.
+
+Existing approaches for proving GBDT training typically rely on generic ZKP
+compilers: they build a certification circuit that checks the forest against the
+training data, and then prove the circuit execution. This leads to high prover
+cost. A more direct approach is to decompose training into a sequence of
+algebraic constraints, which inevitably creates many auxiliary objects. Committing to and
+opening these objects can then dominate both proof size and prover time. 
+Furthermore, batching
+them is also difficult, because these objects are heterogeneous and
+have different shapes, sizes, and are committed over different domains.
+
+We present \textsc{Terrae}, a zero-knowledge proof system for quantized GBDT
+training and inference based on KZG polynomial commitments. \textsc{Terrae}
+avoids both monolithic circuit compilation and isolated auxiliary commitments by
+using the structure of GBDT training and batching the resulting proof objects. We
+introduce two batching techniques: \emph{domain-lifting batching} for linear
+constraints and \emph{interleaving batching} for non-linear constraints. Both
+techniques work over heterogeneous objects and reduce many constraints to a
+single claim without introducing extra polynomial commitments. We also design a
+histogram proof that proves the correctness of converting sample-wise data into
+the frequency representation used for split search; this technique may be of
+independent interest. Our evaluation shows that, compared with prior approaches,
+\textsc{Terrae} significantly reduces proof-generation time while adding only a
+small proof-size overhead.
+\end{abstract}

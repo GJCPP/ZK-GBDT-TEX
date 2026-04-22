@@ -39,7 +39,7 @@ Given $(\mathbf{F}_i)_{i\in [k]}$ and $(\mathbf{T}_i)_{i\in [k]}$
     This is reduced to a logup instance~\cite{logup22},
     which is further batched together by 
     interleaving batching, c.f. \Cref{lem:interleaving}.
-    See \textcolor{red}{Appendix}.
+    See \Cref{app:batched-lookup}.
 
 \paragraph{Quantization.}
 Given $f(X)$ and $g(X)$ encoding vectors $\mathbf{f}$ and $\mathbf{g}$ over $\mathbb{H}_n$,
@@ -74,7 +74,7 @@ Given $f(X)$ encoding vector $\mathbf{f}$ over $\mathbb{H}_{abc}$,
     is reduced to proving the second type over
     $\mathbf{V}_{\{a\times b\times cd\}}$.
     
-For brevity, we defer the concrete constructions to \textcolor{red}{Appendix}.
+For brevity, we defer the concrete constructions to \Cref{app:prefix-sum}.
 
 \paragraph{Column-replication.}
 Given $f(X)$ encoding $\mathbf{f}\in \mathbb{F}^{n}$
@@ -83,7 +83,7 @@ Given $f(X)$ encoding $\mathbf{f}\in \mathbb{F}^{n}$
     \begin{align}
         \forall i\in [n], j\in [m].\ \mathbf{G}[i][j] = \mathbf{f}[i].
     \end{align}
-    We defer the concrete construction to \textcolor{red}{Appendix}.
+    We defer the concrete construction to \Cref{app:replication}.
 
 \subsection{Proof of Well-formedness}
 
