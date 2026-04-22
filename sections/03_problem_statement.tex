@@ -268,17 +268,17 @@ the prover can prove the split gain $\Phi(u,j,b)$ for all candidate splits in on
 \subsection{Proving Histogram}
 
 Given $\mathbf{Ind}$ and $\mathbf{G}$,
-  the prover needs to prove the correctness of $\mathbf{C}$ and $\mathbf{V}$.
+  the prover needs to prove the correctness of $\mathbf{C}, \mathbf{V}\in \mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$.
   Following the approach of \cite{sparrow24,zkboost26},
   we first construct the leaf-wise histogram $\mathbf{C}_{\mathrm{leaf}}$ and $\mathbf{V}_{\mathrm{leaf}}$,
   where $\mathbf{C}_{\mathrm{leaf}}[i, j, k]$ and $\mathbf{V}_{\mathrm{leaf}}[i, j, k]$ are 
   the number of samples and sum of residuals for node $i$ (which is a leaf), feature $j$, and feature value $k$.
   The prover then proves $\mathbf{C}$ and $\mathbf{V}$ by showing that for all nodes,
   \begin{align}
-  \mathbf{C}[i, j, k] =&\ \mathbf{C}_{\mathrm{leaf}}[l, j, k]\cdot \mathbf{is\_leaf}[l] +\nonumber\\
-    &(\mathbf{C}[\mathbf{lc}[i], j, k] + \mathbf{C}[\mathbf{rc}[i], j, k])\cdot (1- \mathbf{is\_leaf}[l]),\\
-  \mathbf{V}[i, j, k] =&\ \mathbf{V}_{\mathrm{leaf}}[l, j, k]\cdot \mathbf{is\_leaf}[l] +\nonumber\\
-    &(\mathbf{V}[\mathbf{lc}[i], j, k] + \mathbf{V}[\mathbf{rc}[i], j, k])\cdot (1- \mathbf{is\_leaf}[l]),
+  \mathbf{C}[i, j, k] =&\ \mathbf{C}_{\mathrm{leaf}}[i, j, k]\cdot \mathbf{is\_leaf}[i] +\nonumber\\
+    &(\mathbf{C}[\mathbf{lc}[i], j, k] + \mathbf{C}[\mathbf{rc}[i], j, k])\cdot (1- \mathbf{is\_leaf}[i]),\\
+  \mathbf{V}[i, j, k] =&\ \mathbf{V}_{\mathrm{leaf}}[i, j, k]\cdot \mathbf{is\_leaf}[i] +\nonumber\\
+    &(\mathbf{V}[\mathbf{lc}[i], j, k] + \mathbf{V}[\mathbf{rc}[i], j, k])\cdot (1- \mathbf{is\_leaf}[i]),
   \end{align}
   where again, the prover proves the routing with lookup.
 
@@ -301,12 +301,12 @@ However, we note that the problem of proving histogram is one
   that is much simpler than general RAM argument, since the update pattern is fixed and known in advance, and the update operation is just addition.
   Over the flattened tensors, we instead prove
   \begin{align}
-    \sum_{i\in [TKM]} \mathbf{C}_{\{TKM\}}[i]\cdot \alpha^i &= \sum_{t, k, r, j} \alpha^{\mathsf{ind}(t, k, r, j)}\cdot 1,\\
-    \sum_{i\in [TKM]} \mathbf{V}_{\{TKM\}}[i]\cdot \alpha^i &= \sum_{t, k, r, j} \alpha^{\mathsf{ind}(t, k, r, j)}\cdot \mathbf{G}[t, k, r],
+    \sum_{i\in [N_{\mathrm{tot}}dB]} \mathbf{C}_{\{N_{\mathrm{tot}}dB\}}[i]\cdot \alpha^i &= \sum_{t, k, r, j} \alpha^{\mathsf{ind}(t, k, r, j)}\cdot 1,\\
+    \sum_{i\in [N_{\mathrm{tot}}dB]} \mathbf{V}_{\{N_{\mathrm{tot}}dB\}}[i]\cdot \alpha^i &= \sum_{t, k, r, j} \alpha^{\mathsf{ind}(t, k, r, j)}\cdot \mathbf{G}[t, k, r],
   \end{align}
   where $\alpha$ is a random challenge and $\mathsf{ind}(t, k, r, j)$ is the flattened index of the tuple $(t, k, r, j)$,
   namely
-  \[\mathsf{ind}(t, k, r, j) = \mathbf{Ind}[t, k, r]\cdot KM + j\cdot M + \mathbf{D}[r, j].\]
+  \[\mathsf{ind}(t, k, r, j) = \mathbf{Ind}[t, k, r]\cdot dB + j\cdot B + \mathbf{D}[r, j].\]
   Intuitively, we bind each $i$-th memory slot to an $\alpha^i$,
   and prove the correctness of the final state by proving the sum of all memory slots weighted by $\alpha^i$.
   
