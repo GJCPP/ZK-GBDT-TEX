@@ -5,25 +5,58 @@ subsection below records the statement to be proved, the expected witness
 objects, the proof shape, and the soundness/completeness points that should be
 filled in.
 
-\subsection{Batched Table Lookup}\label{app:batched-lookup}
+\subsection{Batched Table Lookup}\label{app:concatenated-table-lookup}
 
-\paragraph{Goal.}
-Give the concrete reduction from many shaped lookup relations
-$\mathbf{F}_i\subseteq\mathbf{T}_i$ to one lookup instance, and then explain how
-same-form lookup checks are batched by interleaving.
+Given content $\mathbf{F}_i\in \mathbb{F}^{n \times m_i}$
+  and table $\mathbf{T}_i\in \mathbb{F}^{N\times m_i}$ for $i\in [L]$,
+  and commitments to their corresponding polynomial encodings
+  $F_i(X)$ over $\mathbb{H}_{n m_i}$
+  and $T_i(X)$ over $\mathbb{H}_{N m_i}$,
+  our goal is to prove
+  \[
+    \mathbf{F}_0\| \cdots \mathbf{F}_{L-1} \subseteq \mathbf{T}_0\| \cdots \mathbf{T}_{L-1},
+  \]
+  where notation ``$\subseteq$'' means
+  that each row of the left matrix appears as a row of the right matrix.
 
-\paragraph{Framework to fill in.}
-\begin{itemize}
-    \item Define padding from width $m_i$ to a common width $m_{\max}$ and state
-    how dummy columns are fixed.
-    \item Define the random linear combination of rows under a verifier
-    challenge and the resulting single-table lookup relation.
-    \item State the collision/soundness bound from the random combination.
-    \item Describe how the resulting single-column/basic lookup is instantiated
-    using the lookup argument of~\cite{cq++24} and logup~\cite{logup22}.
-    \item Explain how interleaving batching merges multiple lookup instances
-    without new commitments once their local constraints have the same form.
-\end{itemize}
+The key challenge here is that the table widths $m_i$ vary
+  by nature.
+  For example, consider a one-row matrix $(a, b)$.
+  Suppose it is committed as $f(X)$ over $\mathbb{H}_{1\times 2}$,
+  its corresponding vector over $\mathbb{H}_{1\times 4}$ is
+  \[
+    \mathbf{f}' = (a, \square, b, \square).
+  \]
+  Note that $f(\omega_4^0) = f(\omega_2^0) = a$
+  and $f(\omega_4^2) = f(\omega_2^1) = b$.
+  However, there is no guarantee what values
+  $f(\omega_4^1)$ and $f(\omega_4^3)$ will be.
+
+Our insight is hence to create a mask
+  \[
+      \mathbf{m} = (1, 0, 1, 0),
+  \]
+  so $f(X)m(X)$ honestly commits to $(a, 0, b, 0)$ over $\mathbb{H}_{1\times 4}$.
+  By \Cref{lem:row-replication}, $m(X) = \lambda^{(0)}_2(X^2)$.
+
+Formally, let $m = \max_i m_i$. We pad each matrix $\mathbf{F}_i$
+  to $\widehat{\mathbf{F}}$ of width $m$ by
+  \begin{align}
+    & \widehat{F}(X) = F(X)\cdot \lambda^{(0)}_{m/m_i}(X^{nm_i}),\\
+    & \text{where } \lambda^{(0)}_{m/m_i}(X) = \frac{X^{m/m_i} - 1}{m/m_i(X-1)}.
+  \end{align}
+  And we pad each table $\mathbf{T}_i$ to $\widehat{\mathbf{T}}_i$ of width $m$ similarly.
+
+Now that the contents and the tables are aligned,
+  we can combine them into a single table lookup by a verifier challenge $\alpha$:
+  \begin{align}
+    \sum_i \alpha^i\cdot \widehat{\mathbf{F}}_i \subseteq \sum_i \alpha^i\cdot \widehat{\mathbf{T}}_i.
+  \end{align}
+  This is reduced to a table lookup argument in \cite{cq++24}.
+
+We note that this construction also supports preprocessing,
+  at the cost of computing cached quotient~\cite{cq22}
+  for all $\widehat{\mathbf{T}}_i$ in $O(Lm\log m)$.
 
 \subsection{Prefix-Sum Relations}\label{app:prefix-sum}
 

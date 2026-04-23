@@ -36,10 +36,8 @@ Given $(\mathbf{F}_i)_{i\in [k]}$ and $(\mathbf{T}_i)_{i\in [k]}$
     \[
         \mathbf{F}_i[r, c] = \mathbf{T}_i[\mathbf{j}[r], c], \forall r\in [n], c\in [m_i], i\in [k].
     \]
-    This is reduced to a logup instance~\cite{logup22},
-    which is further batched together by 
-    interleaving batching, c.f. \Cref{lem:interleaving}.
-    See \Cref{app:batched-lookup}.
+    The concrete construction
+    is deferred to \Cref{app:concatenated-table-lookup}.
 
 \paragraph{Quantization.}
 Given $f(X)$ and $g(X)$ encoding vectors $\mathbf{f}$ and $\mathbf{g}$ over $\mathbb{H}_n$,
