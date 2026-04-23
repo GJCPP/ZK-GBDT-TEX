@@ -49,27 +49,60 @@ For tensors of same shape, we write $\mathbf{V}+\mathbf{W}$ for their entrywise 
 $\mathbf{V}\odot\mathbf{W}$ for their Hadamard product.
 We denote by $|\mathbf{V}|$ for the size of tensor $\mathbf{V}$.
 
+\begin{table}[t]
+    \centering
+    \small
+    \caption{Main scalar parameters used throughout the paper.}
+    \label{tab:main-scalars}
+    \begin{tabular}{@{}p{0.20\columnwidth}p{0.72\columnwidth}@{}}
+        \toprule
+        Symbol & Meaning \\
+        \midrule
+        $\mathbb{F}$ & Finite field over which the proof is defined. \\
+        $L$ & Global logarithmic domain bound; committed objects are padded to lengths dividing $2^L$. \\
+        $T$ & Number of boosting rounds. \\
+        $K$ & Number of classes; each round trains one tree per class. \\
+        $M$ & Number of training samples. \\
+        $d$ & Number of features. \\
+        $B$ & Number of quantization bins; feature values lie in $[B]$. \\
+        $b$ & Number of public inference samples in one batch. \\
+        $N_{\mathrm{tot}}$ & Total number of nodes in the encoded forest, including the dummy node. \\
+        $N_{\mathrm{int}},N_{\mathrm{leaf}}$ & Number of internal nodes and leaf nodes in the forest. \\
+        $\mathcal{B}$ & Public range bound used for fixed-point and comparison checks. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
 \begin{table*}[t]
-\centering
-\small
-\begin{tabular}{lllll}
-\toprule
-Symbol & Shape & Support & Meaning & Status \\
-\midrule
-$\mathbf{D}$ & $M\times d$ & all samples & quantized dataset & committed \\
-$\mathbf{Y}$ & $K\times M$ & all samples & one-hot labels & committed \\
-$\mathbf{S}$ & $T\times K\times M$ & all rounds & cumulative scores & committed \\
-$\mathbf{G}$ & $T\times K\times M$ & all rounds & pseudo-residuals & committed \\
-$\boldsymbol{\ell}^{(t,k)}$ & $M$ & tree $(t,k)$ & leaf assignment & committed slice \\
-$\mathbf{C}^{(t,k)},\mathbf{H}^{(t,k)}$ & $N_{\mathrm{tot}}\times d\times B$ & tree $(t,k)$ & count / sum histograms & committed slice \\
-$\Gamma^{(t,k)}$ & $N_{\mathrm{int}}\times d\times B$ & tree $(t,k)$ & candidate split scores & committed slice \\
-$\widetilde{\mathbf{W}}^{(t)}$ & $N_{\mathrm{tot}}\times K$ & round $t$ & padded leaf values & committed slice \\
-$F(X),\widehat{u}(X)$ & varies & derived & batched virtual polynomials & virtual \\
-\bottomrule
-\end{tabular}
-\caption{Main proof-facing objects used later in Sections~3--5. All tensors are
-flattened in row-major order before commitment.}
-\label{tab:object-glossary}
+    \centering
+    \small
+    \caption{Main variables and tensor shapes used in the proof.}
+    \label{tab:main-variables}
+    \begin{tabular}{@{}p{0.22\textwidth}p{0.28\textwidth}p{0.42\textwidth}@{}}
+        \toprule
+        Variable & Shape & Meaning \\
+        \midrule
+        $\mathbf{D}$ & $[B]^{M\times d}$ & Quantized training dataset. \\
+        $\mathbf{Y}$ & $\{0,1\}^{K\times M}$ & One-hot label matrix. \\
+        $\mathbf{S},\mathbf{G}$ & $\mathbb{F}^{T\times K\times M}$ & Training scores and pseudo-residuals. \\
+        $\mathbf{lc},\mathbf{rc}$ & $[N_{\mathrm{tot}}]^{N_{\mathrm{tot}}}$ & Left and right child indices of forest nodes. \\
+        $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}$ & $[B+1]^{N_{\mathrm{tot}}\times d}$ & Lower and upper hyper-box bounds of nodes. \\
+        $\mathbf{E}$ & $\{0,1\}^{N_{\mathrm{tot}}\times d}$ & One-hot split-feature mask of each node. \\
+        $\boldsymbol{\Theta}$ & $\{0,1,\ldots,B\}^{N_{\mathrm{tot}}}$ & Split threshold index of each node. \\
+        $\mathbf{tree},\mathbf{root},\mathbf{is\_leaf},\mathbf{score}$ & $[TK+1]^{N_{\mathrm{tot}}}$, $\{0,1\}^{N_{\mathrm{tot}}}$, $\{0,1\}^{N_{\mathrm{tot}}}$, $\mathbb{F}^{N_{\mathrm{tot}}}$ & Tree id, root flag, leaf flag, and leaf score. \\
+        % $\mathbf{I}$ & $[B]^{b\times d}$ & Public inference input batch. \\
+        % $\mathbf{U}^{\leftarrow},\mathbf{U}^{\rightarrow}$ & $\mathbb{F}^{TKb\times d}$ & Fetched leaf hyper-box bounds for inference. \\
+        % $\mathbf{sc}$ & $\mathbb{F}^{TKb}$ & Fetched leaf scores for inference. \\
+        % $\mathbf{Ind}$ & $[N_{\mathrm{tot}}]^{T\times K\times M}$ & Training-time leaf index reached by each sample. \\
+        $\mathbf{C}_{\mathrm{leaf}},\mathbf{V}_{\mathrm{leaf}}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ & Leaf count and residual-sum histograms. \\
+        $\mathbf{C},\mathbf{V}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ & Full count and residual-sum histograms after child aggregation. \\
+        $\mathbf{C}_{\leq},\mathbf{V}_{\leq},\mathbf{C}_{>},\mathbf{V}_{>}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ & Prefix and suffix split statistics. \\
+        % $\mathbf{A},\mathbf{A}'$ & $\mathbb{F}^{T\times K\times M\times d}$ & Histogram addresses and random powers used in the histogram proof. \\
+        % $\mathbf{P}$ & $\mathbb{F}^{N_{\mathrm{tot}}dB}$ & Random-power table for histogram aggregation. \\
+        % $\boldsymbol{\Gamma},\boldsymbol{\chi}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$, $\{0,1\}^{N_{\mathrm{tot}}\times d\times B}$ & Candidate split gains and validity mask. \\
+        % $\boldsymbol{\Gamma}^{*},\mathbf{T}$ & $\mathbb{F}^{N_{\mathrm{tot}}}$, $\{0,1\}^{N_{\mathrm{tot}}\times B}$ & Selected gain and threshold mask for the chosen split. \\
+        \bottomrule
+    \end{tabular}
 \end{table*}
 
 \subsection{KZG Polynomial Commitments}
@@ -166,7 +199,7 @@ $\mathbf{S}[t,k,r]$ is
 Therefore, after round $t$, the next negative-gradient target is
 \begin{equation}\label{eq:plain-pseudoresidual}
 \mathbf{G}[t+1,k,r]
-:=
+\coloneqq
 -\frac{\partial \mathcal{L}^{(t)}}{\partial \mathbf{S}[t,k,r]}
 =
 \mathbf{Y}[k,r]-\boldsymbol{\pi}[t,k,r],

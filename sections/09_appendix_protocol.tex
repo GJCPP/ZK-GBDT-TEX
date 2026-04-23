@@ -72,30 +72,6 @@ This appendix records the protocol skeleton used implicitly throughout
 training trace that the prover must justify. The second describes the
 round-by-round proof obligations attached to that trace.
 
-\begin{table}[t]
-\centering
-\small
-\resizebox{\textwidth}{!}{%
-\begin{tabular}{p{2.4cm}p{3.0cm}p{2.0cm}p{2.2cm}p{1.8cm}}
-\toprule
-Relation & Objects & Gadget & Batching & Status \\
-\midrule
-Forest well-formedness & $\mathbf{lc},\mathbf{rc},\mathbf{E},\boldsymbol{\Theta},\mathbf{Root}$ & zero / lookup checks & domain-lifting & new composition \\
-Leaf assignment & $\mathbf{D},\boldsymbol{\ell}^{(t,k)}$ & batched inference & interleaving + lookup & imported + composed \\
-Leaf histogram & $\mathbf{addr}^{(t,k)},\mathbf{G}[t,k,\cdot],\mathbf{C}^{\mathrm{leaf}},\mathbf{H}^{\mathrm{leaf}}$ & aggregation & aggregation batching & imported + composed \\
-Propagation / prefix & $\mathbf{C},\mathbf{H},\mathbf{C}_{\leq},\mathbf{H}_{\leq}$ & linear identities & domain-lifting & new composition \\
-Candidate scores & $\Gamma,\boldsymbol{\chi},\mathbf{Q}^{\leftarrow},\mathbf{Q}^{\rightarrow}$ & zero-safe quotient & interleaving by gadget family & new composition \\
-Split optimality & $\Gamma,\mathbf{R},\mathbf{M},\mathbf{E},\boldsymbol{\Theta}$ & max-selection & gadget-local & imported \\
-Leaf values & $\widetilde{\mathbf{n}},\widetilde{\mathbf{a}},\widetilde{\mathbf{W}}$ & zero-safe quotient & interleaving by gadget family & new composition \\
-Softmax / residual & $\mathbf{S},\mathbf{P},\mathbf{Z},\mathbf{I},\mathbf{G}$ & $\Pi_{\mathrm{softmax}}$ & global round tensor & imported \\
-\bottomrule
-\end{tabular}
-}
-\caption{Protocol obligations in Section~5, together with the proof gadget and
-batching mode used for each one.}
-\label{tab:protocol-obligations}
-\end{table}
-
 \begin{algorithm}[H]
 \caption{Quantized multi-class GBDT training trace}
 \label{alg:gbdt-trace}

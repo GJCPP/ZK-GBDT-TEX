@@ -13,13 +13,13 @@ The public statement fixes an XGBoost-style~\cite{xgboost16} quantized trainer,
 including the loss function, learning rate $\eta$, regularization parameters
 $\lambda$ and $\gamma$, tree-shape policy, quantization parameters, and all
 dimensions.  The prover commits to the dataset, labels, forest, leaf values,
-and the training trace.  The verifier should be convinced that the committed
+and any auxiliary information.  The verifier should be convinced that the committed
 forest is obtained by running this public XGBoost-style trainer on the
 committed data.
 
 \paragraph{Plaintext trainer.}
 XGBoost also trains an additive model over rounds, but the tree for each class
-is fitted using a second-order approximation of the loss.  As in
+is fitted using a second-order approximation of the loss~\cite{xgboost16}.  As in
 \Cref{eq:plain-score-update}, write $\mathbf{S}[t-1,k,r]$ for the score of sample $r$
 and class $k$ before the tree of round $t$ is added, with
 $\mathbf{S}[-1,k,r]=0$.  The public trainer fixes the loss and therefore fixes the
@@ -53,7 +53,7 @@ For any sample set $A\subseteq[M]$, write
 Define $G_u=G_{I_u}$, $H_u=H_{I_u}$,
 $G_L=G_{L_{u,j,b}}$, $H_L=H_{L_{u,j,b}}$,
 $G_R=G_{R_{u,j,b}}$, and $H_R=H_{R_{u,j,b}}$.
-The proof uses the following score, which is twice the usual XGBoost gain and
+The proof uses the following score, which is twice the usual XGBoost gain~\cite{xgboost16} and
 therefore gives the same ordering and pruning decision:
 \begin{equation}\label{eq:xgb-gain}
     \Phi_{\mathsf{xgb}}(u,j,b)
@@ -106,7 +106,7 @@ leaf value. We set $\mathbf{S}[-1,k,r]=0$ if the rounds are indexed from $0$.
 
 The plaintext trainer first applies softmax to these accumulated scores:
 \[
-    p_{t,k,r}
+    \mathbf{P}[t,k,r]
     =
     \frac{\exp(\mathbf{S}[t-1,k,r])}
     {\sum_{c\in[K]}\exp(\mathbf{S}[t-1,c,r])}.
@@ -115,172 +115,94 @@ Under the standard diagonal-Hessian approximation used by
 XGBoost~\cite{xgboost16}, the sample-wise gradient and Hessian for class $k$
 are
 \[
-    g_{t,k,r}=p_{t,k,r}-\mathbf{Y}[k,r],
-    \qquad
-    h_{t,k,r}=p_{t,k,r}(1-p_{t,k,r}),
+    \mathbf{G}[t,k,r]=\mathbf{P}[t,k,r]-\mathbf{Y}[k,r],\ 
+    \mathbf{H}[t,k,r]=\mathbf{P}[t,k,r](1-\mathbf{P}[t,k,r]),
 \]
 where $\mathbf{Y}$ is the one-hot label matrix. These values are then
 aggregated over the samples reaching each node and used to compute the split
 gain and leaf values.
 
 Therefore, to prove the correctness of $\mathbf{G}$ and $\mathbf{H}$, the
-prover first proves that the committed score tensor $\mathbf{S}$ is obtained by
-correctly accumulating the leaf values of all previous trees along the committed
-routing paths. Given $\mathbf{S}$, the prover proves that the committed
-probability tensor $\mathbf{P}$ is the softmax of $\mathbf{S}$ using the same
-lookup and fixed-point gadgets as in the main construction. Finally, it proves
-the pointwise identities
-\begin{align}
-    \mathbf{G}[t,k,r]
-    &=
-    \mathbf{P}[t,k,r]-\mathbf{Y}[k,r],\\
-    \mathbf{H}[t,k,r]
-    &=
-    \mathbf{P}[t,k,r]\cdot(1-\mathbf{P}[t,k,r]),
-\end{align}
-with the required fixed-point rescaling for the multiplication. The linear
-relations are batched by domain-lifting batching, while the multiplication,
-lookup, and quantization checks are batched by interleaving batching.
-
-After this step, the rest of the proof follows the same structure as the GBDT
+prover first proves the correctness of $\mathbf{S}$ and $\mathbf{P}$
+similar to the case of plain GBDT, and then proves the correctness of the above formulas for $\mathbf{G}$ and $\mathbf{H}$.
+After this, the rest of the proof follows the same structure as the GBDT
 proof: the prover proves the histogram transformation from sample-wise
 gradients and Hessians to per-node frequency statistics, propagates the
 histograms to internal nodes, proves the XGBoost gain for each candidate split,
 and proves that the selected split is optimal.
 
-\subsection{Extending to Random Forests}\label{app:rf-extension}
+\subsection{Extending to Random Forests~\cite{randomforsts01}}\label{app:rf-extension}
 
 \paragraph{Statement.}
 The public statement fixes a quantized random-forest trainer, including the
-number of trees, tree-shape policy, split objective, leaf-value rule,
-quantization parameters, and the randomness used for sampling data points and
-feature subsets.  The randomness can either be public directly or derived from a
-public seed.  The prover commits to the dataset, labels, forest, leaf values,
-and the proof-facing training trace.  The verifier should be convinced that the
-committed forest is obtained by running this public random-forest trainer on the
+number of trees, tree-shape policy, split objective, leaf-output rule,
+quantization parameters. The prover commits to the dataset, labels, forest, leaf values,
+and any auxiliary information. The verifier should be convinced that the committed
+forest is obtained by running this public random-forest trainer on the
 committed data.
 
 \paragraph{Plaintext trainer.}
-Unlike GBDT and XGBoost, random forests have no boosting state.  Trees are
-trained independently.  For each tree $q$, the public trainer fixes a sample
-multiplicity vector
+Unlike GBDT and XGBoost, random forests~\cite{randomforsts01} have no boosting
+state: the trees are trained independently, and there is no round-by-round score
+tensor such as $\mathbf{S}$. Each tree directly handles all $K$ classes.
+
+Fix a tree $q$. The public trainer first fixes a sample multiplicity vector
 \[
     \boldsymbol{\rho}^{(q)}\in\mathbb{F}^{M},
 \]
 where $\boldsymbol{\rho}^{(q)}[r]$ records how many times sample $r$ is included
-in the bootstrap sample, and a feature-availability mask
-\[
-    \mathbf{F}^{(q)}\in\{0,1\}^{N_{\mathrm{tot}}\times d},
-\]
-where $\mathbf{F}^{(q)}[u,j]=1$ means that feature $j$ is allowed when splitting
-node $u$ of tree $q$.  If the implementation uses sampling without replacement,
+in the bootstrap sample of tree $q$. If sampling without replacement,
 then $\boldsymbol{\rho}^{(q)}$ is simply a boolean mask.
 
-For classification, the natural histogram object is a class-frequency
-histogram.  For each node $u$, feature $j$, bin $b$, and class $c$, define
+For classification, fix a node $u$ of tree $q$, and let $I_u$ be the samples
+reaching it. For a candidate split specified by feature $j$ and threshold bin
+$b$, define
+\begin{align}
+L_{u,j,b} &:= \{\, r\in I_u : \mathbf{D}[r,j] < b \,\},\\
+R_{u,j,b} &:= \{\, r\in I_u : \mathbf{D}[r,j] \ge b \,\}.
+\end{align}
+For any sample set $A\subseteq[M]$ and class $c\in[K]$, write
 \[
-    \mathbf{N}[u,j,b,c]
-    =
-    \sum_{r\in[M]}
-    \boldsymbol{\rho}^{(q)}[r]\cdot
-    \mathbf{1}\{r\text{ reaches }u\}\cdot
-    \mathbf{1}\{\mathbf{D}[r,j]=b\}\cdot
-    \mathbf{Y}[c,r].
+    G_{A,c}
+    :=
+    \sum_{r\in A}\boldsymbol{\rho}^{(q)}[r]\cdot \mathbf{Y}[c,r],
+    \qquad
+    G_A := \sum_{c\in[K]} G_{A,c}.
 \]
-Prefix sums over the bin dimension give the class counts on the left and right
-sides of each candidate split.  For a candidate split $(u,j,b)$, write
-$N_{L,c}$ and $N_{R,c}$ for the class counts on the two sides, and
-$N_L=\sum_c N_{L,c}$ and $N_R=\sum_c N_{R,c}$.  Maximizing the usual Gini
-improvement is equivalent, for a fixed parent node, to maximizing
+Define
+\[
+    G_{u,c}=G_{I_u,c},\qquad
+    G_{L,c}=G_{L_{u,j,b},c},\qquad
+    G_{R,c}=G_{R_{u,j,b},c},
+\]
+and
+\[
+    G_u = G_{I_u},\qquad
+    G_L = G_{L_{u,j,b}},\qquad
+    G_R = G_{R_{u,j,b}}.
+\]
+A convenient score for the Gini criterion~\cite{CART1984} is
 \begin{equation}\label{eq:rf-gini-score}
     \Phi_{\mathsf{rf}}(u,j,b)
     =
-    \frac{\sum_{c\in[K]} N_{L,c}^2}{N_L}
+    \frac{\sum_{c\in[K]} G_{L,c}^2}{G_L}
     +
-    \frac{\sum_{c\in[K]} N_{R,c}^2}{N_R}.
+    \frac{\sum_{c\in[K]} G_{R,c}^2}{G_R},
 \end{equation}
-The trainer selects the best valid split among the features allowed by
-$\mathbf{F}^{(q)}$.  At each leaf, the output can be either the majority class
-or the class-frequency vector, depending on the public trainer.
+which is equivalent, for a fixed parent node, to maximizing the usual Gini gain.
+The trainer selects the optimal valid candidate; if no valid candidate exists, the node becomes a leaf.  The leaf output is either the majority label or the probability vector of class frequencies in the leaf.  Inference is by majority vote or by summing the leaf probability vectors across trees and taking the argmax.
 
-For regression random forests, the same structure applies after replacing
-class-frequency histograms with count, label-sum, and label-square-sum
-histograms.  The split objective then becomes the usual variance or RSS
-reduction, which is the same algebraic form as the regression-tree objective in
-the main construction.
-
-\paragraph{Witness objects.}
-Compared with the GBDT construction, the prover no longer needs the boosting
-score tensor or the pseudo-residual tensor.  Instead, for each tree it commits
-to the leaf assignment vector, the sampling multiplicities if they are not
-public, the feature-availability mask if it is not public, the class-frequency
-histograms, the candidate split scores, the selected feature-threshold pairs,
-and the leaf outputs.
-
-For classification random forests, the main histogram object has shape
-\[
-    N_{\mathrm{tot}}\times d\times B\times K.
-\]
-For regression random forests, the prover uses the same count/sum histogram
-shape as in the GBDT protocol, with the training label replacing the
-pseudo-residual target.
-
-\paragraph{Proof shape.}
-The proof again follows the same high-level skeleton.
-
-First, the prover proves forest well-formedness and leaf assignment exactly as
-in the main construction.  If the sampling masks and feature masks are derived
-from a public seed, no extra proof is needed for their correctness.  If they are
-committed as witness objects, the prover additionally proves that they are
-consistent with the public sampling rule.
-
-Second, the prover uses the histogram proof to certify the transformation from
-sample-wise labeled records to class-frequency histograms.  This is the random
-forest analogue of the histogram proof in the main protocol: instead of
-aggregating pseudo-residuals, the proof aggregates class counts, optionally
-weighted by bootstrap multiplicities.
-
-Third, the prover proves the split score.  For classification, it introduces
-quotient witnesses $Q_L$ and $Q_R$ and proves
-\[
-    Q_L\cdot N_L=\sum_{c\in[K]}N_{L,c}^2,
-    \qquad
-    Q_R\cdot N_R=\sum_{c\in[K]}N_{R,c}^2,
-\]
-together with
-\[
-    \Gamma=Q_L+Q_R.
-\]
-The validity mask enforces that $N_L$ and $N_R$ are nonzero and that the
-candidate feature is allowed by the feature-availability mask.  The selected
-split is then proved optimal by the same max-selection proof used in the main
-construction.
-
-Fourth, the prover proves the leaf output.  If the leaf stores a class-frequency
-vector, the prover checks the corresponding quotient identities
-\[
-    P_{\ell,c}\cdot N_\ell=N_{\ell,c}
-\]
-for every class $c$.  If the leaf stores only a majority label, the prover
-proves that the committed label is the class with maximum leaf count using the
-same max-selection primitive.  Inference then consists of routing each input to
-one leaf per tree, fetching the leaf vote or probability vector, summing across
-trees, and proving the final majority or argmax decision.
-
-\paragraph{Batching.}
-The batching strategy is unchanged.  The class-frequency histograms only add one
-more tensor dimension, and all tensors are flattened before commitment as in the
-main protocol.  Domain-lifting batching handles the linear constraints for
-histogram propagation, prefix sums, vote aggregation, and inference
-aggregation.  Interleaving batching handles lookup, range, quotient, and
-max-selection checks across the heterogeneous objects introduced by different
-trees and nodes.
-
-\paragraph{Completeness and soundness.}
-Completeness follows because an honestly trained random forest produces leaf
-assignments, histograms, split scores, selected splits, and leaf outputs
-satisfying the stated relations.  Soundness follows because any accepting proof
-binds the prover to committed histograms and split scores that are consistent
-with the committed data, the public sampling and feature-selection rule, and
-the public split objective.  Therefore, the accepted forest is consistent with a
-valid execution of the specified random-forest trainer.
+\paragraph{Proof sketch.}
+The proof follows almost identically to the GBDT case,
+i.e. first proving the inferences over each tree,
+then proving histogram over leaves and internal nodes, then proving the Gini score for each candidate split, and finally proving that the selected split is optimal.
+The main difference is that we need to maintain a $\mathbf{G}\in \mathbb{F}^{N_{\mathrm{tot}}\times d\times B\times K}$,
+which is one dimension higher than the $\mathbf{G}$ in the GBDT proof.
+Nevertheless, the proof of the histogram over leaves is almost identical,
+and the propagation to internal nodes can be proved by
+\begin{align}
+    \mathbf{G}[u,j,b,c] = \mathbf{G}[\mathbf{lc}[u],j,b,c] + \mathbf{G}[\mathbf{rc}[u],j,b,c].
+\end{align}
+The proof of prefix sum over $\mathbf{G}$ is then handled similarly.
+And finally, the proof of leaf output (which can be majority label or class-frequency vector)
+can be handled by committing the output as a (one-hot or probability) vector and proving its correctness by proving maximum or argmax.
