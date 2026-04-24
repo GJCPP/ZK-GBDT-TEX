@@ -1,33 +1,135 @@
 \section{Related Work}
+\subsection{Zero-Knowledge Proofs for Tree-Based Models}
+\label{subsec:related-zk-tree}
 
-\paragraph{Zero-knowledge proofs for tree models.}
-Early work on zero-knowledge proofs for tree inference focused on certifying
-predictions of decision trees and random forests without exposing the model
-\cite{zkdt20}. CQ++ \cite{cq++24} showed how to encode decision trees with
-hyperboxes and verify inference with lookup arguments over KZG commitments.
-Sparrow \cite{sparrow24} demonstrated that data-parallel zkSNARK techniques can
-also be effective for tree workloads. Our construction starts from the same
-high-level observation as these systems, namely that tree-specific structure
-should remain visible to the prover, but it targets a different bottleneck:
-proving GBDT training, and in particular proving optimal split selection in a
-way that scales with histogram size rather than with a large generic circuit.
+Zero-knowledge proofs for tree-based machine learning models have been studied
+under several different goals: proving inference, proving accuracy or fairness
+properties, and proving training. Early work on private client-side profiling
+already considered random forests together with zero-knowledge proofs of correct
+model evaluation~\cite{danezis2012private}. Later, Zhang et al.~\cite{zkdt20}
+initiated the systematic study of zero-knowledge decision trees. Their zkDT
+protocols allow a prover to prove the correctness of a decision-tree prediction
+or an accuracy claim without revealing the model. They also extend the approach
+to random forests by proving the predictions of individual trees and aggregating
+their outputs. This line of work is primarily concerned with inference and
+accuracy testing for already trained models, rather than proving that a model is
+the output of a prescribed training algorithm.
 
-\paragraph{Lookup arguments and algebraic proof components.}
-At the proof-system layer, our construction uses KZG commitments \cite{kzg10},
-Aurora-style sum-checks \cite{aurora19}, and lookup protocols based on cached
-quotients and matrix lookup \cite{cq22,cq++24,baloo25}. These ingredients are
-not new individually. What is new here is the way they are assembled around a
-common batched zero-check template and a small primitive catalog tailored to
-GBDT training, with aggregation and histogram construction promoted from
-implementation details to explicit relations in the statement of the protocol.
+Several subsequent works improve or extend zero-knowledge proofs for tree
+inference. \citet{verifiable-ai22} study verifiable
+decentralized AI pipelines and include protocols for verifiable inference of
+decision trees and random forests. \citet{cq++24} introduce
+lookup argument techniques, including matrix lookup, and apply them to
+zero-knowledge decision trees.
+They use hyper-box encoding of decision tree,
+which, composed with a table-independent lookup argument~\cite{cq22, cq++24},
+allows a tree-independent proof of inference for decision tree.
 
-\paragraph{zkML inference and training.}
-The pseudo-residual part of our protocol is also related to the broader zkML
-literature on proving nonlinear inference and training updates. zkCNN
-\cite{zkcnn21} illustrates how to certify prediction-time neural computations,
-while Kaizen \cite{zkdnn24} studies zero-knowledge proofs of neural-network
-training. More recently, ZKBoost \cite{zkboost26} considers verifiable training
-for XGBoost. Our focus is different from these generic or semi-generic training
-systems: we isolate the tree-specific combinatorial core of GBDT training and
-optimize that layer directly, rather than compiling split search into a
-monolithic backend.
+Another related direction is zero-knowledge auditing of fairness for tree-based
+models. Confidential-PROFITT~\cite{confidential-profitt22} proposes fair decision
+tree learning algorithms together with customized zero-knowledge protocols that
+certify fairness while keeping both the model and training data confidential; it
+also extends the approach to ensembles of trees. Recent auditing frameworks
+further study robustness of fairness certificates and transparent generation of
+audit data~\cite{audifair26}. These works prove statistical or fairness properties
+of a committed model, or prove that a model was produced by a fairness-aware
+training rule. In contrast, our work targets the full training semantics of
+gradient-boosted decision trees, including the algebraic constraints for
+histogram construction, split selection, leaf-value computation, and boosting
+state updates.
+
+The closest works to ours are zero-knowledge proofs of training for forest-based
+models. \citet{sparrow24} propose a space-efficient zkSNARK, Sparrow, for
+data-parallel circuits and applies it to 
+zero-knowledge proofs of random forest training
+and prediction.
+More
+recently, ZKBoost~\cite{zkboost26} presents a zero-knowledge proof of training for
+XGBoost. ZKBoost reformulates XGBoost as a deterministic fixed-point algorithm
+and gives a generic template instantiated with a general-purpose ZKP
+backend. 
+Our work is complementary but takes a different approach: rather than
+expressing the whole trainer as a general arithmetic circuit, we design
+specialized algebraic protocols for the structure of GBDT training. In
+particular, we exploit the histogram-based nature of tree construction and batch
+the repeated linear, lookup, and aggregation relations that arise across nodes,
+features, bins, classes, and boosting rounds.
+
+Overall, prior work on zero-knowledge tree models has mainly focused on
+verifiable inference, accuracy/fairness auditing, or general-purpose circuit
+encodings of tree training. Our contribution is a specialized proof system for
+GBDT training that directly captures the committed training trace and proves
+that the committed ensemble is obtained by executing the public
+training algorithm on the committed dataset.
+
+\subsection{Batching Lookup Arguments}
+As a corollary of \Cref{lem:interleaving},
+    we can batch multiple lookup arguments into one,
+    even if (1) the contents are of different sizes,
+    and (2) the tables are different and potentially of different sizes.
+    To be specific,
+    given KZG commitments to content vectors $\{\mathbf{f}_i\in \mathbb{F}^{m_i}\}_{i\in [n]}$
+    and table vectors $\{\mathbf{t}_i\in \mathbb{F}^{M_i}\}_{i\in [n]}$,
+    we want to prove that, \emph{pair-wisely},
+    \[
+        \mathbf{f}_i \subseteq \mathbf{t}_i\quad \forall i\in [n],
+    \]
+    where ``$\subseteq$'' denotes that every element in $\mathbf{f}_i$ is also in $\mathbf{t}_i$.
+
+To our best knowledge, this types of batching
+    is not studied in the literature.
+    Existing works on lookup arguments typically fall into one of the following categories:
+
+\paragraph{Batching many lookups into a common table.}
+A common form of batching is to prove that many queried values, or many queried
+columns, belong to the same lookup table.
+This is the setting handled by standard Plonkish lookup arguments such as
+Plookup~\cite{plookup20},
+as well as logarithmic-derivative-based lookup arguments such as
+LogUp~\cite{logup22}.
+These protocols amortize the cost of many membership checks by reducing them to
+one multiset relation against a single table.
+When multiple tables are supported, the usual approach is to concatenate the
+tables and add a table identifier, or tag, so that a lookup into table $i$ is
+encoded as a lookup of the tuple $(i,x)$ into one global tagged table.
+
+This technique is effective when all lookups can be represented as membership
+in \emph{a single combined table}, but it does not directly batch a family of
+\emph{independent} committed relations
+\[
+    \mathbf{f}_i \subseteq \mathbf{t}_i
+    \quad \forall i\in [i],
+\]
+where both the queried vectors and the corresponding tables are separately
+committed and may have unrelated sizes.
+We note that committing contents and tables separately is
+helpful in our GBDT construction, as it allows us to 
+fetch different forest attributes and process them separately.
+
+\paragraph{Large-table lookup arguments.}
+Another line of work focuses on reducing the cost of lookup arguments when the
+table is large.
+Examples include Caulk, Caulk+, flookup, Baloo, cq, and subsequent
+improvements~\cite{caulk22,caulk+22,flookup22,baloo25,cq22,locq24}.
+The main goal of this line is to make the prover sublinear, table-independent, or
+quasi-linear in the number of lookups after preprocessing.
+This direction is orthogonal to our batching problem.
+
+\paragraph{Vector, matrix, and segment lookup arguments.}
+Recent works also study richer lookup relations, such as vector lookup,
+matrix lookup, and segment lookup~\cite{cq++24,sublonk24}.
+These arguments can prove that a committed vector, row, subvector, or submatrix
+is contained in a larger committed table, often by adding positional labels or
+by reducing the relation to a standard lookup.
+In our construction, we utilize the matrix lookup of~\cite{cq++24},
+which is nevertheless orthogonal to the batching problem.
+
+In summary, prior batching techniques typically batch many queries into one
+table, encode multiple tables using tags in one global table, or prove richer
+containment relations with respect to one committed table-like object.
+By contrast, our interleaving lemma gives a direct way to batch a family of
+independent committed lookup relations
+$\{(\mathbf{f}_i,\mathbf{t}_i)\}_i$ into 
+one single lookup argument,
+while allowing both the
+query vectors and the tables to have different sizes.
