@@ -1,1 +1,167 @@
 \section{Introduction}
+
+Machine-learning models are increasingly trained and deployed through
+outsourced and cloud-based pipelines. Machine learning as a service
+(MLaaS) allows clients with limited computational resources or machine-learning
+expertise to outsource training and inference tasks to external providers
+\cite{MLaaS15, VeriML21, privacy-mlaas23}. This paradigm is attractive in
+settings such as risk scoring, healthcare analytics, fraud detection, and
+financial decision making, where predictive models are often trained or served
+over sensitive tabular data \cite{xgboost16,grinsztajn2022tree,shwartz2022tabular}.
+However, outsourcing also creates an integrity problem: a client may receive a
+trained model or a prediction from an external provider, but
+cannot directly tell whether it was produced by the claimed training pipeline on
+the claimed data source. Prior work on verifiable MLaaS and proof-of-learning
+has therefore emphasized the need to certify that outsourced training or
+inference was executed correctly, rather than replaced by a shortcut, a
+partially trained model, or an improperly executed computation
+\cite{VeriML21,proof_of_learning21,zkdnn24}.
+
+At the same time, full transparency is often unacceptable. Training data may
+contain sensitive user, medical, or financial records, while the learned model
+itself may encode proprietary information or leak information about the
+training data \cite{privacy-mlaas23,tramer2016stealing}. Model extraction
+attacks further show that even black-box prediction APIs can compromise model
+confidentiality, especially for models offered through cloud prediction
+services \cite{tramer2016stealing}. This creates a tension between
+verifiability and confidentiality: the verifier wants assurance that the model
+was trained correctly, whereas the prover may need to keep the data, model
+parameters, and intermediate training states private. Zero-knowledge proofs of
+training address this tension by allowing a prover to convince a verifier that a
+committed model is the output of a public training algorithm on a committed
+dataset, while revealing nothing beyond the validity of this statement
+\cite{zkdnn24,zkml_survey}.
+
+In this work, we study zero-knowledge proofs for gradient boosted decision
+trees (GBDTs). GBDTs, and especially implementations such as XGBoost~\cite{xgboost16}, are among
+the strongest model families for tabular data and are widely used in domains
+where accountability matters~\cite{shwartz2022tabular, grinsztajn2022tree}. A GBDT model is an additive ensemble of decision
+trees: each round trains new trees to fit the residual errors of the current
+model, and the final prediction is obtained by aggregating the outputs of all
+trees. This sequential structure makes training certification substantially
+harder than inference certification. To prove inference, it is enough to show
+that each input follows a valid path in each committed tree and that the
+returned scores are aggregated correctly. To prove training, the prover must
+also show that every split, every leaf value, and every boosting update is
+consistent with the committed dataset and the public training rule.
+
+Prior zero-knowledge works on tree-based models have mostly focused on
+inference, accuracy testing, or auditing properties of already trained trees.
+zkDT~\cite{zkdt20} proves decision-tree predictions and accuracy claims without
+revealing the tree. Later works improve the representation of committed trees
+and use lookup arguments to make tree inference more efficient
+\cite{cq++24}. Confidential-PROFITT~\cite{confidential-profitt22} targets a
+different goal: it certifies fairness properties of decision-tree training while
+keeping both the model and training data confidential. These works provide
+important tools for tree-model verification, but they do not give a specialized
+proof system for the full training semantics of gradient boosting.
+
+The closest line of work is zero-knowledge proof of training for tree
+ensembles. Sparrow~\cite{sparrow24} gives a space-efficient zkSNARK for
+data-parallel circuits and applies it to random-forest training and prediction.
+Its key idea is to avoid re-running training inside the proof: instead, the
+prover proves that a certification algorithm accepts the committed forest and
+dataset. ZKBoost~\cite{zkboost26} extends this certification approach to XGBoost.
+It defines a deterministic fixed-point version of XGBoost, builds a
+certification algorithm for the resulting trainer, and then proves this
+certifier using a general-purpose ZKP backend. These works demonstrate that
+proofs of training for tree ensembles are possible, but their proof systems
+still inherit the cost of proving a large certification computation. In
+particular, constructing histograms, validating split optimality, checking
+fixed-point arithmetic, and handling RAM-style updates become dominant costs.
+
+A natural alternative is to avoid proving the certification computation as a
+generic circuit and instead prove the algebraic relations that characterize
+GBDT training directly. However, this approach creates a different
+bottleneck. GBDT training contains many repeated constraints over many axes:
+rounds, classes, nodes, features, bins, and samples. Some constraints are linear
+relations, such as score updates, prefix sums, and aggregation equations. Others
+are local nonlinear relations, such as lookup checks, range checks,
+quantization, division, and maximum selection. Moreover, these constraints do
+not naturally live on one uniform domain. Different tensors have different
+shapes, and their polynomial encodings are committed over different subgroups. Proving each relation separately would introduce a large number of
+auxiliary commitments and openings, and ordinary same-domain batching does not
+apply directly.
+
+We present \textsc{Terrae}, a zero-knowledge proof system for quantized GBDT
+training and inference based on KZG polynomial commitments. \textsc{Terrae}
+proves that a committed forest is obtained by executing a public quantized GBDT
+trainer on a committed dataset. Instead of compiling the whole certifier into a
+generic arithmetic circuit, \textsc{Terrae} represents the training trace as
+committed tensors and proves the relations among them directly. The proof
+follows the structure of histogram-based tree training: it proves that samples
+are routed to the correct leaves, that sample-wise residuals are correctly
+converted into per-node and per-bin histograms, that the selected split at each
+internal node is optimal according to the public splitting rule, that leaf
+values are computed from the committed residuals, and that boosting states are
+updated consistently across rounds.
+
+The main technical challenge is batching. Once the training semantics are
+decomposed into algebraic relations, the prover faces many similar constraints
+over different domains. \textsc{Terrae} introduces two batching tools to handle
+this heterogeneity. First, \emph{domain-lifting batching} combines linear
+zero-check and sum-check claims whose natural domains have different sizes. It
+lifts all residual polynomials to one same domain and then applies a
+single random linear combination. Second, \emph{interleaving batching} combines
+local nonlinear checks, including lookup-style checks, by virtually
+interleaving committed vectors of different lengths. The resulting batched
+object is assembled from existing commitments and public sparse selectors, so
+the batching does not require new commitments to the merged vectors.
+
+We also design a dedicated histogram proof for GBDT training. Prior
+certification-based approaches treat histogram construction as a RAM-like
+update procedure~\cite{sparrow24,zkboost26}: each sample updates the bucket indexed by its leaf, feature,
+and bin, by reading the value from and writing the updated value back to the same location.
+In contrast, \textsc{Terrae} exploits the fact that histogram updates
+are fixed additive updates. It proves the final histogram by binding each bucket
+to a power of random challenge and checking a weighted-sum identity between the committed
+histogram and the sample-wise update stream. This avoids proving a general RAM
+computation and gives a proof primitive tailored to the histogram structure
+that appears throughout tree training.
+
+Our main contributions are as follows:
+
+\begin{itemize}
+    \item We formulate zero-knowledge proofs for quantized GBDT training and
+    inference over KZG commitments. The proved statement binds a committed
+    forest to a committed dataset and a public training algorithm, while keeping
+    the dataset, model, and intermediate training trace private when hiding
+    commitments are used.
+
+    \item We give specialized algebraic protocols for the main components of
+    GBDT training: sample routing, histogram construction, split-score
+    computation, split optimality, leaf-value computation, and boosting-state
+    updates. These protocols avoid compiling the entire training certifier into
+    a generic arithmetic circuit.
+
+    \item We introduce domain-lifting batching for linear constraints and
+    interleaving batching for local nonlinear constraints. These techniques
+    batch constraints that arise over differently sized domains and reduce many
+    commitment-opening tasks to a small number of batched claims, without
+    committing to extra witnesses.
+
+    \item We propose a histogram proof that proves the correctness of converting
+    sample-wise training data and residuals into per-node, per-feature, and
+    per-bin histograms. The proof exploits the additive structure of histogram
+    construction and avoids general RAM consistency checking.
+
+    \item We implement \textsc{Terrae} and evaluate it against a
+    certification-based baseline following the design of prior proof-of-training
+    systems for tree ensembles. The results show that directly proving the
+    algebraic structure of GBDT training significantly reduces proof-generation
+    time, while adding only modest proof-size overhead.
+\end{itemize}
+
+The rest of the paper is organized as follows. \Cref{sec:background}
+introduces the notation, background, and plaintext training setting.
+\Cref{sec:technical-overview} gives an overview of the proof system,
+as well as its subroutines.
+\Cref{sec:tools} formally presents the batching tools used throughout
+the protocol. \Cref{sec:zkgbdt-protocol} gives the proof system for quantized
+GBDT training and inference. \Cref{sec:evaluation} reports the experimental
+results.
+\Cref{sec:related} reviews related work.
+We conclude the main body of the paper in \Cref{sec:conclusion}.
+We defer some technical details to the appendix, including 
+extensions to support random forests and XGBoost-style training, 
+constructions of some subprotocols.
