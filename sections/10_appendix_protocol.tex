@@ -58,6 +58,32 @@ We note that this construction also supports preprocessing,
   at the cost of computing cached quotient~\cite{cq22}
   for all $\widehat{\mathbf{T}}_i$ in $O(Lm\log m)$.
 
+\subsection{Column-Replication}\label{app:replication}
+Given a vector $\mathbf{f}\in\mathbb{F}^n$ and
+  its committed polynomial encoding $f(X)$ and a positive integer $m$,
+  we want to prove
+  that committed polynomial $G(X)$ encodes the matrix
+  \[
+    \mathbf{G} = (\mathbf{f}\,\|\,\mathbf{f}\,\|\,\cdots\,\|\,\mathbf{f}) \in \mathbb{F}^{n\times m}.
+  \]
+  Unlike \Cref{lem:row-replication}, we do not know if there
+  is a closed-form expression for $G(X)$ in terms of $f(X)$.
+  So below we give a direct proof of correctness of $G(X)$.
+
+We prove the following two identities:
+\begin{align}
+    &\forall i\in[n], j\in[m-1].\ \mathbf{G}[i, j+1] - \mathbf{G}[i, j] = 0,\\
+    &\forall i\in [n].\ \mathbf{G}[i, 0] = \mathbf{f}[i],
+\end{align}
+which are proven separately by
+\begin{align}
+  \exists q_1(X).&\
+  G(X) - G(\omega_{nm}^{-1}X) = q_1(X)\cdot \nu_n(X),\\
+  \exists q_2(X).&\
+  G(X) - f(X) = q_2(X)\cdot \nu_n(X),
+\end{align}
+i.e. two zero-checks.
+
 \subsection{Concrete Constructions for Segmented Prefix Sum}\label{app:prefix-sum}
 
 We now give the concrete constructions deferred from
@@ -120,18 +146,26 @@ last column:
 \begin{align}
     \widehat{\mathbf{H}} = (\mathbf{0}\,\|\,\mathbf{H}) \in \mathbb{F}^{n\times m}.
 \end{align}
+Let
+\[
+    \mathbb{H}_{n}^{\mathrm{last}}
+    :=
+    \omega_{nm}^{m-1}\mathbb{H}_n
+\]
+be the last-column subdomain, and let
+$\nu_{\mathbb{H}_{n}^{\mathrm{last}}}(X)$ denote its vanishing polynomial.
 The relation between $\mathbf{H}$ and $\widehat{\mathbf{H}}$ is enforced by
 proving
 \begin{align}
     &\exists q_1(X).\ 
-    \widetilde{H}(\omega_{nm}^{-1}X)
+    \widehat{H}(X)
     =
     q_1(X)\cdot
-    \frac{z_{\mathbb{H}_{nm}}(X)}{z_{\mathbb{H}_n}(X)},\\
+    \frac{\nu_{nm}(X)}{\nu_{\mathbb{H}_{n}^{\mathrm{last}}}(X)},\\
     &\exists q_2(X).\
-    \widetilde{H}(X)-H(\omega_{nm}^{-(m-1)}X)
+    \widehat{H}(X)-H(\omega_{nm}^{-(m-1)}X)
     =
-    q_2(X)\cdot z_{\mathbb{H}_n}(X),
+    q_2(X)\cdot \nu_{\mathbb{H}_{n}^{\mathrm{last}}}(X),
 \end{align}
 which are reduced to two zero-checks.
 Intuitively, the first condition says that $\widehat{\mathbf{H}}$ is zero
@@ -150,8 +184,8 @@ $\mathbf{F}-\widehat{\mathbf{H}}$:
 We then prove the following two identities:
 \begin{align}
   &\exists q_3(X).\
-  B(\omega_{nm}^{-1}X) = q_3(X)\cdot z_{\mathbb{H}_n}(X),\\
-  &B(X)-B(\omega_{nm}^{-1}X)=F(X)-\widetilde{H}(X).
+  B(X) = q_3(X)\cdot \nu_{\mathbb{H}_{n}^{\mathrm{last}}}(X),\\
+  &B(X)-B(\omega_{nm}^{-1}X)=F(X)-\widehat{H}(X).
 \end{align}
 The first identity guarantees that $\mathbf{H}$ is indeed the correct row sum,
 while the second guarantees that $\mathbf{B}$ is the correct prefix sum witness.
@@ -204,7 +238,7 @@ We first commit to a mask matrix
 \end{align}
 such that
 \begin{align}
-    \mathbf{M}_{\{n\times m\times l\}}[i,j,k]
+    \mathbf{M}_{\{n\times m\times \ell\}}[i,j,k]
     =
     \begin{cases}
         1, & j=m-1,\\
@@ -218,7 +252,7 @@ appear.
 
 To prove that $\mathbf{M}$ is correct, we prove
 \begin{align}
-    M(X)-M(X\omega^{-1})
+    M(X)-M(\omega_{nm\ell}^{-1}X)
     =
     \lambda_{m\ell}^{(0)}(X^n\omega_{nm}^{m-1})-\lambda_{m\ell}^{(0)}(X^n).
 \end{align}
@@ -236,7 +270,7 @@ Next, we commit to an index matrix
 defined as the (vector) prefix sum of the mask multiplied by the mask:
 \begin{align}
   &\mathbf{I} = \mathbf{I}'\odot \mathbf{M},\\
-  &\text{where } \mathbf{I}'_{\{nml\}}[i] = \sum_{i'=0}^{i}\mathbf{M}_{\{nml\}}[i'].
+  &\text{where } \mathbf{I}'_{\{nm\ell\}}[i] = \sum_{i'=0}^{i}\mathbf{M}_{\{nm\ell\}}[i'].
 \end{align}
 $\mathbf{I}$ will be used as an indicator of the positions 
 where the sum should be copied to.
@@ -246,7 +280,7 @@ where the sum should be copied to.
 \textbf{Step 3: lift $\mathbf{H}$ to the shape of $\mathbf{F}$.}
 We then commit to an aligned tensor
 \[
-    \mathbf{H}'\in\mathbb{F}^{n\times m\times \ell},
+    \widehat{\mathbf{H}}\in\mathbb{F}^{n\times m\times \ell},
 \]
 such that
 \[
@@ -282,9 +316,9 @@ Finally, we consider
 We prove that the column-wise prefix sum of $\mathbf{R}$ vanishes at all marked
 positions. More precisely, let
 \begin{align}
-    \mathbf{P}_{\{nm\times l\}}[i, j]
+    \mathbf{P}_{\{nm\times \ell\}}[i, j]
     :=
-    \sum_{j'=0}^{j}\mathbf{R}_{\{nm\times l\}}[i, j'].\label{eq:column-prefix-vanishes-at-mask}
+    \sum_{j'=0}^{j}\mathbf{R}_{\{nm\times \ell\}}[i, j'].\label{eq:column-prefix-vanishes-at-mask}
 \end{align}
 The correctness of $\mathbf{P}$ follows from the proof of the first type of prefix sum.
 
@@ -328,7 +362,7 @@ block of three rows. Thus the mask has the form
 1&1&1&1
 \end{pmatrix}.
 \]
-Over $\mathbb{H}_{nm\ell}$, $M(X) - M(\omega^{-1}X)$ enocdes
+Over $\mathbb{H}_{nm\ell}$, $M(X) - M(\omega_{nm\ell}^{-1}X)$ encodes
 \[
 \begin{pmatrix}
 -1&0&0&0\\
