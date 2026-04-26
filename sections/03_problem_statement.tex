@@ -21,9 +21,8 @@ $u$. The committed
 forest consists of the commitments of:
 \begin{itemize}
   \item left and right child index vectors
-  $\mathbf{lc},\mathbf{rc}\in\{0,1,\ldots,N_{\mathrm{tot}}-1\}^{N_{\mathrm{tot}}}$,
-  whose internal-node entries record the node identifiers of the left and
-  right child of each parent node, while leaf and padding entries are zero;
+  $\mathbf{lc},\mathbf{rc}\in[N_{\mathrm{tot}}]^{N_{\mathrm{tot}}}$,
+  and parent index vector $\mathbf{par}\in[N_{\mathrm{tot}}]^{N_{\mathrm{tot}}}$, where invalid entries are set $0$;
   \item lower and upper node bounds
   $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}\in[B+1]^{N_{\mathrm{tot}}\times d}$,
   where row $u$ stores the $d$-dimensional half-open box of node $u$ and every
@@ -38,11 +37,13 @@ forest consists of the commitments of:
   \item a tree-index vector $\mathbf{tree}\in[TK+1]^{N_{\mathrm{tot}}}$, where trees are ranked from $1$ to $TK$
   except dummy node $0$, and a
   root indicator $\mathbf{root}\in\{0,1\}^{N_{\mathrm{tot}}}$;
+  \item a depth indicator $\mathbf{depth}\in\{0,1,\ldots,D\}^{N_{\mathrm{tot}}}$, where $D$ is the maximum depth of the trees in the forest. This is used for proving the correctness of tree construction.
   \item a leaf-score vector $\mathbf{score}\in\mathbb{F}^{N_{\mathrm{tot}}}$,
   whose leaf entries store the scalar contribution returned by that tree and
   whose internal-node entries are zero;
   \item a boolean vector $\mathbf{is\_leaf}\in\{0,1\}^{N_{\mathrm{tot}}}$, 
-  where $\mathbf{is\_leaf}[u]=1$ if and only if $u$ is a leaf node.
+  where $\mathbf{is\_leaf}[u]=1$ if and only if $u$ is a leaf node;
+  \item a boolean vector $\mathbf{valid}\in \{0, 1\}^{N_{\mathrm{tot}}}$, where $\mathbf{valid}[u]=0$ iff the node is dummy.
 \end{itemize}
 
 We assume there are $N_{\mathrm{int}}$ internal nodes and $N_{\mathrm{leaf}}$ leaf nodes
@@ -100,17 +101,76 @@ along the second dimension and proving the location of the maximum.
 
 First, the prover proves that the committed forest is well-formed, by showing
 \begin{enumerate}
-  \item The left and right children share the same tree index with the parent,
-    i.e. $\mathbf{tree}[\mathbf{lc}[u]]=\mathbf{tree}[\mathbf{rc}[u]]=\mathbf{tree}[u]$ for all internal nodes $u$.
+  \item Consistency between indicators, i.e.
+  \begin{align}
+    \mathbf{valid}=1 &\iff \mathbf{depth} \neq \mathbf{0},\\
+    \mathbf{valid}=1 &\iff \mathbf{tree} \neq \mathbf{0},\\
+    \mathbf{valid}=0 &\implies \mathbf{is\_leaf} = \mathbf{0}.
+  \end{align}
+
+  \item $\mathbf{root}$ and $\mathbf{is\_leaf}$ are boolean, i.e.
+  \begin{align}
+    \mathbf{root}\odot(\mathbf{root}-\mathbf{1}) = \mathbf{0},\\
+    \mathbf{is\_leaf}\odot(\mathbf{is\_leaf}-\mathbf{1}) = \mathbf{0}.
+  \end{align}
+
+  \item No ghost nodes, i.e. all invalid nodes $u$ with $\mathbf{valid}[u]=0$ are dummy, with
+    \begin{align}
+    \mathbf{lc}[u] = \mathbf{rc}[u] &= 0,\\
+    \forall j\in [d].\ \mathbf{N}^{\leftarrow}[u, j] = \mathbf{N}^{\rightarrow}[u, j] &= 0,\\
+    \mathbf{tree}[u] = \mathbf{root}[u] = \mathbf{is\_leaf}[u] &= 0.
+    \end{align}
+
+  \item There are in total $TK$ trees, i.e.
+  \begin{align}
+    \sum_{u=0}^{N_{\mathrm{tot}}-1} \mathbf{root}[u] = TK.
+  \end{align}
+
+  \item The depth of root is $1$, i.e.
+  \begin{align}
+    \mathbf{root}\odot (\mathbf{depth}-\mathbf{1}) = \mathbf{0}.
+  \end{align}
+
+  \item Roots are unique, i.e. for any node $u$ and $v$,
+  \begin{align}
+    \mathbf{root}[u] = \mathbf{root}[v] = 1\implies \mathbf{tree}[u]\neq \mathbf{tree}[v].
+  \end{align}
+
+  \item The consistency between parent and child, i.e.
+  \begin{align}
+    \mathbf{par}[\mathbf{lc}[u]]=\mathbf{par}[\mathbf{rc}[u]]=u,\\
+    (\mathbf{lc}[\mathbf{par}[v]] - v)(\mathbf{rc}[\mathbf{par}[v]] - v) = 0,
+  \end{align}
+  for any valid internal node $u$ and valid non-root node $v$.
+  Also, the parent of each root is dummy, i.e.
+  \begin{align}
+    \mathbf{par}\odot \mathbf{root} = \mathbf{0}.
+  \end{align}
+
+  \item The left and right children do not overlap, share the same tree index with the parent, and have correct depth,
+  \begin{align}
+    \mathbf{lc}[u] &\neq \mathbf{rc}[u],\\
+  \mathbf{tree}[\mathbf{lc}[u]]&=\mathbf{tree}[\mathbf{rc}[u]]=\mathbf{tree}[u],\\
+  \mathbf{depth}[\mathbf{lc}[u]]&=\mathbf{depth}[\mathbf{rc}[u]]=\mathbf{depth}[u]+1,
+  \end{align}  
+  for all internal nodes $u$.
+
   \item Leaves have no children, i.e. \begin{align}
     \mathbf{lc}\odot \mathbf{is\_leaf}=\mathbf{0}\land \mathbf{rc}\odot \mathbf{is\_leaf}=\mathbf{0},\label{eq:leaf-no-child}
   \end{align}
   where ``$\odot$'' is the Hadamard product.
+
   \item The hyper-box of any root is full, i.e.
   \begin{align}
     \mathbf{Root}\odot \mathbf{N}^{\leftarrow}=\mathbf{0}\land \mathbf{Root}\odot \mathbf{N}^{\rightarrow}=(B+1)\mathbf{Root},\label{eq:root-full-box}
   \end{align}
   where $\mathbf{Root} = (\mathbf{root}\|\cdots\|\mathbf{root})$.
+
+  \item Valid nodes have non-empty hyper-box, i.e. for all node $u$ with non-zero depth,
+    \begin{align}
+    \mathbf{N}^{\rightarrow}[u, j] - \mathbf{N}^{\leftarrow}[u, j] > 0, \quad \forall j\in[d].
+    \end{align}
+
   \item The hyper-box of left and right children are consistent with the parent and the split, i.e. for each internal node $u$ and feature $j$,
     \begin{align}
     \mathbf{N}^{\leftarrow}[u, j] - \mathbf{N}^{\leftarrow}[\mathbf{lc}[u], j] &= 0\land\label{eq:left-child-inherits-lowerbound}\\
@@ -125,33 +185,22 @@ First, the prover proves that the committed forest is well-formed, by showing
     the left child's upper bound meets the right child's lower bound.
     \Cref{eq:non-split-child-inherits-1} and \ref{eq:non-split-child-inherits-2} together ensure that 
     for non-split features, the child hyper-box inherits the parent hyper-box.
+
   \item $\mathbf{E}$ is boolean and one-hot on internal nodes and zero on leaves, i.e. for each node $u$,
     \begin{align}
     \sum_{j=1}^d \mathbf{E}[u, j] - \mathbf{is\_leaf}[u] + 1 &= 0,\\
     \mathbf{E}\odot(\mathbf{E}-\mathbf{1}) &= \mathbf{0}.
     \end{align}
+
   \item $\mathbf{score}$ is zero on internal nodes, i.e.
     \begin{align}
     \mathbf{score}\odot (\mathbf{1}-\mathbf{is\_leaf}) = \mathbf{0}.
     \end{align}
-  \item There are in total $TK$ trees, i.e.
-  \begin{align}
-    \sum_{u=0}^{N_{\mathrm{tot}}-1} \mathbf{root}[u] = TK.
-  \end{align}
-  \item Node $0$ is dummy, i.e.
-    \begin{align}
-    \mathbf{lc}[0] = \mathbf{rc}[0] &= 0,\\
-    \forall j\in [d].\ \mathbf{N}^{\leftarrow}[0, j] = \mathbf{N}^{\rightarrow}[0, j] &= 0,\\
-    \mathbf{tree}[0] = \mathbf{root}[0] = \mathbf{is\_leaf}[0] &= 0.
-    \end{align}
   \end{enumerate}
 
-Note that since for any node $u$, its hyper-box is full-range if and only if
-  $\mathbf{root}[u]=1$,
-  any node $v$ marked by $\mathbf{root}[v]=1$ must be a true root.
-
-The above involves essentially two kinds of techniques:
-  proving routing, and proving sum.
+The above involves essentially three kinds of techniques:
+  proving routing, proving sum,
+  and proving histogram.
   To prove $\mathbf{tree}[\mathbf{lc}[u]]=\mathbf{tree}[u]$ for all internal nodes $u$, the prover first
   commits $\mathbf{tree\_lc}$ where
   \[\mathbf{tree\_lc}[u] = \mathbf{tree}[\mathbf{lc}[u]]\]
@@ -169,6 +218,18 @@ For sum over vector, we utilize the Aurora's sum-check protocol~\cite{aurora19}.
   we adopt a Quarks-style proof~\cite{quarks20},
   where the prover commits the prefix sum and total sum, 
   and proves the consistency between them and the original matrix.
+
+Additionally, to prove the uniqueness of roots, we utilize
+an approach that heralds our proof of histogram.
+The prover commits a vector $\mathbf{cnt}\in \{0, 1\}^{TK+1}$, where $\mathbf{cnt}[t]$ counts the number of roots of tree $t$.
+After proving its booleanity, the prover proves that
+for a verifier challenge $\alpha$, 
+\begin{align}
+  \sum_{t=1}^{TK}\alpha^t = \sum_{t\in [TK+1]} \alpha^t\cdot \mathbf{cnt}[t] = \sum_{u\in [N_{\mathrm{tot}}]} \alpha^{\mathbf{tree}[u]}\cdot \mathbf{root}[u].
+\end{align}
+The LHS is public.
+To prove the $\alpha$-exponent, the prover commits a vector
+that commits power-of-$\alpha$, and then proves the lookup relation.
 
 \subsection{Proof of Training}
 

@@ -310,6 +310,21 @@ $\mathbf{Ind}\in[N_{\mathrm{tot}}]^{T\times K\times M}$
 which indicates where a sample falls in each tree.
 The proof then certifies each trained tree in the following order.
 
+\paragraph{Correctness of $\mathbf{G}$.}
+Recall that we require
+\[
+\begin{aligned}
+    \mathbf{G}[t, k, r] &= \begin{cases}
+        \mathbf{Y}[k, r] & \text{if } t=0,\\
+        \mathbf{Y}[k, r] - \mathbf{S}'[t-1, k, r] & \text{if } t>0.
+    \end{cases},\\
+    \mathbf{S}'[t, k, r] &= \left\lfloor\frac{\exp(\mathbf{S}_{\mathrm{max}}[t, k, r] - \mathbf{S}[t, k, r])\cdot 2^q}{\sum_{k'=0}^{K-1} \exp(\mathbf{S}_{\mathrm{max}}[t, k', r] - \mathbf{S}[t, k', r])}\right\rfloor,\\
+    \mathbf{S}_{\mathrm{max}}[t,k , r] &= \max_{k'\in[K]} \mathbf{S}[t, k', r].
+\end{aligned}
+\]
+This is proved by first proving $S_{\mathrm{max}}$ in a manner
+similar to proof of inference\footnote{Note that we use biased exponential for numerical stability, since original exponent can be large.}, then proving the exponential relation by lookup, then proving the sum in the denominator by prefix-sum, and finally proving the quantization by the quantization primitive. The correctness of $\mathbf{G}$ is then proved easily by zero-check.
+
 \paragraph{Dataset leaf assignment.}
 The prover commits
 $\mathbf{U}^{\leftarrow},\mathbf{U}^{\rightarrow}
@@ -322,10 +337,10 @@ which is column-replicating $(1, 2, \dots, TK)^\top$ for $M$ times.
 The prover proves
 \begin{align}
     \mathbf{Ind}_{\{TKM\}}\|\mathbf{1}\|\mathbf{ind\_tree}\|
-    \mathbf{U}^{\leftarrow}\|\mathbf{U}^{\rightarrow}
+    \mathbf{U}^{\leftarrow}\|\mathbf{U}^{\rightarrow}\|\mathbf{sc}
     &\subseteq\\
     (0,1,\dots,N_{\mathrm{tot}}-1)^\top\|&
-    \mathbf{is\_leaf}\|\mathbf{tree}\|\mathbf{N}^{\leftarrow}\|\mathbf{N}^{\rightarrow},
+    \mathbf{is\_leaf}\|\mathbf{tree}\|\mathbf{N}^{\leftarrow}\|\mathbf{N}^{\rightarrow}\| \mathbf{score},
 \end{align}
 where $\mathbf{ind}\in [N_{\mathrm{tot}}]^M$ indicates the leaf to which each training sample falls.
 It then row-replicates $\mathbf{D}$ for $TK$ times and proves by range lookup
@@ -340,8 +355,18 @@ that, for all $t,k,r,j$,
 This proves that $\mathbf{Ind}[t,k,r]$ is the leaf reached by sample $r$ in
 tree $(t,k)$.
 
+\paragraph{Correctness of $\mathbf{S}$.}
+This is proved by proving prefix-sum, i.e.
+\begin{align}
+    \mathbf{S}[t,k,r]
+    =
+    \sum_{t'=0}^{t}\mathbf{sc}_{\{T\times K\times M\}}[t',k,r],
+    \quad
+    \forall t\in[T], k\in[K], r\in[M].
+\end{align}
+
 \paragraph{Histogram.}
-For the current tree $(t,k)$, the prover commits leaf histograms
+The prover commits leaf histograms
 $\mathbf{C}_{\mathrm{leaf}},\mathbf{V}_{\mathrm{leaf}}
 \in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$.
 It also commits an address tensor
@@ -350,7 +375,7 @@ and proves its correctness by zero-check:
 \begin{align}
     &\forall t\in[T],k\in[K],r\in[M],j\in[d]\nonumber\\
     &\mathbf{A}[t,k,r,j]
-    -\mathbf{Ind}[t,k,r]\cdot dB+j\cdot B-\mathbf{D}[r,j]
+    -\mathbf{Ind}[t,k,r]\cdot dB-j\cdot B-\mathbf{D}[r,j]
     =
     0.
 \end{align}
@@ -404,12 +429,12 @@ The prover then uses zero-check over $\mathbb{H}_{N_{\mathrm{tot}}dB}$ to valida
     \mathbf{C}
     -
     \mathbf{Leaf}\odot\mathbf{C}_{\mathrm{leaf}}
-    +(\mathbf{1}-\mathbf{Leaf})\odot
+    -(\mathbf{1}-\mathbf{Leaf})\odot
     \bigl(\mathbf{C}_{\mathrm{lc}}+\mathbf{C}_{\mathrm{rc}}\bigr) &= 0,\\
     \mathbf{V}
     -
     \mathbf{Leaf}\odot\mathbf{V}_{\mathrm{leaf}}
-    +(\mathbf{1}-\mathbf{Leaf})\odot
+    -(\mathbf{1}-\mathbf{Leaf})\odot
     \bigl(\mathbf{V}_{\mathrm{lc}}+\mathbf{V}_{\mathrm{rc}}\bigr) &= 0.
 \end{align}
 
