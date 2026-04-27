@@ -13,6 +13,7 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{booktabs}
+\usepackage{multirow}
 \usepackage{graphicx}
 \usepackage{tikz}
 \usepackage[nameinlink,noabbrev]{cleveref}
@@ -166,19 +167,20 @@
 \pagestyle{plain}
 
 \input{sections/01_introduction}
-\input{sections/02_background}
-\input{sections/03_problem_statement}
-\input{sections/04_protocol}
-\input{sections/05_zkgbdt}
-\input{sections/06_evaluation}
-\input{sections/07_related_work}
-\input{sections/08_conclusion}
+\input{sections/02_preliminaries}
+\input{sections/03_technical_overview}
+\input{sections/04_evaluation}
+\input{sections/05_related_work}
+\input{sections/06_conclusion}
+\input{sections/07_open_science}
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{bibliography/references}
 
 \appendix
-\input{sections/09_appendix_tree_extensions}
-\input{sections/10_appendix_protocol}
+\input{sections/08_appendix_proof_batching_tools}
+\input{sections/09_appendix_zk_gbdt}
+\input{sections/10_appendix_tree_ensemble_extensions}
+\input{sections/11_appendix_deferred_constructions}
 
 \end{document}

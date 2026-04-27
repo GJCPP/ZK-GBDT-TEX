@@ -97,6 +97,19 @@ received from the tree trained at round $t$ for class $k$.
 This includes proving the sum of $\mathbf{sc}_{\{T\times K\times b\}}$
 along the second dimension and proving the location of the maximum.
 
+\paragraph{Complexity.}
+The dominant inference relation has one lookup row for every
+tree-sample pair and an interval check for every feature of that row. Hence the
+online prover time is
+\[
+    \tilde{O}(TKbd),
+\]
+with lower-order terms for score aggregation and the final maximum over the
+$K$ classes. After the lookup, interval, sum, and maximum checks are batched,
+the verifier opens only a constant number of committed polynomials at
+logarithmically many points, so the verifier time and proof size are
+$\tilde{O}(\log(TKbd))$ field/group elements under the KZG backend.
+
 \subsection{Proof of Forest Well-formedness}\label{subsec:proof of well-formedness}
 
 First, the prover proves that the committed forest is well-formed, by showing
@@ -232,6 +245,20 @@ The LHS is public.
 To prove the $\alpha$-exponent, the prover commits a vector
 that commits power-of-$\alpha$, and then proves the lookup relation.
 
+\paragraph{Complexity.}
+All forest-structural checks are linear or local constraints over either
+$N_{\mathrm{tot}}$ node rows or $N_{\mathrm{tot}}d$ node-feature rows. The
+only additional global object is the root-count vector of length $TK+1$.
+Therefore the prover time for forest well-formedness is
+\[
+    \tilde{O}(N_{\mathrm{tot}}d + TK).
+\]
+Domain-lifting batching combines the zero-check and sum-check constraints, and
+interleaving batching combines the local lookup and range-check instances.
+Consequently, the verifier time and proof size are
+$\tilde{O}(\log(N_{\mathrm{tot}}d+TK))$, up to the constant number of final KZG
+openings.
+
 \subsection{Proof of Training}
 
 The training proof reuses the same committed forest. 
@@ -273,6 +300,24 @@ Logically, the proof of training sequentially proves that:
 
 Together, these conditions imply that the committed objects encode a valid
 plaintext GBDT training trace across all rounds.
+
+\paragraph{Complexity.}
+The training proof is dominated by three families of relations. First, routing
+all training samples to their committed leaves costs
+$\tilde{O}(TKMd)$. Second, the histogram proof processes the sample-update
+stream of size $TKMd$ and the committed histogram tensors of size
+$N_{\mathrm{tot}}dB$. Third, split optimality and leaf-value checks scan the
+per-node, per-feature, and per-bin statistics, contributing
+$\tilde{O}(N_{\mathrm{tot}}dB)$, while score and residual updates contribute
+$\tilde{O}(TKM)$ plus the softmax-related fixed-point checks over the class
+dimension. Overall, the prover time is
+\[
+    \tilde{O}\bigl(TKM(d+K) + N_{\mathrm{tot}}dB\bigr).
+\]
+The prover time is linear in the algebraic training trace, but the verifier
+does not reprocess the trace: after batching, the verifier time and proof size
+are
+$\tilde{O}(\log(TKMd+N_{\mathrm{tot}}dB))$.
 
 \subsection{Proving the Correctness of Node Split}
 
@@ -418,6 +463,11 @@ for a random challenge $\eta$.
 
 This is the basic intuition behind \emph{domain-lifting batching}: lift the
 smaller residual to the larger domain, then batch there.
+We note that, since Aurora-style sum-check~\cite{aurora19}
+follows a similar pattern of the above divisibility check,
+we can also batch them.
+See \Cref{app:domain-lifting-batch} for 
+formal description.
 
 \paragraph{Interleaving batching.}
 The second batching problem concerns same-form nonlinear checks that are
@@ -448,14 +498,17 @@ where
 \qquad
 \operatorname{odd}_n(X):=\frac{1-X^n}{2}.
 \]
-These public sparse selectors place $\mathbf{f}$ on the even positions and
-$\mathbf{g}$ on the odd positions, so every position of the larger vector still
-corresponds to one concrete original entry.
+These two public sparse selectors encode $(1,0,1,0,\ldots)$ and $(0,1,0,1,\ldots)$ over $\mathbb{H}_{2n}$, respectively. So after shifting $\mathbf{g}$ by one position, every position of the larger vector stores one original entry.
 
 If the two vectors have different lengths, we first lift the smaller one to the
-larger domain by the substitution $X\mapsto X^r$, exactly as in
+larger domain by the substitution $X\mapsto X^r$, 
+which replicates the vector $r$ times over
+the $r\times$ larger domain, as stated in
 \Cref{lem:row-replication}. After this alignment step, the same interleaving
 idea applies.
 The important point here is that the merged object is still virtual: it is assembled
 from existing commitments, public sparse masks, and domain-lift substitutions,
 so no new commitment is required.
+
+We formally present the interleaving batching in \Cref{app:interleaving}.
+
