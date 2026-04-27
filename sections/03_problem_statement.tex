@@ -103,15 +103,16 @@ First, the prover proves that the committed forest is well-formed, by showing
 \begin{enumerate}
   \item Consistency between indicators, i.e.
   \begin{align}
-    \mathbf{valid}=1 &\iff \mathbf{depth} \neq \mathbf{0},\\
+    \mathbf{valid}=0 &\iff \mathbf{depth} \neq \mathbf{0},\\
     \mathbf{valid}=1 &\iff \mathbf{tree} \neq \mathbf{0},\\
     \mathbf{valid}=0 &\implies \mathbf{is\_leaf} = \mathbf{0}.
   \end{align}
 
-  \item $\mathbf{root}$ and $\mathbf{is\_leaf}$ are boolean, i.e.
+  \item Indicators are boolean, i.e.
   \begin{align}
     \mathbf{root}\odot(\mathbf{root}-\mathbf{1}) = \mathbf{0},\\
-    \mathbf{is\_leaf}\odot(\mathbf{is\_leaf}-\mathbf{1}) = \mathbf{0}.
+    \mathbf{is\_leaf}\odot(\mathbf{is\_leaf}-\mathbf{1}) = \mathbf{0},\\
+    \mathbf{valid}\odot(\mathbf{valid}-\mathbf{1}) = \mathbf{0}.
   \end{align}
 
   \item No ghost nodes, i.e. all invalid nodes $u$ with $\mathbf{valid}[u]=0$ are dummy, with
