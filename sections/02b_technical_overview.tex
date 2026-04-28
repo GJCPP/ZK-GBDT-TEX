@@ -1,0 +1,159 @@
+\section{Technical Overview}
+\label{sec:technical-overview}
+
+\textsc{Terrae} proves GBDT training by exposing the algebra already present in
+histogram-based tree learning, rather than compiling the trainer into a large
+generic circuit. 
+In this section, we give a high-level overview of the main technical ingredients,
+including how to batch claims across heterogeneous domains and how to prove histogram aggregation without a RAM argument.
+
+
+\subsection{Batching Across Heterogeneous Domains}
+
+Direct algebraic certification creates many relations over many different
+domains. Training uses tensors indexed by rounds, classes, samples, nodes,
+features, and bins; lookup, range, prefix-sum, division, maximum, and
+zero-check relations therefore have different lengths and shapes. Ordinary
+same-domain batching would force extra commitments or leave many small claims
+unbatched. \textsc{Terrae} introduces two batching tools for this setting.
+
+\paragraph{Domain-lifting batching.}
+For a linear constraint over $\mathbb{H}_n$, after moving all terms to one side
+we obtain a residual polynomial $F(X)$ and prove a divisibility claim
+\[
+    F(X)=Q(X)\nu_n(X),
+    \qquad
+    \nu_n(X)=X^n-1.
+\]
+Suppose two claims live over nested power-of-two domains
+$\mathbb{H}_{n_1}\subset \mathbb{H}_{n_2}$. Instead of opening them separately,
+\textsc{Terrae} lifts the smaller residual to the larger domain:
+\[
+    \widehat{F}_1(X)
+    :=
+    F_1(X)\frac{\nu_{n_2}(X)}{\nu_{n_1}(X)}.
+\]
+The verifier can then batch the lifted claim with the larger one as
+\[
+    \widehat{F}_1(X)+\eta F_2(X)=Q(X)\nu_{n_2}(X)
+\]
+for a random challenge $\eta$. This is used for zero-check and sum-check style
+relations whose natural domains differ.
+
+\paragraph{Interleaving batching.}
+For local nonlinear checks, validity at one position depends only on the
+witness values at that position. Examples include lookup, range, and
+fixed-point division checks. For two vectors
+$\mathbf{f},\mathbf{g}\in\mathbb{F}^n$ satisfying the same local relation,
+\textsc{Terrae} forms the virtual interleaving
+\[
+    (\mathbf{f}[0],\mathbf{g}[0],\mathbf{f}[1],\mathbf{g}[1],\ldots).
+\]
+In polynomial form, if $f$ and $g$ are encoded over $\mathbb{H}_n$, the merged
+object over $\mathbb{H}_{2n}$ is
+\[
+    \operatorname{Int}_n(f,g)(X)
+    :=
+    \operatorname{even}_n(X)f(X)
+    +\operatorname{odd}_n(X)g(\omega_{2n}^{-1}X),
+\]
+where
+\[
+    \operatorname{even}_n(X)=\frac{X^n+1}{2},
+    \qquad
+    \operatorname{odd}_n(X)=\frac{1-X^n}{2}.
+\]
+For different vector lengths, the shorter vector is first aligned by a domain
+substitution $X\mapsto X^r$, which replicates it over the larger domain. The
+merged vectors are virtual: their openings are derived from existing
+commitments, public sparse selectors, and domain substitutions, so batching
+does not require committing to new auxiliary witness polynomials.
+
+Together, these ingredients are the main contribution of \textsc{Terrae}: the
+training trace remains explicit enough to express the semantics of GBDT
+training, while the proof system avoids both a monolithic training circuit and
+a large collection of separately opened auxiliary commitments. The next section
+describes how the committed forest, inference proof, well-formedness checks,
+training proof, and split-selection relations are assembled.
+
+
+\subsection{Histogram Aggregation Without RAM}
+
+GBDT training repeatedly converts sample-wise information into per-node,
+per-feature, and per-bin statistics. Prior certification-style systems~\cite{sparrow24,zkboost26}
+naturally model this as a memory update process: for each routed sample, update
+the corresponding histogram bucket and prove the resulting RAM trace.
+\textsc{Terrae} instead uses a histogram-specific argument.
+
+For simplicity, let's consider a simplified version of histogram aggregation.
+Suppose we have vectors $\mathbf{ind}\in [m]^n$ and $\mathbf{u}, \mathbf{v}\in \mathbb{F}^n$.
+Our goal is to prove that $\mathbf{v}$ is the histogram
+of $\mathbf{u}$ according to the indices in $\mathbf{ind}$:
+\begin{align}
+    \mathbf{v}[j]=\sum_{i:\mathbf{ind}[i]=j}\mathbf{u}[i].
+\end{align}
+
+To prove this, the verifier generates a random challenge
+$\alpha\gets \mathbb{F}$, which binds each $i$-th slot to $\alpha^i$. The parties next move to prove
+\begin{align}
+    \sum_{i=0}^{n-1}\mathbf{u}[i]\cdot \alpha^{\mathbf{ind}[i]}
+    =
+    \sum_{j=0}^{m-1}\mathbf{v}[j]\cdot \alpha^j.\label{eq:histogram-aggregation-power-sum}
+\end{align}
+The remaining question is how to prove the exponentiated terms
+$\alpha^{\mathbf{ind}[i]}$.
+The prover commits a power table
+$\mathbf{p}\in\mathbb{F}^{m}$ with intended entries
+$\mathbf{p}[j]=\alpha^j$. It proves that $\mathbf{p}$ is well formed by
+checking
+\begin{align}
+    \mathbf{p}[0]&=1,\\
+    \mathbf{p}[j]&=\alpha\cdot \mathbf{p}[j-1],
+    \qquad j\in\{1,\ldots,m-1\}.
+\end{align}
+Or equivalently in polynomial form,
+\begin{align}
+    &p(\omega_m^0) = 1,\\
+    &(p(t) - \alpha\cdot p(\omega_m^{-1} t))\cdot (1 - \lambda_m^{(0)}(t)) = q(X)\nu_{m}(X),
+\end{align}
+where recall $\lambda_m^{(0)}(X)$ is a Lagrange
+basis polynomial, and the second relation 
+is a zero-check.
+
+The prover then proves by lookup that each row
+$(\mathbf{ind}[i],\mathbf{pow}[i])$ appears in the public-indexed table
+$(j,\mathbf{pow}[j])_{j\in[m]}$, i.e.
+\begin{align}
+    \mathbf{ind}\| \mathbf{pow}\subseteq (0, 1, \dots, m-1)^\top\| \mathbf{p}.
+\end{align}
+This binds
+$\mathbf{pow}[i]=\alpha^{\mathbf{ind}[i]}$, after which
+\Cref{eq:histogram-aggregation-power-sum}
+becomes
+\begin{align}
+    \sum_{i=0}^{n-1}\mathbf{u}[i]\cdot \mathbf{pow}[i]
+    =
+    \sum_{j=0}^{m-1}\mathbf{v}[j]\cdot \mathbf{p}[j],
+\end{align}
+which can be checked by standard sum-check.
+
+Soundness follows from the randomness of $\alpha$. 
+To analyze the soundness error introduced by
+\Cref{eq:histogram-aggregation-power-sum},
+define
+\[
+    \Delta_j
+    =
+    \mathbf{v}[j]
+    -
+    \sum_{i:\mathbf{ind}[i]=j}\mathbf{u}[i].
+\]
+If the claim that $\mathbf{v}$ is the histogram of $\mathbf{u}$ is false, 
+then some $\Delta_j\neq 0$, and the accepted aggregate identity implies
+\[
+    \sum_{j=0}^{m-1}\Delta_j\alpha^j=0.
+\]
+This is a nonzero polynomial in $\alpha$ of degree at most $m-1$, so a cheating
+prover can satisfy it with probability at most $(m-1)/|\mathbb{F}|$, assuming
+$\alpha$ is sampled after the relevant commitments are fixed. Thus the
+aggregate identity is a compact randomized check of the full histogram relation.

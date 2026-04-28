@@ -33,9 +33,21 @@ dataset, while revealing nothing beyond the validity of this statement
 \cite{zkdnn24,zkml_survey}.
 
 In this work, we study zero-knowledge proofs for gradient boosted decision
-trees (GBDTs). GBDTs, and especially implementations such as XGBoost~\cite{xgboost16}, are among
-the strongest model families for tabular data and are widely used in domains
-where accountability matters~\cite{shwartz2022tabular, grinsztajn2022tree}. A GBDT model is an additive ensemble of regression
+trees (GBDTs). GBDTs, and especially implementations such as
+XGBoost~\cite{xgboost16}, are among the strongest model families for tabular
+data and are widely used in high-stakes decision pipelines built on structured
+records, such as clinical risk prediction, financial risk assessment, and other
+screening or allocation tasks. These applications are typically driven by
+medium-sized tabular datasets with heterogeneous numeric and categorical
+features, missing values, and irregular decision boundaries, a regime in which
+tree-based models remain especially strong and often outperform or rival deep
+tabular models in practice~\cite{shwartz2022tabular,grinsztajn2022tree,gorishniy2021revisiting}.
+In such domains, model outputs can affect access to treatment, credit, and
+other consequential opportunities, so it is important not only that the model
+be accurate, but also that its training and predictions be auditable,
+verifiable, and contestable~\cite{lima2022conflict,shahu2026faster}.
+
+A GBDT model is an additive ensemble of regression
 trees: each round trains new trees to fit the residual errors of the current
 model, and the final prediction is obtained by aggregating the outputs of all
 trees. This sequential structure makes training certification substantially
@@ -45,7 +57,7 @@ returned scores are aggregated correctly. To prove training, the prover must
 also show that every split, every leaf value, and every boosting update is
 consistent with the committed dataset and the public training rule.
 
-Prior zero-knowledge works on tree-based models have mostly focused on
+Many prior zero-knowledge works on tree-based models focused on
 inference, accuracy testing, or auditing properties of already trained trees.
 zkDT~\cite{zkdt20} proves decision-tree predictions and accuracy claims without
 revealing the tree, and later works improve committed-tree representations and
@@ -72,7 +84,7 @@ generic circuit and instead prove the algebraic relations that characterize
 GBDT training directly. However, this approach creates a different bottleneck.
 GBDT training contains many repeated constraints: linear relations such as score
 updates, prefix sums, and aggregation equations, and local nonlinear relations
-such as lookup checks, range checks, quantization, division, and maximum
+such as lookup checks, range checks, division, and maximum
 selection. 
 These constraints also do not naturally live on one uniform domain,
 since their inputs have different sizes.
@@ -81,9 +93,9 @@ committed over different subgroups. Proving each relation separately would
 introduce a large number of auxiliary commitments and openings, while ordinary
 same-domain batching does not apply directly.
 
-We present \textsc{Terrae}, a zero-knowledge proof system for quantized GBDT
+We present \textsc{Terrae}, a zero-knowledge proof system for GBDT
 training and inference based on KZG polynomial commitments. \textsc{Terrae}
-proves that a committed forest is obtained by executing a public quantized GBDT
+proves that a committed forest is obtained by executing a public GBDT
 trainer on a committed dataset.
 The proof of \textsc{Terrae}
 follows the structure of histogram-based tree training verification~\cite{sparrow24,zkboost26}:
@@ -131,7 +143,7 @@ Our main contributions are as follows:
 
 \begin{itemize}
     \item We present \textsc{Terrae}, a proof system that
-    proves the training and inference of quantized GBDTs in zero knowledge.
+    proves the training and inference of GBDTs in zero knowledge.
     \textsc{Terrae} avoids compiling each training or inference
     certification procedure into
     separate circuits, and instead proves the algebraic relations directly.
@@ -156,12 +168,12 @@ Our main contributions are as follows:
 
 The rest of the paper is organized as follows. \Cref{sec:background}
 introduces the notation, background, and plaintext training setting.
-\Cref{sec:technical-overview} gives an overview of the proof system,
-as well as its main subroutines and algebraic checks.
+\Cref{sec:threat-model} states the threat model and security goal.
+\Cref{sec:technical-overview} summarizes the main technical ideas, and
+\Cref{sec:methodology} describes the proof methodology and algebraic checks.
 \Cref{sec:evaluation} reports the experimental results.
 \Cref{sec:related} reviews related work.
-\Cref{sec:conclusion} concludes the technical presentation, and
-\Cref{sec:open-science} gives the open-science statement.
+\Cref{sec:conclusion} concludes the technical presentation.
 We defer the formal batching tools and the full ZK-GBDT protocol to
 \Cref{sec:tools,sec:zkgbdt-protocol}, and defer extensions to random forests
 and XGBoost-style training, as well as constructions of selected subprotocols,

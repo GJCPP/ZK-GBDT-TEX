@@ -1,0 +1,56 @@
+case_order,phase,case_id,route,proof_stage,dataset,N_requested,N_used,N_padded,b_requested,b_padded,T,d,bin_count,proof_size_bytes,prover_time_s,verifier_time_s,peak_memory_bytes,memory_source
+1,T-scale,dry_bean_T1_N512_d1_b512_bins8,Terrae,well-formedness,dry-bean,512,512,512,512,512,1,1,8,10880,1.97764,0.276008,740036608,proof-stage-local-rss
+1,T-scale,dry_bean_T1_N512_d1_b512_bins8,Terrae,training,dry-bean,512,512,512,512,512,1,1,8,46192,28.9266,1.29371,1923776512,proof-stage-local-rss
+1,T-scale,dry_bean_T1_N512_d1_b512_bins8,Terrae,inference,dry-bean,512,512,512,512,512,1,1,8,3739,22.0221,0.314421,1615892480,proof-stage-local-rss
+1,T-scale,dry_bean_T1_N512_d1_b512_bins8,ZKBoost shared,training,dry-bean,512,512,512,512,512,1,1,8,12126,127.762,0.926605,13204377600,stage-process-peak
+1,T-scale,dry_bean_T1_N512_d1_b512_bins8,ZKBoost shared,inference,dry-bean,512,512,512,512,512,1,1,8,2598,121.926,0.611495,4508061696,stage-process-peak
+2,T-scale,dry_bean_T2_N512_d1_b512_bins8,Terrae,well-formedness,dry-bean,512,512,512,512,512,2,1,8,10880,4.00151,0.457941,1471045632,proof-stage-local-rss
+2,T-scale,dry_bean_T2_N512_d1_b512_bins8,Terrae,training,dry-bean,512,512,512,512,512,2,1,8,46192,61.5898,1.89892,4084260864,proof-stage-local-rss
+2,T-scale,dry_bean_T2_N512_d1_b512_bins8,Terrae,inference,dry-bean,512,512,512,512,512,2,1,8,3739,46.4416,0.461314,3226443776,proof-stage-local-rss
+2,T-scale,dry_bean_T2_N512_d1_b512_bins8,ZKBoost shared,training,dry-bean,512,512,512,512,512,2,1,8,12126,289.4,1.24583,25454092288,stage-process-peak
+2,T-scale,dry_bean_T2_N512_d1_b512_bins8,ZKBoost shared,inference,dry-bean,512,512,512,512,512,2,1,8,2598,282.234,1.18522,9041244160,stage-process-peak
+3,T-scale,dry_bean_T4_N512_d1_b512_bins8,Terrae,well-formedness,dry-bean,512,512,512,512,512,4,1,8,10880,9.39985,0.961621,2935287808,proof-stage-local-rss
+3,T-scale,dry_bean_T4_N512_d1_b512_bins8,Terrae,training,dry-bean,512,512,512,512,512,4,1,8,46192,136.032,5.5844,8989843456,proof-stage-local-rss
+3,T-scale,dry_bean_T4_N512_d1_b512_bins8,Terrae,inference,dry-bean,512,512,512,512,512,4,1,8,3739,104.198,1.83021,6294568960,proof-stage-local-rss
+3,T-scale,dry_bean_T4_N512_d1_b512_bins8,ZKBoost shared,training,dry-bean,512,512,512,512,512,4,1,8,12126,634.095,3.58631,50777780224,stage-process-peak
+3,T-scale,dry_bean_T4_N512_d1_b512_bins8,ZKBoost shared,inference,dry-bean,512,512,512,512,512,4,1,8,2598,585.242,2.63105,18114797568,stage-process-peak
+4,T-scale,dry_bean_T8_N512_d1_b512_bins8,Terrae,well-formedness,dry-bean,512,512,512,512,512,8,1,8,10880,16.7999,1.87318,5862780928,proof-stage-local-rss
+4,T-scale,dry_bean_T8_N512_d1_b512_bins8,Terrae,training,dry-bean,512,512,512,512,512,8,1,8,46192,293.827,10.7611,21207437312,proof-stage-local-rss
+4,T-scale,dry_bean_T8_N512_d1_b512_bins8,Terrae,inference,dry-bean,512,512,512,512,512,8,1,8,3739,223.955,2.00759,11514589184,proof-stage-local-rss
+4,T-scale,dry_bean_T8_N512_d1_b512_bins8,ZKBoost shared,training,dry-bean,512,512,512,512,512,8,1,8,12126,1354.88,5.914,98210332672,stage-process-peak
+4,T-scale,dry_bean_T8_N512_d1_b512_bins8,ZKBoost shared,inference,dry-bean,512,512,512,512,512,8,1,8,2598,1224.66,5.7851,36635176960,stage-process-peak
+5,depth-scale,dry_bean_depth2_N512_T1_b512_bins8,Terrae,well-formedness,dry-bean,512,512,512,512,512,1,2,8,10880,2.163,0.282883,748494848,proof-stage-local-rss
+5,depth-scale,dry_bean_depth2_N512_T1_b512_bins8,Terrae,training,dry-bean,512,512,512,512,512,1,2,8,46120,32.7454,1.33668,2128711680,proof-stage-local-rss
+5,depth-scale,dry_bean_depth2_N512_T1_b512_bins8,Terrae,inference,dry-bean,512,512,512,512,512,1,2,8,3739,22.4443,0.316307,1625006080,proof-stage-local-rss
+5,depth-scale,dry_bean_depth2_N512_T1_b512_bins8,ZKBoost shared,training,dry-bean,512,512,512,512,512,1,2,8,12126,293.557,1.07176,23936663552,stage-process-peak
+5,depth-scale,dry_bean_depth2_N512_T1_b512_bins8,ZKBoost shared,inference,dry-bean,512,512,512,512,512,1,2,8,2598,280.638,0.762833,8940732416,stage-process-peak
+6,depth-scale,dry_bean_depth3_N512_T1_b512_bins8,Terrae,well-formedness,dry-bean,512,512,512,512,512,1,3,8,10880,2.42742,0.284476,766046208,proof-stage-local-rss
+6,depth-scale,dry_bean_depth3_N512_T1_b512_bins8,Terrae,training,dry-bean,512,512,512,512,512,1,3,8,46192,41.205,1.56665,2865147904,proof-stage-local-rss
+6,depth-scale,dry_bean_depth3_N512_T1_b512_bins8,Terrae,inference,dry-bean,512,512,512,512,512,1,3,8,3739,22.6396,0.236313,1632862208,proof-stage-local-rss
+6,depth-scale,dry_bean_depth3_N512_T1_b512_bins8,ZKBoost shared,training,dry-bean,512,512,512,512,512,1,3,8,12126,632.85,2.3133,44060123136,stage-process-peak
+6,depth-scale,dry_bean_depth3_N512_T1_b512_bins8,ZKBoost shared,inference,dry-bean,512,512,512,512,512,1,3,8,2598,592.73,2.16272,17780371456,stage-process-peak
+7,depth-scale,dry_bean_depth4_N512_T1_b512_bins8,Terrae,well-formedness,dry-bean,512,512,512,512,512,1,4,8,10880,2.95743,0.280729,799944704,proof-stage-local-rss
+7,depth-scale,dry_bean_depth4_N512_T1_b512_bins8,Terrae,training,dry-bean,512,512,512,512,512,1,4,8,46192,63.2854,1.64069,4806086656,proof-stage-local-rss
+7,depth-scale,dry_bean_depth4_N512_T1_b512_bins8,Terrae,inference,dry-bean,512,512,512,512,512,1,4,8,3739,23.3872,0.254076,1659691008,proof-stage-local-rss
+7,depth-scale,dry_bean_depth4_N512_T1_b512_bins8,ZKBoost shared,training,dry-bean,512,512,512,512,512,1,4,8,12126,1285.72,5.84547,75197276160,stage-process-peak
+7,depth-scale,dry_bean_depth4_N512_T1_b512_bins8,ZKBoost shared,inference,dry-bean,512,512,512,512,512,1,4,8,2598,593.839,3.51402,17901903872,stage-process-peak
+9,depth-scale,dry_bean_depth5_N512_T1_b512_bins8,Terrae,well-formedness,dry-bean,512,512,512,512,512,1,5,8,10880,4.08282,0.572232,855715840,proof-stage-local-rss
+9,depth-scale,dry_bean_depth5_N512_T1_b512_bins8,Terrae,training,dry-bean,512,512,512,512,512,1,5,8,46192,134.896,2.08175,14172717056,proof-stage-local-rss
+9,depth-scale,dry_bean_depth5_N512_T1_b512_bins8,Terrae,inference,dry-bean,512,512,512,512,512,1,5,8,3739,24.3925,0.203366,1705496576,proof-stage-local-rss
+9,depth-scale,dry_bean_depth5_N512_T1_b512_bins8,ZKBoost shared,training,dry-bean,512,512,512,512,512,1,5,8,12126,1263.27,8.88275,75588571136,stage-process-peak
+9,depth-scale,dry_bean_depth5_N512_T1_b512_bins8,ZKBoost shared,inference,dry-bean,512,512,512,512,512,1,5,8,2598,585.558,2.07345,18424664064,stage-process-peak
+10,N-scale,dry_bean_N1024_T1_d1_b1024_bins8,Terrae,well-formedness,dry-bean,1024,1024,1024,1024,1024,1,1,8,10880,3.98544,0.451645,1464397824,proof-stage-local-rss
+10,N-scale,dry_bean_N1024_T1_d1_b1024_bins8,Terrae,training,dry-bean,1024,1024,1024,1024,1024,1,1,8,46192,56.5095,1.71099,4808630272,proof-stage-local-rss
+10,N-scale,dry_bean_N1024_T1_d1_b1024_bins8,Terrae,inference,dry-bean,1024,1024,1024,1024,1024,1,1,8,3739,45.4014,0.76994,3223027712,proof-stage-local-rss
+10,N-scale,dry_bean_N1024_T1_d1_b1024_bins8,ZKBoost shared,training,dry-bean,1024,1024,1024,1024,1024,1,1,8,12126,286.528,1.65343,22574047232,stage-process-peak
+10,N-scale,dry_bean_N1024_T1_d1_b1024_bins8,ZKBoost shared,inference,dry-bean,1024,1024,1024,1024,1024,1,1,8,2598,285.07,1.17396,9093570560,stage-process-peak
+11,N-scale,dry_bean_N2048_T1_d1_b2048_bins8,Terrae,well-formedness,dry-bean,2048,2048,2048,2048,2048,1,1,8,10880,9.95879,1.91611,2917023744,proof-stage-local-rss
+11,N-scale,dry_bean_N2048_T1_d1_b2048_bins8,Terrae,training,dry-bean,2048,2048,2048,2048,2048,1,1,8,46192,124.098,1.84972,13766918144,proof-stage-local-rss
+11,N-scale,dry_bean_N2048_T1_d1_b2048_bins8,Terrae,inference,dry-bean,2048,2048,2048,2048,2048,1,1,8,3739,103.543,1.60562,6288732160,proof-stage-local-rss
+11,N-scale,dry_bean_N2048_T1_d1_b2048_bins8,ZKBoost shared,training,dry-bean,2048,2048,2048,2048,2048,1,1,8,12126,617.138,2.29519,43120435200,stage-process-peak
+11,N-scale,dry_bean_N2048_T1_d1_b2048_bins8,ZKBoost shared,inference,dry-bean,2048,2048,2048,2048,2048,1,1,8,2598,590.128,2.60759,18279751680,stage-process-peak
+12,N-scale,dry_bean_N4096_T1_d1_b4096_bins8,Terrae,well-formedness,dry-bean,4096,4096,4096,4096,4096,1,1,8,10880,16.2924,2.05617,5823037440,proof-stage-local-rss
+12,N-scale,dry_bean_N4096_T1_d1_b4096_bins8,Terrae,training,dry-bean,4096,4096,4096,4096,4096,1,1,8,46192,304.914,4.45639,44371419136,proof-stage-local-rss
+12,N-scale,dry_bean_N4096_T1_d1_b4096_bins8,Terrae,inference,dry-bean,4096,4096,4096,4096,4096,1,1,8,3739,218.958,1.97486,11506634752,proof-stage-local-rss
+12,N-scale,dry_bean_N4096_T1_d1_b4096_bins8,ZKBoost shared,training,dry-bean,4096,4096,4096,4096,4096,1,1,8,12126,1226.27,5.43185,82633285632,stage-process-peak
+12,N-scale,dry_bean_N4096_T1_d1_b4096_bins8,ZKBoost shared,inference,dry-bean,4096,4096,4096,4096,4096,1,1,8,2598,1236.84,5.94222,36607926272,stage-process-peak

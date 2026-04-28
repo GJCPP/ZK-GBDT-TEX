@@ -1,0 +1,25 @@
+\section{Open Science.}\label{sec:open-science}
+For reproducibility, we release an anonymous artifact containing the
+prototype implementation, scripts for running the experiments, and the data
+processing pipeline used in the evaluation. The artifact also includes
+instructions for rebuilding the binaries and reproducing the main benchmark
+tables reported in the paper. The anonymous repository is available at
+\url{https://anonymous.4open.science/r/ZK-GBDT-F601}. We will
+maintain the repository throughout the review period and, if the paper is
+accepted, we plan to de-anonymize the repository and provide a permanent public
+release.
+
+\section{Ethical Considerations.}
+This work is a systems and cryptography study on zero-knowledge proofs for GBDT
+training and inference. Its goal is to improve the verifiability and privacy of
+machine-learning pipelines, especially in settings where a client wishes to
+check that a model or prediction was produced correctly without revealing the
+underlying data or model parameters. We do not introduce new datasets involving
+human subjects, and our experiments use standard benchmark data and
+machine-learning workloads. As with many privacy-enhancing and integrity
+technologies, the techniques developed here could in principle be used in both
+benign and harmful settings. In our view, the primary effect of this work is to
+improve accountability in outsourced or untrusted ML services by enabling
+auditable computation without exposing sensitive data. We are not aware of any
+immediate ethical concerns beyond those already present in the underlying use of
+ML models and cryptographic tools.

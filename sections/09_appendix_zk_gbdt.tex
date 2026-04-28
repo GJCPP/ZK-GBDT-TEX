@@ -1,6 +1,6 @@
 \section{ZK-GBDT}\label{sec:zkgbdt-protocol}
 
-As outlined in \Cref{sec:technical-overview},
+As outlined in \Cref{sec:methodology},
     we commit the forest by committing
     \begin{align}
         \mathcal{F} = (\mathbf{lc}, \mathbf{rc}, \mathbf{par}, \mathbf{N}^{\leftarrow}, \mathbf{N}^{\rightarrow}, \mathbf{E}, \boldsymbol{\Theta}, \mathbf{tree}, \mathbf{root}, \mathbf{depth}, \mathbf{score}, \mathbf{is\_leaf}, \mathbf{valid}).
@@ -568,26 +568,119 @@ The prover then uses zero-check over $\mathbb{H}_{N_{\mathrm{tot}}dB}$ to valida
     \bigl(\mathbf{V}_{\mathrm{lc}}+\mathbf{V}_{\mathrm{rc}}\bigr) &= 0.
 \end{align}
 
+\paragraph{Leaf values.}
+The prover now proves that the score
+assigned to each leaf is consistent with the mean pseudo-residual of the samples routed to that leaf.
+The prover
+commits two vectors
+$\mathbf{n}_{\mathrm{leaf}},\mathbf{v}_{\mathrm{leaf}}
+\in\mathbb{F}^{N_{\mathrm{tot}}}$ and proves, by proving prefix-sum, that for every node $u$,
+\begin{align}
+    \mathbf{n}_{\mathrm{leaf}}[u]
+    &=
+    \sum_{i\in [dB]}\mathbf{C}_{\mathrm{leaf}, \{N_{\mathrm{tot}}\times dB\}}[u,i],\\
+    \mathbf{v}_{\mathrm{leaf}}[u]
+    &=
+    \sum_{i\in [dB]}\mathbf{V}_{\mathrm{leaf}, \{N_{\mathrm{tot}}\times dB\}}[u,i].
+\end{align}
+Because each routed sample contributes exactly one update to every feature
+coordinate, $\mathbf{n}_{\mathrm{leaf}}[u]$ is the number of training samples
+assigned to leaf $u$, and $\mathbf{v}_{\mathrm{leaf}}[u]$ is the corresponding
+sum of pseudo-residuals. Let
+$\mathbf{LeafNode}=\mathbf{valid}\odot\mathbf{is\_leaf}$.
+For a public fixed-point scale $2^q$, the leaf score should be
+\[
+    \mathbf{score}[u]
+    =
+    \left\lfloor
+    \frac{\mathbf{v}_{\mathrm{leaf}}[u]\cdot 2^q}
+    {\mathbf{n}_{\mathrm{leaf}}[u]}
+    \right\rfloor
+\]
+on valid leaves. To avoid a division in the arithmetic relation, the prover
+commits a remainder vector
+$\mathbf{r}_{\mathrm{leaf}}\in\mathbb{F}^{N_{\mathrm{tot}}}$ and proves by
+zero-check over $\mathbb{H}_{N_{\mathrm{tot}}}$ that
+\begin{align}
+    \mathbf{LeafNode}\odot
+    \left(
+    \mathbf{v}_{\mathrm{leaf}}\cdot 2^q
+    -\mathbf{score}\odot\mathbf{n}_{\mathrm{leaf}}
+    -\mathbf{r}_{\mathrm{leaf}}
+    \right)
+    &=\mathbf{0}.
+\end{align}
+It then proves the Euclidean-remainder condition
+$0\leq\mathbf{r}_{\mathrm{leaf}}[u]<\mathbf{n}_{\mathrm{leaf}}[u]$
+by using lookup to prove that
+\begin{align}
+    \mathbf{r}_{\mathrm{leaf}}[u] &< \mathcal{B},\\
+    \mathbf{n}_{\mathrm{leaf}}[u] - \mathbf{r}_{\mathrm{leaf}}[u] &< \mathcal{B}.
+\end{align}
+
 \paragraph{Optimal split.}
 The prover invokes the prefix-sum primitive along the bin dimension to obtain
 $\mathbf{C}_{\leq},\mathbf{V}_{\leq}$ and
 $\mathbf{C}_{>},\mathbf{V}_{>}$.
-For every candidate $(u,j,b)$, the prover commits the gain tensor
-$\boldsymbol{\Gamma}\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$
-and a validity mask $\boldsymbol{\chi}$, and proves
+For every candidate $(u,j,b)$, the prover commits a validity mask
+$\boldsymbol{\chi}\in\{0,1\}^{N_{\mathrm{tot}}\times d\times B}$, where
+$\boldsymbol{\chi}=1$ only for candidates with both children nonempty, and its
+correctness can be proven by lookup. The prover also commits the left and right
+quotient tensors
+$\boldsymbol{\Gamma}_{\leq},\boldsymbol{\Gamma}_{>}
+\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$, their remainder tensors
+$\mathbf{R}_{\leq},\mathbf{R}_{>}
+\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$, and the total gain tensor
+$\boldsymbol{\Gamma}\in\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$.
+With public fixed-point scale $2^q$, the prover proves by zero-check that
 \begin{align}
     \boldsymbol{\chi}\odot
     \bigl(
-    \boldsymbol{\Gamma}\odot\mathbf{C}_{\leq}\odot\mathbf{C}_{>}
-    -(\mathbf{V}_{\leq})^2\odot\mathbf{C}_{>}
-    -(\mathbf{V}_{>})^2\odot\mathbf{C}_{\leq}
+    (\mathbf{V}_{\leq})^2\cdot 2^q
+    -\boldsymbol{\Gamma}_{\leq}\odot\mathbf{C}_{\leq}
+    -\mathbf{R}_{\leq}
+    \bigr)
+    &=\mathbf{0},\\
+    \boldsymbol{\chi}\odot
+    \bigl(
+    (\mathbf{V}_{>})^2\cdot 2^q
+    -\boldsymbol{\Gamma}_{>}\odot\mathbf{C}_{>}
+    -\mathbf{R}_{>}
+    \bigr)
+    &=\mathbf{0},\\
+    \boldsymbol{\chi}\odot
+    \bigl(
+    \boldsymbol{\Gamma}
+    -\boldsymbol{\Gamma}_{\leq}
+    -\boldsymbol{\Gamma}_{>}
     \bigr)
     &=\mathbf{0},\\
     (\mathbf{1}-\boldsymbol{\chi})\odot\boldsymbol{\Gamma}
-    &=\mathbf{0},
+    =
+    (\mathbf{1}-\boldsymbol{\chi})\odot\boldsymbol{\Gamma}_{\leq}
+    =
+    (\mathbf{1}-\boldsymbol{\chi})\odot\boldsymbol{\Gamma}_{>}
+    &=
+    \mathbf{0}.
 \end{align}
-where $\boldsymbol{\chi}=1$ only for candidates with both children nonempty,
-and its correctness can be proven by lookup.
+It proves the Euclidean-remainder conditions
+\begin{align}
+    0\leq \mathbf{R}_{\leq}[u,j,b] &< \mathbf{C}_{\leq}[u,j,b],\\
+    0\leq \mathbf{R}_{>}[u,j,b] &< \mathbf{C}_{>}[u,j,b],
+\end{align}
+for every valid candidate by range/lookup checks. Thus
+$\boldsymbol{\Gamma}_{\leq}$ and $\boldsymbol{\Gamma}_{>}$ are the quantized
+division results
+\[
+    \left\lfloor
+    \frac{(\mathbf{V}_{\leq})^2\cdot 2^q}{\mathbf{C}_{\leq}}
+    \right\rfloor
+    \qquad\text{and}\qquad
+    \left\lfloor
+    \frac{(\mathbf{V}_{>})^2\cdot 2^q}{\mathbf{C}_{>}}
+    \right\rfloor,
+\]
+and $\boldsymbol{\Gamma}$ is their sum.
 The prover commits $\boldsymbol{\Gamma}^{*}\in
 \mathbb{F}^{N_{\mathrm{tot}}}$ and a one-hot threshold mask
 $\mathbf{T}\in \{0, 1\}^{N_{\mathrm{tot}}\times B}$.

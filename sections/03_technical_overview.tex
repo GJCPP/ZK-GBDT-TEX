@@ -1,10 +1,9 @@
-\section{Technical Overview}\label{sec:technical-overview}
+\section{Methodology}\label{sec:methodology}
 
-In this section, we introduce four ingredients: 
-how to commit the forest and prove inferences,
-how to prove the correctness of training,
-how to prove the correctness of histogram,
-and how to batch claims to reduce the overall proof size.
+This section describes the main relations that make up the \textsc{Terrae}
+proof system: how the forest is committed, how inference is checked, how forest
+well-formedness is certified, and how the training proof reduces split
+selection to algebraic relations over histograms.
 
 \subsection{Forest Representation}
 
@@ -357,158 +356,18 @@ equivalent to maximizing
 \end{equation}
 subject to the validity condition that both children are nonempty.
 
-If we denote $\mathbf{C}[i, j, k]$ the number of samples falling to node $i$ with $d$-th feature being $k$,
-  and $\mathbf{V}[i, j, k]$ the sum of residuals for samples falling to node $i$ with $d$-th feature being $k$,
+If we denote $\mathbf{C}[i, j, k]$ the number of samples falling to node $i$ with $j$-th feature being $k$,
+  and $\mathbf{V}[i, j, k]$ the sum of residuals for samples falling to node $i$ with $j$-th feature being $k$,
   then we can rewrite \eqref{eq:split-objective} as
 \begin{equation}
 \Phi(u,j,b)
 \coloneqq
-\frac{\left(\sum_{k=0}^{b-1} \mathbf{V}[u, j, k]\right)^2}{\sum_{k=0}^{b-1} \mathbf{C}[u, j, k]}
+\left\lfloor\frac{\left(\sum_{k=0}^{b-1} \mathbf{V}[u, j, k]\right)^2\cdot 2^q}{\sum_{k=0}^{b-1} \mathbf{C}[u, j, k]}\right\rfloor
 +
-\frac{\left(\sum_{k=b}^{B-1} \mathbf{V}[u, j, k]\right)^2}{\sum_{k=b}^{B-1} \mathbf{C}[u, j, k]}.
+\left\lfloor\frac{\left(\sum_{k=b}^{B-1} \mathbf{V}[u, j, k]\right)^2\cdot 2^q}{\sum_{k=b}^{B-1} \mathbf{C}[u, j, k]}\right\rfloor.
 \end{equation}
 
 This rewriting indicates that \emph{histograms} are sufficient proof objects. 
 Once $\mathbf{C}$ and $\mathbf{V}$ are available, by proving the prefix and suffix sums of them,
 the prover can prove the split gain $\Phi(u,j,b)$ for all candidate splits in one shot.
-
-\subsection{Proving Histogram}
-
-Given $\mathbf{Ind}$ and $\mathbf{G}$,
-  the prover needs to prove the correctness of $\mathbf{C}, \mathbf{V}\in \mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$.
-  Following the approach of \cite{sparrow24,zkboost26},
-  we first construct the leaf-wise histogram $\mathbf{C}_{\mathrm{leaf}}$ and $\mathbf{V}_{\mathrm{leaf}}$,
-  where $\mathbf{C}_{\mathrm{leaf}}[i, j, k]$ and $\mathbf{V}_{\mathrm{leaf}}[i, j, k]$ are 
-  the number of samples and sum of residuals for node $i$ (which is a leaf), feature $j$, and feature value $k$.
-  The prover then proves $\mathbf{C}$ and $\mathbf{V}$ by showing that for all nodes,
-  \begin{align}
-  \mathbf{C}[i, j, k] =&\ \mathbf{C}_{\mathrm{leaf}}[i, j, k]\cdot \mathbf{is\_leaf}[i] +\nonumber\\
-    &(\mathbf{C}[\mathbf{lc}[i], j, k] + \mathbf{C}[\mathbf{rc}[i], j, k])\cdot (1- \mathbf{is\_leaf}[i]),\\
-  \mathbf{V}[i, j, k] =&\ \mathbf{V}_{\mathrm{leaf}}[i, j, k]\cdot \mathbf{is\_leaf}[i] +\nonumber\\
-    &(\mathbf{V}[\mathbf{lc}[i], j, k] + \mathbf{V}[\mathbf{rc}[i], j, k])\cdot (1- \mathbf{is\_leaf}[i]),
-  \end{align}
-  where again, the prover proves the routing with lookup.
-
-Hence, the prover first needs to prove that
-  \begin{align}
-    \mathbf{C}_{\mathrm{leaf}}[i, j, k] =&\ \sum_{r: \mathbf{Ind}[t, k, r]=i \land \mathbf{D}[r, j]=k} 1,\\
-    \mathbf{V}_{\mathrm{leaf}}[i, j, k] =&\ \sum_{r: \mathbf{Ind}[t, k, r]=i \land \mathbf{D}[r, j]=k} \mathbf{G}[t, k, r].
-  \end{align}
-  Sparrow~\cite{sparrow24} and ZKBoost~\cite{zkboost26} prove this by modeling it as an RAM argument.
-  That is, consider an RAM array $\mathbf{C}'$ and $\mathbf{V}'$, for each sample $r$, we update
-  \[
-  \begin{aligned}
-    \mathbf{C}'[\mathbf{Ind}[t, k, r], j, \mathbf{D}[r, j]] &\gets \mathbf{C}'[\mathbf{Ind}[t, k, r], j, \mathbf{D}[r, j]] + 1,\\
-    \mathbf{V}'[\mathbf{Ind}[t, k, r], j, \mathbf{D}[r, j]] &\gets \mathbf{V}'[\mathbf{Ind}[t, k, r], j, \mathbf{D}[r, j]] + \mathbf{G}[t, k, r].
-  \end{aligned}
-  \]
-  They then prove this by utilizing the RAM argument of Spartan~\cite{spartan20} and of~\cite{twoshuffleRAM24}, respectively.
-
-However, we note that the problem of proving histogram is one
-  that is much simpler than general RAM argument, since the update pattern is fixed and known in advance, and the update operation is just addition.
-  Over the flattened tensors, we instead prove
-  \begin{align}
-    \sum_{i\in [N_{\mathrm{tot}}dB]} \mathbf{C}_{\{N_{\mathrm{tot}}dB\}}[i]\cdot \alpha^i &= \sum_{t, k, r, j} \alpha^{\mathsf{ind}(t, k, r, j)}\cdot 1,\\
-    \sum_{i\in [N_{\mathrm{tot}}dB]} \mathbf{V}_{\{N_{\mathrm{tot}}dB\}}[i]\cdot \alpha^i &= \sum_{t, k, r, j} \alpha^{\mathsf{ind}(t, k, r, j)}\cdot \mathbf{G}[t, k, r],
-  \end{align}
-  where $\alpha$ is a random challenge and $\mathsf{ind}(t, k, r, j)$ is the flattened index of the tuple $(t, k, r, j)$,
-  namely
-  \[\mathsf{ind}(t, k, r, j) = \mathbf{Ind}[t, k, r]\cdot dB + j\cdot B + \mathbf{D}[r, j].\]
-  Intuitively, we bind each $i$-th memory slot to an $\alpha^i$,
-  and prove the correctness of the final state by proving the sum of all memory slots weighted by $\alpha^i$.
-  
-Hence in our construction, the prover
-  first commits and proves a tensor encoding $\mathsf{ind}(t, k, r, j)$
-  for all $(t, k, r, j)$,
-  then utilizes lookup argument to prove the correctness of power-of-$\alpha$,
-  and finally proves the statement with a Aurora-style sum-check protocol~\cite{aurora19}.
-
-\subsection{Domain-Lifting and Interleaving Batching}
-
-As can be already noticed, our construction repeatedly 
-encounter checks of similar forms, e.g. in \Cref{subsec:proof of well-formedness},
-we repeatedly require proof that a polynomial evaluates to zero
-everywhere on a domain (zero-check), or repeatedly require lookup argument.
-What makes the problem tricky is that these checks
-happens over different domains, and a usual random linear
-combination will not help.
-In this subsection, we discuss the two approaches
-we propose to solve this problem.
-
-\paragraph{Domain-lifted batch.}
-As stated, most linear constraints in the paper are first expressed over some evaluation
-domain $\mathbb{H}_n$. After moving all terms to one side, we obtain a virtual
-polynomial $F(X)$, and the constraint becomes a zero-check over that domain,
-hence a divisibility claim of the form
-\[
-F(X)=Q(X)\nu_n(X),
-\]
-where $\nu_n(X)=X^n-1$ is the vanishing polynomial of $\mathbb{H}_n$.
-
-The basic batching problem is therefore the following: suppose we have two such
-claims, one over $\mathbb{H}_{n_1}$ and one over $\mathbb{H}_{n_2}$, with
-$n_1<n_2$. Since our domain sizes are powers of two, the smaller domain is
-nested inside the larger one. We can therefore lift the smaller claim to
-$\mathbb{H}_{n_2}$ by multiplying its residual by
-$\nu_{n_2}(X)/\nu_{n_1}(X)$:
-\[
-\widehat{F}_1(X):=F_1(X)\frac{\nu_{n_2}(X)}{\nu_{n_1}(X)}.
-\]
-Now both claims live over the same ambient domain $\mathbb{H}_{n_2}$, and the
-verifier can batch them as
-\[
-\widehat{F}_1(X)+\eta F_2(X)=Q(X)\nu_{n_2}(X)
-\]
-for a random challenge $\eta$.
-
-This is the basic intuition behind \emph{domain-lifting batching}: lift the
-smaller residual to the larger domain, then batch there.
-We note that, since Aurora-style sum-check~\cite{aurora19}
-follows a similar pattern of the above divisibility check,
-we can also batch them.
-See \Cref{app:domain-lifting-batch} for 
-formal description.
-
-\paragraph{Interleaving batching.}
-The second batching problem concerns same-form nonlinear checks that are
-\emph{local}: validity at one position depends only on the witness values at
-that position, not on any other entry of the vector. Typical examples in our
-setting include lookup-style checks and fixed-point quantization checks with one
-shared divisor and rounding rule.
-
-The basic case is two vectors of the same length. Suppose
-$\mathbf{f},\mathbf{g}\in\mathbb{F}^n$ must both satisfy the same local
-constraint, say $\varphi(x)=0$ entrywise. Then we can interleave them into one
-larger virtual vector
-\[
-(\mathbf{f}[0],\mathbf{g}[0],\mathbf{f}[1],\mathbf{g}[1],\ldots),
-\]
-and check the same local constraint once on that merged vector. In polynomial
-form, if $f(X)$ and $g(X)$ are the encodings of $\mathbf{f}$ and $\mathbf{g}$
-over $\mathbb{H}_n$, the merged object is
-\[
-\operatorname{Int}_n(f,g)(X)
-:=
-\operatorname{even}_n(X)\,f(X)
-+ \operatorname{odd}_n(X)\,g(\omega_{2n}^{-1}X),
-\]
-where
-\[
-\operatorname{even}_n(X):=\frac{X^n+1}{2},
-\qquad
-\operatorname{odd}_n(X):=\frac{1-X^n}{2}.
-\]
-These two public sparse selectors encode $(1,0,1,0,\ldots)$ and $(0,1,0,1,\ldots)$ over $\mathbb{H}_{2n}$, respectively. So after shifting $\mathbf{g}$ by one position, every position of the larger vector stores one original entry.
-
-If the two vectors have different lengths, we first lift the smaller one to the
-larger domain by the substitution $X\mapsto X^r$, 
-which replicates the vector $r$ times over
-the $r\times$ larger domain, as stated in
-\Cref{lem:row-replication}. After this alignment step, the same interleaving
-idea applies.
-The important point here is that the merged object is still virtual: it is assembled
-from existing commitments, public sparse masks, and domain-lift substitutions,
-so no new commitment is required.
-
-We formally present the interleaving batching in \Cref{app:interleaving}.
 

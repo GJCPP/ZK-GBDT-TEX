@@ -1,0 +1,57 @@
+\section{Threat Model and Security Statement}
+\label{sec:threat-model}
+
+We consider a prover that trains or serves a GBDT model for a verifier. The
+prover may be malicious: it may commit to an arbitrary
+(ill-formed) forest or inference output, and it may try to convince the
+verifier that these objects arise from the public quantized training and
+inference algorithms. The verifier is probabilistic polynomial time and checks
+only the commitments, public parameters, public inputs, and proof transcript.
+
+The protocol is organized into three phases.
+\begin{itemize}
+    \item \textbf{Committing phase.} The prover commits to the training dataset
+    and the trained forest.
+
+    \item \textbf{Forest phase.} The prover proves that the committed forest is
+    well formed and, when training certification is requested, that it is
+    consistent with a valid execution of the public GBDT trainer on the
+    committed dataset.
+
+    \item \textbf{Inference phase.} Given a batch of public inputs, the prover
+    proves that the claimed inference output is consistent with the committed
+    forest.
+\end{itemize}
+
+In the proof of training, the public statement consists of the parameters that
+fix the training procedure, including the number of rounds $T$, the number of
+classes $K$, the dataset size $M$, the feature dimension $d$, and the number of bins
+$B$. The (optionally private) witness consists of the committed
+dataset, labels, forest, and auxiliary training trace. The forest includes the
+split metadata, tree topology, leaf boxes, and leaf values of all trees. Based
+on the application, the dataset and the forest may be private or public.
+
+\begin{theorem}[Informal security statement]
+\label{thm:main-informal}
+Assume the KZG commitment scheme is binding,
+our proof system satisfies:
+\begin{enumerate}
+    \item \textbf{Completeness.} If the committed forest is obtained by honestly
+    running the public quantized trainer on the committed dataset, then the
+    prover can produce an accepting proof of training.
+    If the committed forest is well-formed,
+    the prover can produce an accepting proof of forest well-formedness and proof of inference for any public input batch.
+
+    \item \textbf{Soundness.} If the verifier accepts, then with overwhelming
+    probability, the committed forest is consistent with a valid execution of
+    that same trainer on the committed dataset. Similarly, an accepting
+    well-formedness proof certifies that the committed forest is well-formed, and
+    an accepting
+    inference proof certifies that the claimed output is obtained by evaluating
+    the committed forest on the public input batch.
+
+    \item \textbf{(Optional) Witness privacy.} 
+    The proof system reveals nothing beyond the public statement. In particular, the proof of training hides 
+    the training dataset, labels, forest, and auxiliary training trace, and the proof of well-formedness and inference hide the committed forest.
+\end{enumerate}
+\end{theorem}
