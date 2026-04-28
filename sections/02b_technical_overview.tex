@@ -18,64 +18,104 @@ same-domain batching would force extra commitments or leave many small claims
 unbatched. \textsc{Terrae} introduces two batching tools for this setting.
 
 \paragraph{Domain-lifting batching.}
-For a linear constraint over $\mathbb{H}_n$, after moving all terms to one side
-we obtain a residual polynomial $F(X)$ and prove a divisibility claim
-\[
-    F(X)=Q(X)\nu_n(X),
-    \qquad
+A low-degree algebraic constraint over $\mathbb{H}_n$ is specified by a
+constant-arity, constant-degree polynomial $\phi(x_1,\ldots,x_k)$. Vectors
+$\mathbf{v}_1,\ldots,\mathbf{v}_k\in\mathbb{F}^n$ satisfy it when
+\begin{align}
+    \forall i \in [n].\
+    \phi(\mathbf{v}_1[i],\ldots,\mathbf{v}_k[i])=0\\
+    \iff \forall X\in \mathbb{H}_n.\ \phi(v_1(X),\ldots,v_k(X))=0.
+\end{align}
+If $v_1(X),\ldots,v_k(X)$ encode these vectors over $\mathbb{H}_n$, the polynomial
+$f(X)=\phi(v_1(X),\ldots,v_k(X))$ is virtual: opening $f(t)$ reduces to
+opening the $v_j(t)$ values and evaluating $\phi$ locally. For example,
+$\phi(x,y)=x^2-y$ encodes the relation
+$\mathbf{u}\odot\mathbf{u}=\mathbf{v}$.
+
+Therefore every low-degree algebraic
+constraint becomes a zero-check
+\begin{align}
+    \forall X\in \mathbb{H}_n.\ f(X)=0.
+\end{align}
+We prove this zero-check through the equivalent divisibility test
+\begin{align}
+    f(X)=q(X)\nu_n(X),
+    \quad
     \nu_n(X)=X^n-1.
-\]
-Suppose two claims live over nested power-of-two domains
-$\mathbb{H}_{n_1}\subset \mathbb{H}_{n_2}$. Instead of opening them separately,
-\textsc{Terrae} lifts the smaller residual to the larger domain:
-\[
-    \widehat{F}_1(X)
+\end{align}
+Here $\nu_n$ is the vanishing polynomial of $\mathbb{H}_n$.
+
+Suppose two algebraic constraints live over nested power-of-two domains
+$\mathbb{H}_{n_1}\subset \mathbb{H}_{n_2}$.
+After converting them to zero-checks $f_1(X)$
+over $\mathbb{H}_{n_1}$ and $f_2(X)$ over $\mathbb{H}_{n_2}$, instead of proving
+them separately, \textsc{Terrae} lifts the smaller polynomial to the larger
+domain:
+\begin{align}
+    \widehat{f}_1(X)
     :=
-    F_1(X)\frac{\nu_{n_2}(X)}{\nu_{n_1}(X)}.
-\]
-The verifier can then batch the lifted claim with the larger one as
-\[
-    \widehat{F}_1(X)+\eta F_2(X)=Q(X)\nu_{n_2}(X)
-\]
-for a random challenge $\eta$. This is used for zero-check and sum-check style
-relations whose natural domains differ.
+    f_1(X)\frac{\nu_{n_2}(X)}{\nu_{n_1}(X)}.
+\end{align}
+The verifier can then batch the lifted zero-check with the larger one as
+\begin{align}
+    \widehat{f}_1(X)+\eta f_2(X)=q(X)\nu_{n_2}(X)
+\end{align}
+for a random challenge $\eta$.
+
+A bonus here is that the Aurora sum-check~\cite{aurora19}
+also reduces to a divisibility test,
+and hence we can batch sum-check claims
+in a similar manner. See \Cref{thm:domain-lifting-batching} for details.
 
 \paragraph{Interleaving batching.}
-For local nonlinear checks, validity at one position depends only on the
-witness values at that position. Examples include lookup, range, and
-fixed-point division checks. For two vectors
-$\mathbf{f},\mathbf{g}\in\mathbb{F}^n$ satisfying the same local relation,
+For a non-native predicate $\varphi$, a vector
+$\mathbf{v}\in \mathbb{F}^n$ satisfies the predicate when
+\begin{align}
+    \forall i\in [n].\ \varphi(\mathbf{v}[i])=1.
+\end{align}
+Here $\varphi$ is not a low-degree field polynomial, so the verifier cannot
+derive a virtual commitment as above. Examples include table
+membership, range, and fixed-point division.
+
+We batch such constraints by
+interleaving same-form instances. For two vectors
+$\mathbf{f},\mathbf{g}\in\mathbb{F}^n$ satisfying the same predicate $\phi$,
 \textsc{Terrae} forms the virtual interleaving
-\[
+\begin{align}
     (\mathbf{f}[0],\mathbf{g}[0],\mathbf{f}[1],\mathbf{g}[1],\ldots).
-\]
+\end{align}
 In polynomial form, if $f$ and $g$ are encoded over $\mathbb{H}_n$, the merged
 object over $\mathbb{H}_{2n}$ is
-\[
+\begin{align}
     \operatorname{Int}_n(f,g)(X)
     :=
     \operatorname{even}_n(X)f(X)
     +\operatorname{odd}_n(X)g(\omega_{2n}^{-1}X),
-\]
+\end{align}
 where
-\[
+\begin{align}
     \operatorname{even}_n(X)=\frac{X^n+1}{2},
     \qquad
     \operatorname{odd}_n(X)=\frac{1-X^n}{2}.
-\]
-For different vector lengths, the shorter vector is first aligned by a domain
-substitution $X\mapsto X^r$, which replicates it over the larger domain. The
-merged vectors are virtual: their openings are derived from existing
-commitments, public sparse selectors, and domain substitutions, so batching
+\end{align}
+Note that both $\operatorname{even}_n(X)$ and $\operatorname{odd}_n(X)$ are sparse, and the verifier
+can evaluate them at any point with $O(\log n)$ field operations.
+
+For vector $\mathbf{f}\in \mathbb{F}^n$ and $\mathbf{g}\in \mathbb{F}^{nr}$ of different lengths, we first lift the shorter vector to the larger domain by a
+substitution $X\mapsto X^r$, i.e. defining
+\begin{align}
+    \widehat{g}(X):=g(X^r).
+\end{align}
+As stated in \Cref{lem:row-replication}, $\widehat{\mathbf{g}}$ replicates $\mathbf{g}$ over domain $\mathbb{H}_{nr}$ for $r$ times. 
+We then interleave $\mathbf{f}$ and $\widehat{\mathbf{g}}$ 
+and derive the final interleaved polynomial,
+which is still virtual: 
+its openings are derived from
+evaluations of existing commitments and public sparse selectors, so batching
 does not require committing to new auxiliary witness polynomials.
 
-Together, these ingredients are the main contribution of \textsc{Terrae}: the
-training trace remains explicit enough to express the semantics of GBDT
-training, while the proof system avoids both a monolithic training circuit and
-a large collection of separately opened auxiliary commitments. The next section
-describes how the committed forest, inference proof, well-formedness checks,
-training proof, and split-selection relations are assembled.
-
+We present the formal interleaving batching method
+in \Cref{lem:interleaving}, and use it to batch all non-native predicates in \textsc{Terrae}.
 
 \subsection{Histogram Aggregation Without RAM}
 
@@ -85,7 +125,7 @@ naturally model this as a memory update process: for each routed sample, update
 the corresponding histogram bucket and prove the resulting RAM trace.
 \textsc{Terrae} instead uses a histogram-specific argument.
 
-For simplicity, let's consider a simplified version of histogram aggregation.
+For simplicity, consider a simplified version of histogram aggregation.
 Suppose we have vectors $\mathbf{ind}\in [m]^n$ and $\mathbf{u}, \mathbf{v}\in \mathbb{F}^n$.
 Our goal is to prove that $\mathbf{v}$ is the histogram
 of $\mathbf{u}$ according to the indices in $\mathbf{ind}$:

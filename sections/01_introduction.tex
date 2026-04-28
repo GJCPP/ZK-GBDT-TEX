@@ -82,10 +82,14 @@ still inherit the cost of proving the computation of large certification circuit
 A natural alternative is to avoid proving the certification computation as a
 generic circuit and instead prove the algebraic relations that characterize
 GBDT training directly. However, this approach creates a different bottleneck.
-GBDT training contains many repeated constraints: linear relations such as score
-updates, prefix sums, and aggregation equations, and local nonlinear relations
-such as lookup checks, range checks, division, and maximum
-selection. 
+GBDT training contains many repeated constraints of two different kinds. The
+first kind consists of \emph{low-degree algebraic constraints}: relations that
+can be written as low-degree polynomial identities over the field, such as
+score updates, prefix sums, booleanity checks, and
+zero checks. The second kind consists of
+\emph{non-native predicates}: checks whose intended semantics depend on
+structure outside the field algebra, such as table membership, order, range,
+integer divisibility, rounding, and maximum selection.
 These constraints also do not naturally live on one uniform domain,
 since their inputs have different sizes.
 Different tensors have different shapes, and their polynomial encodings are
@@ -111,15 +115,17 @@ large circuits,
 \textsc{Terrae} represents the training trace as
 committed tensors and proves the relation among them directly.
 
-Besides handling all kinds of linear and nonlinear constraints,
+Besides handling both low-degree algebraic constraints and non-native
+predicates,
 the main technical challenge is batching. Once the training semantics are
 decomposed into algebraic constraints, the prover faces many similar constraints
 over different domains. \textsc{Terrae} introduces two batching tools to handle
-this heterogeneity. First, \emph{domain-lifting batching} combines linear constraints
-such as zero-check and sum-check across different domains. It
+this heterogeneity. First, \emph{domain-lifting batching} combines low-degree
+algebraic constraints, such as zero-check and sum-check claims, across
+different domains. It
 lifts all residual polynomials to a common domain and then applies a
 single random linear combination. Second, \emph{interleaving batching} combines
-local nonlinear checks, including lookup-style checks, by virtually
+same-form non-native predicates, including lookup-style checks, by virtually
 interleaving committed vectors of different lengths. 
 Any evaluation of the resulting polynomial can be derived efficiently from existing polynomial commitments and public sparse polynomials, 
 and the batching does not introduce any new commitments to auxiliary witnesses.
@@ -148,8 +154,8 @@ Our main contributions are as follows:
     certification procedure into
     separate circuits, and instead proves the algebraic relations directly.
 
-    \item We introduce domain-lifting batching for linear constraints and
-    interleaving batching for local nonlinear constraints. These techniques
+    \item We introduce domain-lifting batching for low-degree algebraic
+    constraints and interleaving batching for non-native predicates. These techniques
     batch constraints that arise over differently sized domains and reduce many
     commitment-opening tasks to a small number of batched claims, without
     committing to extra witnesses.

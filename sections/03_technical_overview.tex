@@ -245,16 +245,18 @@ To prove the $\alpha$-exponent, the prover commits a vector
 that commits power-of-$\alpha$, and then proves the lookup relation.
 
 \paragraph{Complexity.}
-All forest-structural checks are linear or local constraints over either
-$N_{\mathrm{tot}}$ node rows or $N_{\mathrm{tot}}d$ node-feature rows. The
+All forest-structural checks are low-degree algebraic constraints or
+non-native predicates over either $N_{\mathrm{tot}}$ node rows or
+$N_{\mathrm{tot}}d$ node-feature rows. The
 only additional global object is the root-count vector of length $TK+1$.
 Therefore the prover time for forest well-formedness is
 \[
     \tilde{O}(N_{\mathrm{tot}}d + TK).
 \]
-Domain-lifting batching combines the zero-check and sum-check constraints, and
-interleaving batching combines the local lookup and range-check instances.
-Consequently, the verifier time and proof size are
+Domain-lifting batching combines the zero-check and sum-check claims, and
+interleaving batching combines the local lookup and range-check predicates.
+As there are only constantly many polynomial commitments,
+the verifier time and proof size are
 $\tilde{O}(\log(N_{\mathrm{tot}}d+TK))$, up to the constant number of final KZG
 openings.
 

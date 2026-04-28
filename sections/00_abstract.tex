@@ -26,8 +26,9 @@ avoids both dependency on proving circuit computation and
 proving each constraint separately by
 leveraging the structure of GBDT training and novelly batching the
 constraints. 
-We introduce two batching techniques: \emph{domain-lifting batching} for linear
-constraints and \emph{interleaving batching} for non-linear constraints. 
+We introduce two batching techniques: \emph{domain-lifting batching} for
+low-degree algebraic constraints and \emph{interleaving batching} for
+non-native predicates.
 Both
 techniques work over differently-sized domains and reduce many constraints to a
 single claim without introducing extra polynomial commitments. We also design a

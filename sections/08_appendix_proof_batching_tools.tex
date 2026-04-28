@@ -1,20 +1,21 @@
 \section{Proof-Batching Tools}\label{sec:tools}
 
 % This section presents the two batching tools used repeatedly in the protocol.
-% The first handles heterogeneous linear identities whose natural domains
-% differ. The second merges many same-form local nonlinear checks into one
+% The first handles heterogeneous low-degree algebraic identities whose natural domains
+% differ. The second merges many same-form non-native predicate checks into one
 % larger virtual instance. Together they cover the two batching patterns that
 % recur throughout the rest of the construction.
 % Standard divisibility-based zero checks and same-domain batching already appear
 % in prior proof systems such as Aurora and CQ++ \cite{aurora19,cq++24}. Our
 % contribution here is to isolate two reusable tools: domain-lifting batching for
-% heterogeneous linear claims, and interleaving batching for aligned same-form
-% nonlinear claims.
+% heterogeneous low-degree algebraic claims, and interleaving batching for
+% aligned same-form non-native predicates.
 
 \subsection{Domain-Lifting Batching}\label{app:domain-lifting-batch}
 
-As explained earlier, most linear constraints in our construction are first
-expressed as zero-checks over some evaluation domain $\mathbb{H}_n$. The
+As explained earlier, most low-degree algebraic constraints in our construction
+are first expressed as residual zero-checks over some evaluation domain
+$\mathbb{H}_n$. The
 following theorem shows how to batch many such claims together even when their
 natural domains differ. The key idea is to lift each claim from its original
 domain to a common larger domain, so the lifted claim is still a zero-check
@@ -27,24 +28,24 @@ Let
 \[
 2 \leq n_1 \leq n_2 \leq \cdots \leq n_m = N
 \]
-be powers of two. For each $i \in [m]$, let $F_i(X)$ be a virtual polynomial
+be powers of two. For each $i \in [m]$, let $f_i(X)$ be a virtual polynomial
 and suppose the target claim is
 \begin{align}
 \deg r_i(X) &< n_i-2,\\
-F_i(X) &= r_i(X)\cdot X + q_i(X)\nu_{n_i}(X),
+f_i(X) &= r_i(X)\cdot X + q_i(X)\nu_{n_i}(X),
 \end{align}
 for some polynomial $q_i(X)$ and $r_i(X)$.
 Because $n_i \mid N$, the ratio $\nu_N(X)/\nu_{n_i}(X)$ is again a polynomial.
 Define the lifted polynomial
 \[
-\widehat{F}_i(X):=
-F_i(X)\frac{\nu_N(X)}{\nu_{n_i}(X)}.
+\widehat{f}_i(X):=
+f_i(X)\frac{\nu_N(X)}{\nu_{n_i}(X)}.
 \]
 Then for a verifier challenge $\eta$, all $m$ claims can be combined into
   the single identity
   \begin{align}\label{eq:domain-lifting-batching}
     \deg r(X) &< N-2,\\
-    \sum_{i=1}^{m}\eta^{i-1}\widehat{F}_i(X) &= r(X)\cdot X + q(X)\nu_N(X).
+    \sum_{i=1}^{m}\eta^{i-1}\widehat{f}_i(X) &= r(X)\cdot X + q(X)\nu_N(X).
   \end{align}
   And if at least one original claim is false, then
   \eqref{eq:domain-lifting-batching} holds for at most $m-1$ values of $\eta$, i.e. the soundness error is at most $(m-1)/|\mathbb{F}|$.
@@ -52,20 +53,20 @@ Then for a verifier challenge $\eta$, all $m$ claims can be combined into
 
 \begin{proof}
 Consider there exists $i^*\in [m]$ such that the original
-  claim over $F_{i^*}(X)$ is false. 
-  This means that $F_{i^*}(X)$ has non-zero
+  claim over $f_{i^*}(X)$ is false.
+  This means that $f_{i^*}(X)$ has non-zero
   constant term $c$ when modulo $\nu_{n_{i^*}}(X)$, i.e.
   \begin{align}
-    F_{i^*}(X) = r_{i^*}(X)\cdot X + q_{i^*}(X)\nu_{n_{i^*}}(X) + c.
+    f_{i^*}(X) = r_{i^*}(X)\cdot X + q_{i^*}(X)\nu_{n_{i^*}}(X) + c.
   \end{align}
-  For $\widehat{F}_{i^*}(X)$, the constant term will not vanish
+  For $\widehat{f}_{i^*}(X)$, the constant term will not vanish
   when modulo $\nu_N(X)$, because
   \begin{align}
-    \widehat{F}_{i^*}(X) &= F_{i^*}(X)\frac{\nu_N(X)}{\nu_{n_{i^*}}(X)}\\
+    \widehat{f}_{i^*}(X) &= f_{i^*}(X)\frac{\nu_N(X)}{\nu_{n_{i^*}}(X)}\\
     &= r_{i^*}(X)\cdot X\frac{\nu_N(X)}{\nu_{n_{i^*}}(X)} + q_{i^*}(X)\nu_N(X) + c\frac{\nu_N(X)}{\nu_{n_{i^*}}(X)}.
   \end{align}
   Since $\nu_N(X)/\nu_{n_{i^*}}(X)$ is a non-zero constant when modulo $\nu_N(X)$, as the last term is the only term contributing to the constant term,
-  the constant term of $\widehat{F}_{i^*}(X)$ is also non-zero when modulo $\nu_N(X)$.
+  the constant term of $\widehat{f}_{i^*}(X)$ is also non-zero when modulo $\nu_N(X)$.
 
 Thus, after the random linear combination,
   the constant term remains non-zero except for a probability at most $(m-1)/|\mathbb{F}|$.
@@ -74,11 +75,11 @@ Thus, after the random linear combination,
 We note two use cases for this batching.
 
 \paragraph{Zero-check.} When $r(X) = 0$ and $r_i(X) = 0$ is required for every $i\in [m]$, the original
-claim becomes $F_i(X) = q_i(X)\nu_{n_i}(X)$, which means
-$F_i(X)$ vanishes everywhere over $\mathbb{H}_{n_i}$.
+claim becomes $f_i(X) = q_i(X)\nu_{n_i}(X)$, which means
+$f_i(X)$ vanishes everywhere over $\mathbb{H}_{n_i}$.
 
 \paragraph{Sum-check.} When $r_i(X)$ is a witness committed by the prover,
-the original claim becomes $F_i(X) - s_i/n_i = r_i(X)\cdot X + q_i(X)\nu_{n_i}(X)$, which, by the merit of Aurora~\cite{aurora19}, means $F_i(X)$ sums to $s_i$ over $\mathbb{H}_{n_i}$.
+the original claim becomes $f_i(X) - s_i/n_i = r_i(X)\cdot X + q_i(X)\nu_{n_i}(X)$, which, by the merit of Aurora~\cite{aurora19}, means $f_i(X)$ sums to $s_i$ over $\mathbb{H}_{n_i}$.
 
 We note that we cannot batch zero-check with sum-check due to soundness
 considerations. The above theorem only applies to claims of the same form, so we can batch zero-checks together and sum-checks together, but not mix them.
@@ -86,8 +87,9 @@ considerations. The above theorem only applies to claims of the same form, so we
 
 \subsection{Interleaving}\label{app:interleaving}
 
-The intended setting for interleaving batching is that many checks share the
-same local rule and the same public parameters, but arrive as separate
+The intended setting for interleaving batching is that many non-native
+predicate instances share the same local rule and the same public parameters,
+but arrive as separate
 PCS commitments and witnesses on possibly different power-of-two domains.
 We first record the alignment lemma
 used to place smaller objects on larger domains.
