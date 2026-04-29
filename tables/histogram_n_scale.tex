@@ -1,0 +1,23 @@
+\begin{table}[t]
+    \centering
+    \small
+    \caption{Histogram aggregation microbenchmark when scaling the update
+    length $n$ with fixed address space $m=2^{15}$.}
+    \label{tab:histogram-n-scale}
+    \begin{tabular}{ccccccc}
+        \toprule
+        \multirow{2}{*}{$\log_2 n$}
+        & \multicolumn{2}{c}{Prover time (s)}
+        & \multicolumn{2}{c}{Verifier time (s)}
+        & \multicolumn{2}{c}{Proof size (KB)} \\
+        \cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmidrule(lr){6-7}
+        & Ours & RAM & Ours & RAM & Ours & RAM \\
+        \midrule
+        $15$ & 8.914 & 56.272 & \textcolor{red}{0.018} & \textcolor{red}{0.053} & \textcolor{red}{2.84} & \textcolor{red}{8.0} \\
+        $16$ & 12.590 & 58.260 & \textcolor{red}{0.018} & \textcolor{red}{0.053} & \textcolor{red}{2.84} & \textcolor{red}{8.0} \\
+        $17$ & 20.606 & 117.372 & \textcolor{red}{0.018} & \textcolor{red}{0.053} & \textcolor{red}{2.84} & \textcolor{red}{8.0} \\
+        $18$ & 36.241 & 230.561 & \textcolor{red}{0.018} & \textcolor{red}{0.053} & \textcolor{red}{2.84} & \textcolor{red}{8.0} \\
+        $19$ & 73.920 & 428.572 & \textcolor{red}{0.018} & \textcolor{red}{0.053} & \textcolor{red}{2.84} & \textcolor{red}{8.0} \\
+        \bottomrule
+    \end{tabular}
+\end{table}

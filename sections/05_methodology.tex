@@ -5,7 +5,7 @@ proof system: how the forest is committed, how inference is checked, how forest
 well-formedness is certified, and how the training proof reduces split
 selection to algebraic relations over histograms.
 
-\subsection{Forest Representation}
+\subsection{Forest Representation}\label{subsec:method-forest-representation}
 
 We adopt the hyperbox forest encoding of \cite{cq++24}. Each node carries a
 feature-wise half-open interval box, and a sample reaches a leaf exactly when
@@ -33,13 +33,12 @@ forest consists of the commitments of:
   \item a threshold-index vector
   $\boldsymbol{\Theta}\in\{0,1,\ldots,B\}^{N_{\mathrm{tot}}}$,
   whose internal-node entries record the selected threshold bin and whose leaf rows are zero;
-  \item a tree-index vector $\mathbf{tree}\in[TK+1]^{N_{\mathrm{tot}}}$, where trees are ranked from $1$ to $TK$
-  except dummy node $0$, and a
+  \item a tree-index vector $\mathbf{tree}\in[TK+1]^{N_{\mathrm{tot}}}$, where tree identifier $0$ is the dummy value and real trees are ranked from $1$ to $TK$, and a
   root indicator $\mathbf{root}\in\{0,1\}^{N_{\mathrm{tot}}}$;
-  \item a depth indicator $\mathbf{depth}\in\{0,1,\ldots,D\}^{N_{\mathrm{tot}}}$, where $D$ is the maximum depth of the trees in the forest. This is used for proving the correctness of tree construction.
+  \item a depth indicator $\mathbf{depth}\in\{0,1,\ldots,h\}^{N_{\mathrm{tot}}}$, where $h$ is the maximum depth of the trees in the forest. This is used for proving the correctness of tree construction.
   \item a leaf-score vector $\mathbf{score}\in\mathbb{F}^{N_{\mathrm{tot}}}$,
-  whose leaf entries store the scalar contribution returned by that tree and
-  whose internal-node entries are zero;
+  whose leaf entries store the learning-rate-scaled scalar contribution
+  returned by that tree and whose internal-node entries are zero;
   \item a boolean vector $\mathbf{is\_leaf}\in\{0,1\}^{N_{\mathrm{tot}}}$, 
   where $\mathbf{is\_leaf}[u]=1$ if and only if $u$ is a leaf node;
   \item a boolean vector $\mathbf{valid}\in \{0, 1\}^{N_{\mathrm{tot}}}$, where $\mathbf{valid}[u]=0$ iff the node is dummy.
@@ -60,34 +59,36 @@ while the right panel presents the committed objects.
 
 \input{figures/forest_encoding_inference}
 
-\subsection{Proof of Inference}
+\subsection{Proof of Inference}\label{subsec:method-inference}
 
 To prove the correctness of inference over batched input $\mathbf{I}\in\mathbb{F}^{b\times d}$,
 the prover commits $\mathbf{U}^{\leftarrow}, \mathbf{U}^{\rightarrow}\in \mathbb{F}^{TKb\times d}$,
 $\mathbf{sc}\in\mathbb{F}^{TKb}$,
-and utilize table lookup to prove
+and uses table lookup to prove
 \begin{align}
   \mathbf{1} \| \mathbf{ind\_tree}  \| \mathbf{U} ^{\leftarrow } \| \mathbf{U} ^{\rightarrow } \| \mathbf{sc} \subseteq
   \mathbf{is\_leaf} \| \mathbf{tree} \| \mathbf{N} ^{\leftarrow }\| \mathbf{N} ^{\rightarrow }\| \mathbf{score},\label{eq:inference-lookup-1}
 \end{align}
 where notation ``$\subseteq$'' means that each row of the left matrix equals some row of the right matrix, and
 \[
-\mathbf{ind\_tree} \coloneqq (\underbrace{0, \dots, 0}_b, \underbrace{1, \dots, 1}_{b}, \dots, \underbrace{TK-1, \dots, TK-1}_b)^\top.
+\mathbf{ind\_tree} \coloneqq (\underbrace{1, \dots, 1}_b, \underbrace{2, \dots, 2}_{b}, \dots, \underbrace{TK, \dots, TK}_b)^\top.
 \]
+Equivalently, the logical tree pair $(t,k)$ denotes the committed tree whose
+identifier is $tK+k+1$; identifier $0$ is reserved for dummy rows.
 As a sanity check,
 the LHS of \Cref{eq:inference-lookup-1} has shape $TKb\times (2d+3)$,
 and the RHS has shape $N_{\mathrm{tot}}\times (2d+3)$, so the table lookup is well-defined.
 To prove this lookup, we pad each column vector to a $d$ column matrix,
 randomly combine the matrices with a verifier challenge,
-and utilize the table lookup of~\cite{cq++24} to prove the lookup
+and use the table lookup of~\cite{cq++24} to prove the lookup
 with (online) prover time $O(TKb)$.
 
-This lookup argument guaranttes that each row of 
+This lookup argument guarantees that each row of 
 $\mathbf{U}^{\leftarrow}, \mathbf{U}^{\rightarrow}$
 and $\mathbf{sc}$ are aligned for the same leaf.
 By further proving
 \begin{align}
-  \mathbf{U} ^{\leftarrow }_{\{T\times K\times b\times d\}}[t, k, i, j] \leq \mathbf{I}[i,j] \leq \mathbf{U}_{\{T\times K\times b\times d\}} ^{\rightarrow }[t, k, i, j], \label{eq:inference-interval}
+  \mathbf{U} ^{\leftarrow }_{\{T\times K\times b\times d\}}[t, k, i, j] \leq \mathbf{I}[i,j] < \mathbf{U}_{\{T\times K\times b\times d\}} ^{\rightarrow }[t, k, i, j], \label{eq:inference-interval}
 \end{align}
 the prover proves that the leaf reached by each sample is correct.
 What remains is to prove the result of inference from $\mathbf{sc}$,
@@ -109,15 +110,15 @@ the verifier opens only a constant number of committed polynomials at
 logarithmically many points, so the verifier time and proof size are
 $\tilde{O}(\log(TKbd))$ field/group elements under the KZG backend.
 
-\subsection{Proof of Forest Well-formedness}\label{subsec:proof of well-formedness}
+\subsection{Proof of Forest Well-formedness}\label{subsec:method-well-formedness}\label{subsec:proof of well-formedness}
 
 First, the prover proves that the committed forest is well-formed, by showing
 \begin{enumerate}
-  \item Consistency between indicators, i.e.
+  \item Consistency between indicators, i.e. for any node $i$,
   \begin{align}
-    \mathbf{valid}=0 &\iff \mathbf{depth} \neq \mathbf{0},\\
-    \mathbf{valid}=1 &\iff \mathbf{tree} \neq \mathbf{0},\\
-    \mathbf{valid}=0 &\implies \mathbf{is\_leaf} = \mathbf{0}.
+    \mathbf{valid}[i]=1 &\iff \mathbf{depth}[i] \neq 0,\\
+    \mathbf{valid}[i]=1 &\iff \mathbf{tree}[i] \neq 0,\\
+    \mathbf{valid}[i]=0 &\implies \mathbf{is\_leaf}[i] = 0.
   \end{align}
 
   \item Indicators are boolean, i.e.
@@ -175,7 +176,7 @@ First, the prover proves that the committed forest is well-formed, by showing
 
   \item The hyper-box of any root is full, i.e.
   \begin{align}
-    \mathbf{Root}\odot \mathbf{N}^{\leftarrow}=\mathbf{0}\land \mathbf{Root}\odot \mathbf{N}^{\rightarrow}=(B+1)\mathbf{Root},\label{eq:root-full-box}
+    \mathbf{Root}\odot \mathbf{N}^{\leftarrow}=\mathbf{0}\land \mathbf{Root}\odot \mathbf{N}^{\rightarrow}=B\cdot \mathbf{Root},\label{eq:root-full-box}
   \end{align}
   where $\mathbf{Root} = (\mathbf{root}\|\cdots\|\mathbf{root})$.
 
@@ -192,16 +193,16 @@ First, the prover proves that the committed forest is well-formed, by showing
     (1-\mathbf{E}[u, j])(\mathbf{N}^{\leftarrow}[u, j] - \mathbf{N}^{\leftarrow}[\mathbf{rc}[u], j]) &= 0\land\label{eq:non-split-child-inherits-1}\\
     (1-\mathbf{E}[u, j])(\mathbf{N}^{\rightarrow}[u, j] - \mathbf{N}^{\rightarrow}[\mathbf{lc}[u], j]) &= 0.\label{eq:non-split-child-inherits-2}
     \end{align}
-    \Cref{eq:left-child-inherits-lowerbound} and \ref{eq:right-child-inherits-upperbound} ensure that 
+    \Cref{eq:left-child-inherits-lowerbound,eq:right-child-inherits-upperbound} ensure that 
     left child inherits the lower bound of the parent and right child inherits the upper bound.
     \Cref{eq:split-child-consistency} ensures that for the split feature, 
     the left child's upper bound meets the right child's lower bound.
-    \Cref{eq:non-split-child-inherits-1} and \ref{eq:non-split-child-inherits-2} together ensure that 
+    \Cref{eq:non-split-child-inherits-1,eq:non-split-child-inherits-2} together ensure that 
     for non-split features, the child hyper-box inherits the parent hyper-box.
 
   \item $\mathbf{E}$ is boolean and one-hot on internal nodes and zero on leaves, i.e. for each node $u$,
     \begin{align}
-    \sum_{j=1}^d \mathbf{E}[u, j] - \mathbf{is\_leaf}[u] + 1 &= 0,\\
+    \sum_{j\in[d]} \mathbf{E}[u, j] - \mathbf{valid}[u](1-\mathbf{is\_leaf}[u]) &= 0,\\
     \mathbf{E}\odot(\mathbf{E}-\mathbf{1}) &= \mathbf{0}.
     \end{align}
 
@@ -224,15 +225,18 @@ The above involves essentially three kinds of techniques:
     0\\ 1\\ \vdots\\ N_{\mathrm{tot}}-1
     \end{matrix}\right)\|\mathbf{tree},
   \]
-  alongside $\mathbf{is\_leaf}\odot(\mathbf{tree\_lc} - \mathbf{tree}) = \mathbf{0}$.
+  alongside
+  \[
+    \mathbf{valid}\odot(\mathbf{1}-\mathbf{is\_leaf})\odot(\mathbf{tree\_lc} - \mathbf{tree}) = \mathbf{0}.
+  \]
 
-For sum over vector, we utilize the Aurora's sum-check protocol~\cite{aurora19}.
+For sums over vectors, we use Aurora's sum-check protocol~\cite{aurora19}.
   To prove sum along one dimension of the matrix,
   we adopt a Quarks-style proof~\cite{quarks20},
   where the prover commits the prefix sum and total sum, 
   and proves the consistency between them and the original matrix.
 
-Additionally, to prove the uniqueness of roots, we utilize
+Additionally, to prove the uniqueness of roots, we use
 an approach that heralds our proof of histogram.
 The prover commits a vector $\mathbf{cnt}\in \{0, 1\}^{TK+1}$, where $\mathbf{cnt}[t]$ counts the number of roots of tree $t$.
 After proving its booleanity, the prover proves that
@@ -240,7 +244,7 @@ for a verifier challenge $\alpha$,
 \begin{align}
   \sum_{t=1}^{TK}\alpha^t = \sum_{t\in [TK+1]} \alpha^t\cdot \mathbf{cnt}[t] = \sum_{u\in [N_{\mathrm{tot}}]} \alpha^{\mathbf{tree}[u]}\cdot \mathbf{root}[u].
 \end{align}
-The LHS is public.
+The LHS is public and can be computed efficiently.
 To prove the $\alpha$-exponent, the prover commits a vector
 that commits power-of-$\alpha$, and then proves the lookup relation.
 
@@ -260,7 +264,7 @@ the verifier time and proof size are
 $\tilde{O}(\log(N_{\mathrm{tot}}d+TK))$, up to the constant number of final KZG
 openings.
 
-\subsection{Proof of Training}
+\subsection{Proof of Training}\label{subsec:method-training}
 
 The training proof reuses the same committed forest. 
 The prover first commits the dataset $\mathbf{D}\in [B]^{M\times d}$ and 
@@ -284,6 +288,8 @@ should be approximated by the regression tree for class $k$ at round $t$, and
 $\mathbf{S}[t,k,r]$ represents the cumulative score of sample $r$ for class
 $k$ after round $t$ has been added.
 Initially, $\mathbf{G}[0,k,r]=\mathbf{Y}[k,r]$ for all $k$ and $r$.
+The committed leaf score stores the learning-rate-scaled tree contribution,
+so the public learning rate $\mu$ is folded into the leaf-value relation.
 
 Logically, the proof of training sequentially proves that:
 \begin{enumerate}
@@ -320,7 +326,7 @@ does not reprocess the trace: after batching, the verifier time and proof size
 are
 $\tilde{O}(\log(TKMd+N_{\mathrm{tot}}dB))$.
 
-\subsection{Proving the Correctness of Node Split}
+\subsection{Proving the Correctness of Node Split}\label{subsec:method-node-split}
 
 Consider one node $u$, one feature $j$, and one threshold bin $b$. Let
 $I_u \subseteq [M]$ be the samples reaching node $u$, and let
@@ -370,6 +376,9 @@ If we denote $\mathbf{C}[i, j, k]$ the number of samples falling to node $i$ wit
 \end{equation}
 
 This rewriting indicates that \emph{histograms} are sufficient proof objects. 
-Once $\mathbf{C}$ and $\mathbf{V}$ are available, by proving the prefix and suffix sums of them,
-the prover can prove the split gain $\Phi(u,j,b)$ for all candidate splits in one shot.
+Once $\mathbf{C}$ and $\mathbf{V}$ are available, their prefix and suffix sums
+let the prover prove the split gain $\Phi(u,j,b)$ for all candidate splits in one shot.\footnote{
+  To avoid division by zero, we use an indicator
+  that set the corresponding term to zero when the denominator is zero.
+}
 

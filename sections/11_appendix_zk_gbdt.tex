@@ -1,12 +1,12 @@
 \section{ZK-GBDT}\label{sec:zkgbdt-protocol}
 
-As outlined in \Cref{sec:methodology},
+As outlined in \Cref{subsec:method-forest-representation},
     we commit the forest by committing
     \begin{align}
         \mathcal{F} = (\mathbf{lc}, \mathbf{rc}, \mathbf{par}, \mathbf{N}^{\leftarrow}, \mathbf{N}^{\rightarrow}, \mathbf{E}, \boldsymbol{\Theta}, \mathbf{tree}, \mathbf{root}, \mathbf{depth}, \mathbf{score}, \mathbf{is\_leaf}, \mathbf{valid}).
     \end{align}
 
-\subsection{Proof Primitives}
+\subsection{Proof Primitives}\label{subsec:zkgbdt-primitives}
 \paragraph{Zero-check.}
 Given $f(X)$ encoding vector $\mathbf{f}$ over $\mathbb{H}_n$,
     the zero-check validates that $\mathbf{f} = \mathbf{0}$ by proving the existence of $q(X)$ such that
@@ -14,7 +14,7 @@ Given $f(X)$ encoding vector $\mathbf{f}$ over $\mathbb{H}_n$,
         f(X) = q(X)\cdot \nu_n(X).
     \end{align}
 
-We note that as noted in \Cref{thm:domain-lifting-batching}, all zero-checks can be batched together.
+As noted in \Cref{thm:domain-lifting-batching}, all zero-checks can be batched together.
     
 \paragraph{Sum-check.}
 Given $f(X)$ encoding vector $\mathbf{f}$ over $\mathbb{H}_n$,
@@ -25,7 +25,7 @@ Given $f(X)$ encoding vector $\mathbf{f}$ over $\mathbb{H}_n$,
         f(X) - s/n = r(X) \cdot X + q(X)\cdot \nu_n(X).
     \end{align}
     
-We note that as noted in \Cref{thm:domain-lifting-batching}, all sum-checks can be batched together.
+As noted in \Cref{thm:domain-lifting-batching}, all sum-checks can be batched together.
 
 \paragraph{Table lookup.}
 Given $(\mathbf{F}_i)_{i\in [k]}$ and $(\mathbf{T}_i)_{i\in [k]}$
@@ -61,9 +61,9 @@ Given $f(X)$ encoding vector $\mathbf{f}$ over $\mathbb{H}_{abc}$,
     we require three types of prefix sums:
     prove $\mathbf{g}$ and $\mathbf{h}$ such that
     \begin{enumerate}
-        \item $\mathbf{g}[i, j, k] = \sum_{k'=0}^{k} \mathbf{f}[i, j, k']$ and $\mathbf{h}[i, j] = \sum_{k'=0}^{c} \mathbf{f}[i, j, k']$;
-        \item $\mathbf{g}[i, j, k] = \sum_{j'=0}^{j} \mathbf{f}[i, j', k]$ and $\mathbf{h}[i, k] = \sum_{j'=0}^{b} \mathbf{f}[i, j', k]$;
-        \item $\mathbf{g}[i, j, k] = \sum_{i'=0}^{i} \mathbf{f}[i', j, k]$ and $\mathbf{h}[j, k] = \sum_{i'=0}^{a} \mathbf{f}[i', j, k]$.
+        \item $\mathbf{g}[i, j, k] = \sum_{k'=0}^{k} \mathbf{f}[i, j, k']$ and $\mathbf{h}[i, j] = \sum_{k'\in[c]} \mathbf{f}[i, j, k']$;
+        \item $\mathbf{g}[i, j, k] = \sum_{j'=0}^{j} \mathbf{f}[i, j', k]$ and $\mathbf{h}[i, k] = \sum_{j'\in[b]} \mathbf{f}[i, j', k]$;
+        \item $\mathbf{g}[i, j, k] = \sum_{i'=0}^{i} \mathbf{f}[i', j, k]$ and $\mathbf{h}[j, k] = \sum_{i'\in[a]} \mathbf{f}[i', j, k]$.
     \end{enumerate}
     We note that higher dimensional prefix sums can be reduced to 
     one of the three types,
@@ -83,22 +83,22 @@ Given $f(X)$ encoding $\mathbf{f}\in \mathbb{F}^{n}$
     \end{align}
     We defer the concrete construction to \Cref{app:replication}.
 
-\subsection{Proof of Well-formedness}
+\subsection{Proof of Well-formedness}\label{subsec:zkgbdt-well-formedness}
 
-Following \Cref{subsec:proof of well-formedness},
+Following \Cref{subsec:method-well-formedness},
     we prove the well-formedness of the committed forest by proving the following properties.
 
 \paragraph{Indicator consistency.}
-The prover proves that $\mathbf{valid}$ agrees with the nonzero-depth and
-nonzero-tree-id indicators, and that invalid nodes are not marked as leaves:
+The prover proves that $\mathbf{valid}$ agrees with the depth and
+tree indicators, and that invalid nodes are not marked as leaves:
 \begin{align}
-    \mathbf{valid}=1 &\iff \mathbf{depth} \neq \mathbf{0},\\
-    \mathbf{valid}=1 &\iff \mathbf{tree} \neq \mathbf{0},\\
-    \mathbf{valid}=0 &\implies \mathbf{is\_leaf} = \mathbf{0}.
+    \mathbf{valid}[i]=1 &\iff \mathbf{depth}[i] \neq {0},\\
+    \mathbf{valid}[i]=1 &\iff \mathbf{tree}[i] \neq {0},\\
+    \mathbf{valid}[i]=0 &\implies \mathbf{is\_leaf}[i] = {0}.
 \end{align}
 The inequalities and equivalences are proved by 
 first mapping the RHS to boolean using lookups over
-$\{0,\ldots,D\}$ and $\{0,\ldots,TK\}$, together with zero-checks that bind the
+$\{0,\ldots,h\}$ and $\{0,\ldots,TK\}$, together with zero-checks that bind the
 resulting indicator witnesses to $\mathbf{valid}$.
 
 \paragraph{Boolean indicators.}
@@ -251,7 +251,7 @@ To prove that leaves have no child, the prover uses zero-check over $\mathbb{H}_
 To prove that the hyper-box of any root is full, the prover uses zero-check over $\mathbb{H}_{N_{\mathrm{tot}}d}$ to validate
     \begin{align}
         \mathbf{Root} \odot \mathbf{N}^{\leftarrow} = \mathbf{0}, \\
-        \mathbf{Root} \odot \bigl(\mathbf{N}^{\rightarrow} - (B + 1)\mathbf{1}\bigr) = \mathbf{0}.
+        \mathbf{Root} \odot \bigl(\mathbf{N}^{\rightarrow} - B\cdot\mathbf{1}\bigr) = \mathbf{0}.
     \end{align}
 
 \paragraph{Nonempty valid boxes.}
@@ -303,7 +303,7 @@ To prove that $\mathbf{E}$ is boolean and one-hot on internal nodes and zero on 
     It then invokes the prefix-sum primitive along the feature dimension to obtain
     $\mathbf{E}_{\mathrm{sum}}\in\mathbb{F}^{N_{\mathrm{tot}}}$, where
     \begin{align}
-        \mathbf{E}_{\mathrm{sum}}[i]=\sum_{j=1}^{d}\mathbf{E}[i,j].
+        \mathbf{E}_{\mathrm{sum}}[i]=\sum_{j\in[d]}\mathbf{E}[i,j].
     \end{align}
     Finally, the prover uses zero-check over $\mathbb{H}_{N_{\mathrm{tot}}}$ to validate
     \begin{align}
@@ -317,7 +317,7 @@ To prove that internal nodes carry no leaf score, the prover uses zero-check ove
         \mathbf{score}\odot(\mathbf{1}-\mathbf{valid}\odot\mathbf{is\_leaf})=\mathbf{0}.
     \end{align}
 
-\subsection{Proof of Inference}
+\subsection{Proof of Inference}\label{subsec:zkgbdt-inference}
 
 Following \Cref{eq:inference-lookup-1}, the prover proves batched inference for
 public inputs $\mathbf{I}\in [B]^{b\times d}$ and claimed one-hot labels
@@ -331,8 +331,8 @@ Let $\mathbf{ind\_tree}\in[TK+1]^{TKb}$ be the public vector
 \begin{align}
     \mathbf{ind\_tree}_{\{T\times K\times b\}}[t,k,i] = tK+k+1,
 \end{align}
-consistent with the convention that non-dummy trees are indexed by
-$1,\ldots,TK$.
+consistent with the convention that tree identifier $0$ is dummy, and that the
+logical pair $(t,k)$ denotes the real tree whose identifier is $tK+k+1$.
 The prover proves the lookup relation
 \begin{align}
     \mathbf{1}\|\mathbf{ind\_tree}\|
@@ -430,7 +430,7 @@ Row-replicating $\mathbf{s}$ for $K$ times
     \end{align}
     which certifies that $\mathbf{S}'$ selects the maximum score in each column of $\mathbf{S}$, and thus certifies the correctness of $\mathbf{Y}$.
 
-\subsection{Proof of Training}
+\subsection{Proof of Training}\label{subsec:zkgbdt-training}
 
 The prover commits the training dataset
 $\mathbf{D}\in[B]^{M\times d}$, the labels
@@ -448,7 +448,7 @@ Recall that we require
         \mathbf{Y}[k, r] & \text{if } t=0,\\
         \mathbf{Y}[k, r] - \mathbf{S}'[t-1, k, r] & \text{if } t>0.
     \end{cases},\\
-    \mathbf{S}'[t, k, r] &= \left\lfloor\frac{\exp(\mathbf{S}_{\mathrm{max}}[t, k, r] - \mathbf{S}[t, k, r])\cdot 2^q}{\sum_{k'=0}^{K-1} \exp(\mathbf{S}_{\mathrm{max}}[t, k', r] - \mathbf{S}[t, k', r])}\right\rfloor,\\
+    \mathbf{S}'[t, k, r] &= \left\lfloor\frac{\exp(\mathbf{S}[t, k, r] - \mathbf{S}_{\mathrm{max}}[t, k, r])\cdot 2^q}{\sum_{k'=0}^{K-1} \exp(\mathbf{S}[t, k', r] - \mathbf{S}_{\mathrm{max}}[t, k', r])}\right\rfloor,\\
     \mathbf{S}_{\mathrm{max}}[t,k , r] &= \max_{k'\in[K]} \mathbf{S}[t, k', r].
 \end{aligned}
 \]
@@ -463,7 +463,8 @@ Let
 \begin{align}
     \mathbf{ind\_tree}_{\{T\times K\times M\}}[t,k,r]=tK+k+1,
 \end{align}
-which is column-replicating $(1, 2, \dots, TK)^\top$ for $M$ times.
+which is column-replicating $(1, 2, \dots, TK)^\top$ for $M$ times. Thus the
+logical pair $(t,k)$ denotes the real tree whose identifier is $tK+k+1$.
 The prover proves
 \begin{align}
     \mathbf{Ind}_{\{TKM\}}\|\mathbf{1}\|\mathbf{ind\_tree}\|
@@ -472,7 +473,8 @@ The prover proves
     (0,1,\dots,N_{\mathrm{tot}}-1)^\top\|&
     \mathbf{is\_leaf}\|\mathbf{tree}\|\mathbf{N}^{\leftarrow}\|\mathbf{N}^{\rightarrow}\| \mathbf{score},
 \end{align}
-where $\mathbf{ind}\in [N_{\mathrm{tot}}]^M$ indicates the leaf to which each training sample falls.
+where $\mathbf{ind}\in [N_{\mathrm{tot}}]^M$ indicates the leaf to which each training sample falls,
+and $\mathbf{sc}\in \mathbb{F}^{TKM}$ indicates the score each sample receives from each tree.
 It then row-replicates $\mathbf{D}$ for $TK$ times and proves by range lookup
 that, for all $t,k,r,j$,
 \begin{align}
@@ -503,15 +505,15 @@ It also commits an address tensor
 $\mathbf{A}\in\mathbb{F}^{T\times K\times M\times d}$
 and proves its correctness by zero-check:
 \begin{align}
-    &\forall t\in[T],k\in[K],r\in[M],j\in[d]\nonumber\\
-    &\mathbf{A}[t,k,r,j]
-    -\mathbf{Ind}[t,k,r]\cdot dB-j\cdot B-\mathbf{D}[r,j]
+    \mathbf{A}[t,k,r,j]
+    -\mathbf{Ind}[t,k,r]\cdot dB
+    -j\cdot B
+    -\mathbf{D}[r,j]
     =
     0.
 \end{align}
-This check is aligned by column-replicating $\mathbf{Ind}$ and row-replicating $\mathbf{D}$ to $(TKMd)$-size in total.
 
-For a random challenge $\alpha$, the prover commits and prove
+For a random challenge $\alpha$, the prover commits and proves
 the correctness of $\mathbf{P} = (1, \alpha, \dots, \alpha^{N_{\mathrm{tot}}dB-1})$ by proving
 \begin{align}
     \left(1 - \lambda_{N_{\mathrm{tot}}dB}^{(0)}(X)\right) \left(P(X) - \alpha P(\omega^{-1}_{N_{\mathrm{tot}}dB}X)\right) = q(X)\cdot \nu_{N_{\mathrm{tot}}dB}(X),
@@ -521,18 +523,22 @@ where recall that $\lambda_{N_{\mathrm{tot}}dB}^{(0)}$ is the Lagrange polynomia
 The prover then creates $\mathbf{A}'[t,k,r,j] = \alpha^{\mathbf{A}[t,k,r,j]}$ and proves its correctness by lookup:
 \begin{align}
     \mathbf{A}\|\mathbf{A}'
-    &=
+    &\subseteq
     (0, 1, \dots, N_{\mathrm{tot}}dB-1)^\top\|
     \mathbf{P}.
 \end{align}
-The prover then proves the correctness of the leaf histograms by sum-checking
+The prover then
+proves the correctness of the leaf histograms by batching the following
+sum-check identities over all feature-bin columns:
 \begin{align}
-    \sum_z \mathbf{C}_{\mathrm{leaf},\{N_{\mathrm{tot}}dB\}}[z] \cdot \mathbf{P}[z]
+    &\sum_{u, j, b}
+    \mathbf{C}_{\mathrm{leaf}}[u, j, b]\cdot \mathbf{P}_{\{N_{\mathrm{tot}}\times d\times B\}}[u, j, b]\nonumber\\
     &=
-    \sum_{r,j}\mathbf{A}'[t,k,r,j],\\
-    \sum_z \mathbf{V}_{\mathrm{leaf},\{N_{\mathrm{tot}}dB\}}[z] \cdot \mathbf{P}[z]
+    \sum_{t,k,r,j}\mathbf{A}'[t,k,r,j],\\
+    &\sum_{u, j, b}
+    \mathbf{V}_{\mathrm{leaf}}[u, j, b]\cdot \mathbf{P}_{\{N_{\mathrm{tot}}\times d\times B\}}[u, j, b]\nonumber\\
     &=
-    \sum_{r,j}\mathbf{A}'[t,k,r,j]\cdot \mathbf{G}[t,k,r].
+    \sum_{t,k,r,j}\mathbf{A}'[t,k,r,j]\cdot \mathbf{G}[t,k,r].
 \end{align}
 The prover then commits full histograms
 $\mathbf{C},\mathbf{V}
@@ -570,7 +576,8 @@ The prover then uses zero-check over $\mathbb{H}_{N_{\mathrm{tot}}dB}$ to valida
 
 \paragraph{Leaf values.}
 The prover now proves that the score
-assigned to each leaf is consistent with the mean pseudo-residual of the samples routed to that leaf.
+assigned to each leaf is consistent with the learning-rate-scaled mean
+pseudo-residual of the samples routed to that leaf.
 The prover
 commits two vectors
 $\mathbf{n}_{\mathrm{leaf}},\mathbf{v}_{\mathrm{leaf}}
@@ -584,16 +591,17 @@ $\mathbf{n}_{\mathrm{leaf}},\mathbf{v}_{\mathrm{leaf}}
     \sum_{i\in [dB]}\mathbf{V}_{\mathrm{leaf}, \{N_{\mathrm{tot}}\times dB\}}[u,i].
 \end{align}
 Because each routed sample contributes exactly one update to every feature
-coordinate, $\mathbf{n}_{\mathrm{leaf}}[u]$ is the number of training samples
-assigned to leaf $u$, and $\mathbf{v}_{\mathrm{leaf}}[u]$ is the corresponding
-sum of pseudo-residuals. Let
+coordinate, $\mathbf{n}_{\mathrm{leaf}}[u]$ is $d$ times the number of training
+samples assigned to leaf $u$, and $\mathbf{v}_{\mathrm{leaf}}[u]$ is $d$ times
+the corresponding sum of pseudo-residuals. This common factor cancels in the
+leaf-value ratio below. Let
 $\mathbf{LeafNode}=\mathbf{valid}\odot\mathbf{is\_leaf}$.
 For a public fixed-point scale $2^q$, the leaf score should be
 \[
     \mathbf{score}[u]
     =
     \left\lfloor
-    \frac{\mathbf{v}_{\mathrm{leaf}}[u]\cdot 2^q}
+    \frac{\lfloor\mu\cdot 2^q\rfloor\cdot\mathbf{v}_{\mathrm{leaf}}[u]}
     {\mathbf{n}_{\mathrm{leaf}}[u]}
     \right\rfloor
 \]
@@ -604,7 +612,7 @@ zero-check over $\mathbb{H}_{N_{\mathrm{tot}}}$ that
 \begin{align}
     \mathbf{LeafNode}\odot
     \left(
-    \mathbf{v}_{\mathrm{leaf}}\cdot 2^q
+    \mu\cdot\mathbf{v}_{\mathrm{leaf}}\cdot 2^q
     -\mathbf{score}\odot\mathbf{n}_{\mathrm{leaf}}
     -\mathbf{r}_{\mathrm{leaf}}
     \right)
@@ -615,7 +623,7 @@ $0\leq\mathbf{r}_{\mathrm{leaf}}[u]<\mathbf{n}_{\mathrm{leaf}}[u]$
 by using lookup to prove that
 \begin{align}
     \mathbf{r}_{\mathrm{leaf}}[u] &< \mathcal{B},\\
-    \mathbf{n}_{\mathrm{leaf}}[u] - \mathbf{r}_{\mathrm{leaf}}[u] &< \mathcal{B}.
+    \mathbf{n}_{\mathrm{leaf}}[u] - \mathbf{r}_{\mathrm{leaf}}[u] &\leq \mathcal{B}.
 \end{align}
 
 \paragraph{Optimal split.}
@@ -690,7 +698,7 @@ by prefix sums over the feature and threshold dimensions that
     \forall u\in [N_{\mathrm{tot}}],\ 
     \boldsymbol{\Gamma}^{*}[u]
     =
-    \sum_{j=1}^{d}\sum_{b=0}^{B-1}
+    \sum_{j\in[d]}\sum_{b\in[B]}
     \mathbf{E}[u,j]\mathbf{T}[u,b]\boldsymbol{\Gamma}[u,j,b].
 \end{align}
 Finally, it proves by range lookup that

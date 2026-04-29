@@ -1,0 +1,24 @@
+\begin{table}[t]
+    \centering
+    \small
+    \caption{Main scalar parameters used throughout the paper.}
+    \label{tab:main-scalars}
+    \begin{tabular}{@{}p{0.20\columnwidth}p{0.72\columnwidth}@{}}
+        \toprule
+        Symbol & Meaning \\
+        \midrule
+        $\mathbb{F}$ & Finite field over which the proof is defined. \\
+        $L$ & Global logarithmic domain bound; committed objects are padded to lengths dividing $2^L$. \\
+        $T$ & Number of boosting rounds. \\
+        $K$ & Number of classes; each round trains one tree per class. \\
+        $M$ & Number of training samples. \\
+        $d$ & Number of features. \\
+        $B$ & Number of quantization bins; feature values lie in $[B]$. \\
+        $h$ & Maximum root-to-leaf depth of the trees in the forest. \\
+        $b$ & Number of public inference samples in one batch. \\
+        $N_{\mathrm{tot}}$ & Total number of nodes in the encoded forest, including the dummy node. \\
+        $N_{\mathrm{int}},N_{\mathrm{leaf}}$ & Number of internal nodes and leaf nodes in the forest. \\
+        $\mathcal{B}$ & Public range bound used for fixed-point and comparison checks. \\
+        \bottomrule
+    \end{tabular}
+\end{table}

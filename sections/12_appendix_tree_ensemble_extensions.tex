@@ -204,5 +204,5 @@ and the propagation to internal nodes can be proved by
     \mathbf{G}[u,j,b,c] = \mathbf{G}[\mathbf{lc}[u],j,b,c] + \mathbf{G}[\mathbf{rc}[u],j,b,c].
 \end{align}
 The proof of prefix sum over $\mathbf{G}$ is then handled similarly.
-And finally, the proof of leaf output (which can be majority label or class-frequency vector)
-can be handled by committing the output as a (one-hot or probability) vector and proving its correctness by proving maximum or argmax.
+Finally, the proof of leaf output (which can be a majority label or class-frequency vector)
+can be handled by committing the output as a (one-hot or probability) vector and proving its correctness with a maximum or argmax proof.

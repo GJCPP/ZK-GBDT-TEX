@@ -512,7 +512,7 @@ Currently the text just says the prover commits these tensors satisfying prefix 
 
 #### Improve by:
 - defining the prefix operator once as a public linear map;
-- then say the relation is a linear identity and thus eligible for domain-lifting batching.
+- then say the relation is a linear identity and thus eliGBle for domain-lifting batching.
 
 This will make the proof path much cleaner.
 

@@ -8,7 +8,7 @@ In this section, we give a high-level overview of the main technical ingredients
 including how to batch claims across heterogeneous domains and how to prove histogram aggregation without a RAM argument.
 
 
-\subsection{Batching Across Heterogeneous Domains}
+\subsection{Batching Across Heterogeneous Domains}\label{subsec:overview-batching}
 
 Direct algebraic certification creates many relations over many different
 domains. Training uses tensors indexed by rounds, classes, samples, nodes,
@@ -117,7 +117,7 @@ does not require committing to new auxiliary witness polynomials.
 We present the formal interleaving batching method
 in \Cref{lem:interleaving}, and use it to batch all non-native predicates in \textsc{Terrae}.
 
-\subsection{Histogram Aggregation Without RAM}
+\subsection{Histogram Aggregation Without RAM}\label{subsec:overview-histogram}
 
 GBDT training repeatedly converts sample-wise information into per-node,
 per-feature, and per-bin statistics. Prior certification-style systems~\cite{sparrow24,zkboost26}
@@ -126,7 +126,8 @@ the corresponding histogram bucket and prove the resulting RAM trace.
 \textsc{Terrae} instead uses a histogram-specific argument.
 
 For simplicity, consider a simplified version of histogram aggregation.
-Suppose we have vectors $\mathbf{ind}\in [m]^n$ and $\mathbf{u}, \mathbf{v}\in \mathbb{F}^n$.
+Suppose we have vectors $\mathbf{ind}\in [m]^n$,
+$\mathbf{u}\in \mathbb{F}^n$, and $\mathbf{v}\in \mathbb{F}^m$.
 Our goal is to prove that $\mathbf{v}$ is the histogram
 of $\mathbf{u}$ according to the indices in $\mathbf{ind}$:
 \begin{align}

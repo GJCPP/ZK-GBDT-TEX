@@ -1,6 +1,6 @@
 \section{Preliminaries}\label{sec:background}
 
-\subsection{Notation and Polynomial Encoding}
+\subsection{Notation and Polynomial Encoding}\label{subsec:prelim-notation}
 
 We work over a finite field $\mathbb{F}$. All vectors, matrices, and tensors are
 flattened in row-major order before commitment. For $n \in \mathbb{N}$, we write
@@ -38,74 +38,22 @@ where $\mathbf{v}[i]$ denotes the $i$-th entry of $\mathbf{v}$.
 
 Throughout the paper, we need to manipulate the shapes
 of a high-dimensional tensor. Given $\mathbf{V}\in \mathbb{F}^{a\times b\times c}$,
-we write $\mathbf{V}_{\{abc\}}\in \mathbb{F}^{abc}$ for its flatten form,
-and $\mathbf{V}_{\{a\times bc\}}\in \mathbb{F}^{a\times bc}$ for its flatten form with the first dimension preserved.
+we write $\mathbf{V}_{\{abc\}}\in \mathbb{F}^{abc}$ for its flattened form,
+and $\mathbf{V}_{\{a\times bc\}}\in \mathbb{F}^{a\times bc}$ for its flattened form with the first dimension preserved.
 As a sanity check, note that
 \[
 \mathbf{V}_{\{a\times b\times c\}}[i, j, k] = \mathbf{V}_{\{a\times bc\}}[i, j \cdot c + k] = \mathbf{V}_{\{abc\}}[i \cdot bc + j \cdot c + k].
 \]
 A similar notation applies to tensors of other dimensions.
-For tensors of same shape, we write $\mathbf{V}+\mathbf{W}$ for their entrywise sum, and
+For tensors of the same shape, we write $\mathbf{V}+\mathbf{W}$ for their entrywise sum, and
 $\mathbf{V}\odot\mathbf{W}$ for their Hadamard product.
-We denote by $|\mathbf{V}|$ for the size of tensor $\mathbf{V}$.
+We denote the size of tensor $\mathbf{V}$ by $|\mathbf{V}|$.
 
-\begin{table}[t]
-    \centering
-    \small
-    \caption{Main scalar parameters used throughout the paper.}
-    \label{tab:main-scalars}
-    \begin{tabular}{@{}p{0.20\columnwidth}p{0.72\columnwidth}@{}}
-        \toprule
-        Symbol & Meaning \\
-        \midrule
-        $\mathbb{F}$ & Finite field over which the proof is defined. \\
-        $L$ & Global logarithmic domain bound; committed objects are padded to lengths dividing $2^L$. \\
-        $T$ & Number of boosting rounds. \\
-        $K$ & Number of classes; each round trains one tree per class. \\
-        $M$ & Number of training samples. \\
-        $d$ & Number of features. \\
-        $B$ & Number of quantization bins; feature values lie in $[B]$. \\
-        $b$ & Number of public inference samples in one batch. \\
-        $N_{\mathrm{tot}}$ & Total number of nodes in the encoded forest, including the dummy node. \\
-        $N_{\mathrm{int}},N_{\mathrm{leaf}}$ & Number of internal nodes and leaf nodes in the forest. \\
-        $\mathcal{B}$ & Public range bound used for fixed-point and comparison checks. \\
-        \bottomrule
-    \end{tabular}
-\end{table}
+\input{tables/main_scalars}
 
-\begin{table*}[t]
-    \centering
-    \small
-    \caption{Main variables and tensor shapes used in the proof.}
-    \label{tab:main-variables}
-    \begin{tabular}{@{}p{0.22\textwidth}p{0.28\textwidth}p{0.42\textwidth}@{}}
-        \toprule
-        Variable & Shape & Meaning \\
-        \midrule
-        $\mathbf{D}$ & $[B]^{M\times d}$ & Quantized training dataset. \\
-        $\mathbf{Y}$ & $\{0,1\}^{K\times M}$ & One-hot label matrix. \\
-        $\mathbf{S},\mathbf{G}$ & $\mathbb{F}^{T\times K\times M}$ & Training scores and pseudo-residuals. \\
-        $\mathbf{lc},\mathbf{rc}$ & $[N_{\mathrm{tot}}]^{N_{\mathrm{tot}}}$ & Left and right child indices of forest nodes. \\
-        $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}$ & $[B+1]^{N_{\mathrm{tot}}\times d}$ & Lower and upper hyper-box bounds of nodes. \\
-        $\mathbf{E}$ & $\{0,1\}^{N_{\mathrm{tot}}\times d}$ & One-hot split-feature mask of each node. \\
-        $\boldsymbol{\Theta}$ & $\{0,1,\ldots,B\}^{N_{\mathrm{tot}}}$ & Split threshold index of each node. \\
-        $\mathbf{tree},\mathbf{root},\mathbf{is\_leaf},\mathbf{score}$ & $[TK+1]^{N_{\mathrm{tot}}}$, $\{0,1\}^{N_{\mathrm{tot}}}$, $\{0,1\}^{N_{\mathrm{tot}}}$, $\mathbb{F}^{N_{\mathrm{tot}}}$ & Tree id, root flag, leaf flag, and leaf score. \\
-        % $\mathbf{I}$ & $[B]^{b\times d}$ & Public inference input batch. \\
-        % $\mathbf{U}^{\leftarrow},\mathbf{U}^{\rightarrow}$ & $\mathbb{F}^{TKb\times d}$ & Fetched leaf hyper-box bounds for inference. \\
-        % $\mathbf{sc}$ & $\mathbb{F}^{TKb}$ & Fetched leaf scores for inference. \\
-        % $\mathbf{Ind}$ & $[N_{\mathrm{tot}}]^{T\times K\times M}$ & Training-time leaf index reached by each sample. \\
-        $\mathbf{C}_{\mathrm{leaf}},\mathbf{V}_{\mathrm{leaf}}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ & Leaf count and residual-sum histograms. \\
-        $\mathbf{C},\mathbf{V}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ & Full count and residual-sum histograms after child aggregation. \\
-        $\mathbf{C}_{\leq},\mathbf{V}_{\leq},\mathbf{C}_{>},\mathbf{V}_{>}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ & Prefix and suffix split statistics. \\
-        % $\mathbf{A},\mathbf{A}'$ & $\mathbb{F}^{T\times K\times M\times d}$ & Histogram addresses and random powers used in the histogram proof. \\
-        % $\mathbf{P}$ & $\mathbb{F}^{N_{\mathrm{tot}}dB}$ & Random-power table for histogram aggregation. \\
-        % $\boldsymbol{\Gamma},\boldsymbol{\chi}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$, $\{0,1\}^{N_{\mathrm{tot}}\times d\times B}$ & Candidate split gains and validity mask. \\
-        % $\boldsymbol{\Gamma}^{*},\mathbf{T}$ & $\mathbb{F}^{N_{\mathrm{tot}}}$, $\{0,1\}^{N_{\mathrm{tot}}\times B}$ & Selected gain and threshold mask for the chosen split. \\
-        \bottomrule
-    \end{tabular}
-\end{table*}
+\input{tables/main_variables}
 
-\subsection{KZG Polynomial Commitments}
+\subsection{KZG Polynomial Commitments}\label{subsec:prelim-kzg}
 
 We use KZG polynomial commitment scheme (PCS) for univariate polynomials~\cite{kzg10}.
 The PCS consists of the following algorithms:
@@ -149,9 +97,9 @@ and batched openings always verify.  \emph{Binding}: after a
 commitment is published, the prover cannot later open it to a different value at
 the same point. 
 
-\subsection{Gradient Boosted Decision Trees in Plaintext}
+\subsection{Gradient Boosted Decision Trees in Plaintext}\label{subsec:prelim-gbdt}
 
-Given a commitment to a forest, the task of proof of training is to show that
+Given a commitment to a forest, the task of the proof of training is to show that
 the forest arises from a valid execution of the GBDT training procedure.
 
 Let $\mathbf{D}\in[B]^{M\times d}$ be the quantized training dataset, where
@@ -205,9 +153,9 @@ Therefore, after round $t$, the next negative-gradient target is
 \mathbf{Y}[k,r]-\boldsymbol{\pi}[t,k,r],
 \qquad t<T-1.
 \end{equation}
-The initial target is set as $\mathbf{G}[0,k,r]=\mathbf{Y}[k,r]$. We call
-$\mathbf{G}[t,\cdot,\cdot]$ the pseudo-residual slice for round $t$. Similar to the gradient descent
-approach, we want to move the score matrix towards the negative gradient direction, and therefore reduce the loss.
+The initial target is set as $\mathbf{G}[0,k,r]=\mathbf{Y}[k,r] - \mathbf{1}/K$. We call
+$\mathbf{G}[t,\cdot,\cdot]$ the pseudo-residual slice for round $t$. As in gradient descent,
+we want to move the score matrix toward the negative-gradient direction and thereby reduce the loss.
 Thus in round $t$, the
 learner trains one regression tree for each class $k\in[K]$ to fit the target
 vector $\mathbf{G}[t,k,\cdot]\in\mathbb{F}^{M}$.\footnote{The above describes the training process for typical gradient-boosting decision trees. 
@@ -216,7 +164,7 @@ e.g. XGBoost~\cite{xgboost16},
 by modifying the training target and tree-splitting policy accordingly.
 It is also possible to extend our approach to prove
 the training and inference of random forests.
-See \Cref{app:extensions}.}
+See \Cref{app:xgboost-extension,app:rf-extension}.}
 
 \paragraph{Regression tree.}
 Fix a round $t$ and a class $k$. The learner constructs a regression tree
@@ -265,7 +213,7 @@ targets assigned to each child are well concentrated around a single mean.
 
 Among all valid candidates, i.e. those for which both $L_{u,j,b}\neq\emptyset$ and $R_{u,j,b}\neq\emptyset$, the trainer selects a
 feature-threshold pair minimizing \eqref{eq:rss-plain}.
-If valid split is not possible, the node is not split and becomes a leaf.
+If no valid split exists, the node is not split and becomes a leaf.
 
 Once the tree structure is fixed, each leaf $\ell$ is assigned the mean target
 value of the samples that reach it. Writing $I_\ell\subseteq[M]$ for the sample
@@ -315,7 +263,7 @@ view: instead of proving a sorting procedure in zero knowledge, we prove the
 correctness of the histogram statistics from which the trainer derives the same
 split scores.
 
-\subsection{Quantization}
+\subsection{Quantization}\label{subsec:prelim-quantization}
 
 We follow the fixed-point quantization approach used in prior ZKP for ML works~\cite{sparrow24,zkdt20,zkboost26}. 
 Given a real number $x$, we encode it as a signed integer
@@ -337,10 +285,10 @@ xy \approx \frac{q_z}{2^Q}.
 \]
 
 Throughout the paper, we assume the encoding of a fixed-point number
-    is in range $[-\mathcal{B}, \mathcal{B})$ for some public $\mathcal{B}>0$.
+    is in range $[-\mathcal{B}/2, \mathcal{B}/2)$ for some public $\mathcal{B}>0$.
     We assume also that the field $\mathbb{F}$ is large enough to support all intermediate values without modular wraparound, so that the arithmetic over $\mathbb{F}$ corresponds to integer arithmetic on the fixed-point encodings.
 
-\subsection{Table Lookup Argument}
+\subsection{Table Lookup Argument}\label{subsec:prelim-lookup}
 Given matrix $\mathbf{F}\in \mathbb{F}^{n\times m}$
     and matrix $\mathbf{T}\in \mathbb{F}^{N\times m}$,
     the lookup relation
@@ -352,18 +300,18 @@ In our construction, we need a variant of this argument,
     where the prover has a batch of $\mathbf{F}_i\in \mathbb{F}^{n\times m_i}$
     and $\mathbf{T}_i \in \mathbb{F}^{N\times m_i}$
     for $i\in [k]$,
-    and want to prove that
+    and wants to prove that
     \[\mathbf{F}_0\| \cdots \| \mathbf{F}_{k-1} \subseteq \mathbf{T}_0\| \cdots \| \mathbf{T}_{k-1}.\]
     This can be achieved by first padding each matrix to the same
     number of columns,
-    and then randomly combine them with a verifier challenge,
+    and then randomly combining them with a verifier challenge,
     so it is reduced to a single-table lookup argument.
     \Cref{app:concatenated-table-lookup} gives the details of this argument and its properties.
 
 Our construction mainly relies on the single-table lookup argument of \citet{cq++24},
     which reduces a table lookup argument to a basic lookup argument
     where the table is single-column.
-    Additionally, in our construction, we utilize
+    Additionally, in our construction, we use
     two types of (single) table lookup arguments:
     with preprocessing, and without preprocessing.
     
@@ -378,7 +326,7 @@ Based on KZG PCS~\cite{kzg10}, \citet{cq++24} give a zero-knowledge argument for
 
 \paragraph{Without preprocessing.}
 For table lookup without preprocessing,
-    we utilize the construction of \cite{cq++24} without running
+    we use the construction of \cite{cq++24} without running
     its preprocessing phase.
     The benefit for using this construction is that,
     as we will demonstrate later,
@@ -387,7 +335,7 @@ For table lookup without preprocessing,
     reduction in proof size and prover time.
     The efficiency and proof size gain is enormous
     when the table is small.\footnote{
-        We do not know if it's possible to batch the lookup arguments with preprocessing, because the preprocessing is specific to each table and cannot be easily aligned across different tables.
+        We do not know whether it is possible to batch the lookup arguments with preprocessing, because the preprocessing is specific to each table and cannot be easily aligned across different tables.
         We leave this question for future work.
     }
 
