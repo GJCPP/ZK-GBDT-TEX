@@ -55,6 +55,10 @@ We implement \textsc{Terrae} and ZKBoost in C++.
 
 Our code is available at \url{https://anonymous.4open.science/r/ZK-GBDT-F601}.
 
+\textcolor{red}{TODO: introduce the dataset and the benchmark parameters used
+in the experiments, including the Dry Bean dataset, the scaled workload
+dimensions, the bin count, the batch size, and the timeout threshold.}
+
 
 \subsection{Asymptotic Comparison with Prior Works}\label{subsec:eval-asymptotic}
 
@@ -131,10 +135,15 @@ Overall, \Cref{tab:three-dim-scaling} shows a consistent pattern: \textsc{Terrae
 tracks the natural linear growth in $T$ and $M$, while substantially reducing
 the constant factors, and it is markedly more robust to increasing depth.  The
 depth sweep is particularly important in practice, since deeper trees are
-exactly the setting in which path-based certification becomes expensive.  For
-both systems, proof size remains essentially constant across these experiments,
-and verifier time stays small; the main practical differences are therefore
-prover time and peak prover memory, both of which favor \textsc{Terrae}.
+exactly the setting in which path-based certification becomes expensive.
+Both verifiers are succinct, and proof size remains constant across these
+experiments.  For training, \textsc{Terrae}'s verifier time is about
+$0.20$--$0.47$\,s, while ZKBoost's is about $0.026$--$0.027$\,s; their proof
+sizes are about $70$\,KB and $12.5$\,KB, respectively.  For inference, the
+verifier times are about $0.056$--$0.134$\,s for \textsc{Terrae} and
+$0.007$--$0.008$\,s for ZKBoost, with proof sizes of $3.7$\,KB and $2.7$\,KB,
+respectively.  The main practical differences are therefore prover time and
+peak prover memory, both of which favor \textsc{Terrae}.
 
 \subsection{Histogram Aggregation Microbenchmark}
 \label{subsec:histogram-microbenchmark}
@@ -187,9 +196,11 @@ power table. The RAM baseline must additionally prove read-write consistency
 for the evolving memory state. As a result, our protocol reduces prover time
 by $6.31\times$ at $n=2^{15}$, $5.70\times$ at $n=2^{17}$, and
 $5.80\times$ at $n=2^{19}$.
-\textcolor{red}{The verifier time of both protocols is constant across this
-sweep.  Our protocol also enjoys a smaller constant proof size: the specialized
-proof is $2.84$\,KB, compared with about $8.0$\,KB for the RAM baseline.}
+The verifier time of our protocol stays between $0.011$\,s and $0.013$\,s
+across this sweep. The RAM verifier also remains small, ranging from
+$0.039$\,s to $0.058$\,s. Our protocol also enjoys a smaller constant proof
+size: the specialized proof is $2.84$\,KB, compared with $5.99$\,KB for the
+RAM baseline.
 
 \paragraph{Scaling with the address space.}
 Both protocols approach a $2\times$ growth rate
@@ -203,10 +214,11 @@ large. This leads to a widening prover-time gap: our protocol is
 $5.76\times$ faster at $m=2^{14}$, $5.70\times$ faster at $m=2^{15}$,
 $6.13\times$ faster at $m=2^{16}$, $10.95\times$ faster at $m=2^{17}$, and
 $14.75\times$ faster at $m=2^{18}$.
-\textcolor{red}{The verifier time remains constant for both protocols.  The
-proof size also remains constant: $2.84$\,KB for \textsc{Terrae} and about
-$8.0$\,KB for RAM, confirming that the histogram argument does not need to
-expose a growing memory transcript.}
+The verifier time remains nearly constant for both protocols in this sweep:
+\textsc{Terrae} stays around $0.012$\,s, while the RAM baseline stays around
+$0.05$--$0.06$\,s. The proof size also remains constant: $2.84$\,KB for
+\textsc{Terrae} and $5.99$\,KB for RAM, confirming that the histogram argument
+does not need to expose a growing memory transcript.
 
 Overall, the histogram-proof benchmark supports the design choice used in \textsc{Terrae}.
 This also supports and partly explains why the full-system gains in
