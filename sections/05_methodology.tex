@@ -287,7 +287,7 @@ $\mathbf{G}[t,k,r]$ represents the pseudo-residual target of sample $r$ that
 should be approximated by the regression tree for class $k$ at round $t$, and
 $\mathbf{S}[t,k,r]$ represents the cumulative score of sample $r$ for class
 $k$ after round $t$ has been added.
-Initially, $\mathbf{G}[0,k,r]=\mathbf{Y}[k,r]$ for all $k$ and $r$.
+Initially, $\mathbf{G}[0,k,r]=\mathbf{Y}[k,r]-\lfloor\mathbf{1}\cdot 2^q/K\rfloor$ for all $k$ and $r$.
 The committed leaf score stores the learning-rate-scaled tree contribution,
 so the public learning rate $\mu$ is folded into the leaf-value relation.
 
@@ -296,7 +296,7 @@ Logically, the proof of training sequentially proves that:
   \item $\mathbf{Ind}$ correctly commits the leaf reached by each sample in the dataset.
     This is proved in a manner similar to proving batched inference.
   \item $\mathbf{G}[0, \cdot, \cdot]$ is set correctly from $\mathbf{Y}$,
-    namely $\mathbf{G}[0,k,r]=\mathbf{Y}[k,r]$.
+    namely $\mathbf{G}[0,k,r]=\mathbf{Y}[k,r]-\lfloor\mathbf{1}\cdot 2^q/K\rfloor$.
   \item The tree trained at each round $t$ is the optimal regression tree that fits $\mathbf{G}[t, \cdot, \cdot]$ on the dataset,
     i.e. each node split is optimal and the score is assigned to the leaves correctly. This is discussed in more detail in the next subsections.
   \item For each round $t$, the score $\mathbf{S}[t, \cdot, \cdot]$ is updated correctly
@@ -365,15 +365,17 @@ equivalent to maximizing
 subject to the validity condition that both children are nonempty.
 
 If we denote $\mathbf{C}[i, j, k]$ the number of samples falling to node $i$ with $j$-th feature being $k$,
-  and $\mathbf{V}[i, j, k]$ the sum of residuals for samples falling to node $i$ with $j$-th feature being $k$,
-  then we can rewrite \eqref{eq:split-objective} as
+  and $\mathbf{V}[i, j, k]$ the fixed-point sum of residuals for samples falling to node $i$ with $j$-th feature being $k$,
+  then the proof uses the following fixed-point encoding of \eqref{eq:split-objective}:
 \begin{equation}
 \Phi(u,j,b)
 \coloneqq
-\left\lfloor\frac{\left(\sum_{k=0}^{b-1} \mathbf{V}[u, j, k]\right)^2\cdot 2^q}{\sum_{k=0}^{b-1} \mathbf{C}[u, j, k]}\right\rfloor
+\left\lfloor\frac{\left(\sum_{k=0}^{b-1} \mathbf{V}[u, j, k]\right)^2}{2^q\cdot\sum_{k=0}^{b-1} \mathbf{C}[u, j, k]}\right\rfloor
 +
-\left\lfloor\frac{\left(\sum_{k=b}^{B-1} \mathbf{V}[u, j, k]\right)^2\cdot 2^q}{\sum_{k=b}^{B-1} \mathbf{C}[u, j, k]}\right\rfloor.
+\left\lfloor\frac{\left(\sum_{k=b}^{B-1} \mathbf{V}[u, j, k]\right)^2}{2^q\cdot\sum_{k=b}^{B-1} \mathbf{C}[u, j, k]}\right\rfloor.
 \end{equation}
+We note that the numerator $\mathbf{V}$ is quantized fixed-point, while the denominator $\mathbf{C}$ is not.
+Hence we multiply $2^q$ to the denominator to ensure the equation is sematically meaningful. 
 
 This rewriting indicates that \emph{histograms} are sufficient proof objects. 
 Once $\mathbf{C}$ and $\mathbf{V}$ are available, their prefix and suffix sums

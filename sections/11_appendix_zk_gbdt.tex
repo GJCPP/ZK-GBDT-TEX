@@ -445,7 +445,7 @@ Recall that we require
 \[
 \begin{aligned}
     \mathbf{G}[t, k, r] &= \begin{cases}
-        \mathbf{Y}[k, r] & \text{if } t=0,\\
+        \mathbf{Y}[k, r]-\lfloor\mathbf{1}\cdot 2^q/K\rfloor & \text{if } t=0,\\
         \mathbf{Y}[k, r] - \mathbf{S}'[t-1, k, r] & \text{if } t>0.
     \end{cases},\\
     \mathbf{S}'[t, k, r] &= \left\lfloor\frac{\exp(\mathbf{S}[t, k, r] - \mathbf{S}_{\mathrm{max}}[t, k, r])\cdot 2^q}{\sum_{k'=0}^{K-1} \exp(\mathbf{S}[t, k', r] - \mathbf{S}_{\mathrm{max}}[t, k', r])}\right\rfloor,\\
@@ -458,7 +458,8 @@ similar to proof of inference\footnote{Note that we use biased exponential for n
 \paragraph{Dataset leaf assignment.}
 The prover commits
 $\mathbf{U}^{\leftarrow},\mathbf{U}^{\rightarrow}
-\in\mathbb{F}^{TKM\times d}$.
+\in\mathbb{F}^{TKM\times d}$ and
+$\mathbf{sc}\in\mathbb{F}^{TKM}$.
 Let
 \begin{align}
     \mathbf{ind\_tree}_{\{T\times K\times M\}}[t,k,r]=tK+k+1,
@@ -473,8 +474,9 @@ The prover proves
     (0,1,\dots,N_{\mathrm{tot}}-1)^\top\|&
     \mathbf{is\_leaf}\|\mathbf{tree}\|\mathbf{N}^{\leftarrow}\|\mathbf{N}^{\rightarrow}\| \mathbf{score},
 \end{align}
-where $\mathbf{ind}\in [N_{\mathrm{tot}}]^M$ indicates the leaf to which each training sample falls,
-and $\mathbf{sc}\in \mathbb{F}^{TKM}$ indicates the score each sample receives from each tree.
+where the committed vector $\mathbf{Ind}\in [N_{\mathrm{tot}}]^{T\times K\times M}$
+indicates the leaf to which each training sample falls in each tree, and
+$\mathbf{sc}$ indicates the score each sample receives from each tree.
 It then row-replicates $\mathbf{D}$ for $TK$ times and proves by range lookup
 that, for all $t,k,r,j$,
 \begin{align}
@@ -512,6 +514,8 @@ and proves its correctness by zero-check:
     =
     0.
 \end{align}
+Thus each row of $\mathbf{A}$ is one routed sample-feature update into the
+node-feature-bin address space of size $N_{\mathrm{tot}}dB$.
 
 For a random challenge $\alpha$, the prover commits and proves
 the correctness of $\mathbf{P} = (1, \alpha, \dots, \alpha^{N_{\mathrm{tot}}dB-1})$ by proving
@@ -596,13 +600,15 @@ samples assigned to leaf $u$, and $\mathbf{v}_{\mathrm{leaf}}[u]$ is $d$ times
 the corresponding sum of pseudo-residuals. This common factor cancels in the
 leaf-value ratio below. Let
 $\mathbf{LeafNode}=\mathbf{valid}\odot\mathbf{is\_leaf}$.
-For a public fixed-point scale $2^q$, the leaf score should be
+For a public fixed-point scale $2^q$, let
+$\mu_q=\lfloor\mu\cdot 2^q\rfloor$ be the public fixed-point learning rate.
+The leaf score should be
 \[
     \mathbf{score}[u]
     =
     \left\lfloor
-    \frac{\lfloor\mu\cdot 2^q\rfloor\cdot\mathbf{v}_{\mathrm{leaf}}[u]}
-    {\mathbf{n}_{\mathrm{leaf}}[u]}
+    \frac{\mu_q\cdot\mathbf{v}_{\mathrm{leaf}}[u]}
+    {2^q\cdot\mathbf{n}_{\mathrm{leaf}}[u]}
     \right\rfloor
 \]
 on valid leaves. To avoid a division in the arithmetic relation, the prover
@@ -612,18 +618,18 @@ zero-check over $\mathbb{H}_{N_{\mathrm{tot}}}$ that
 \begin{align}
     \mathbf{LeafNode}\odot
     \left(
-    \mu\cdot\mathbf{v}_{\mathrm{leaf}}\cdot 2^q
-    -\mathbf{score}\odot\mathbf{n}_{\mathrm{leaf}}
+    \mu_q\cdot\mathbf{v}_{\mathrm{leaf}}
+    -\mathbf{score}\odot\mathbf{n}_{\mathrm{leaf}}\cdot 2^q
     -\mathbf{r}_{\mathrm{leaf}}
     \right)
     &=\mathbf{0}.
 \end{align}
 It then proves the Euclidean-remainder condition
-$0\leq\mathbf{r}_{\mathrm{leaf}}[u]<\mathbf{n}_{\mathrm{leaf}}[u]$
+$0\leq\mathbf{r}_{\mathrm{leaf}}[u]<2^q\mathbf{n}_{\mathrm{leaf}}[u]$
 by using lookup to prove that
 \begin{align}
     \mathbf{r}_{\mathrm{leaf}}[u] &< \mathcal{B},\\
-    \mathbf{n}_{\mathrm{leaf}}[u] - \mathbf{r}_{\mathrm{leaf}}[u] &\leq \mathcal{B}.
+    2^q\mathbf{n}_{\mathrm{leaf}}[u] - \mathbf{r}_{\mathrm{leaf}}[u] - 1 &< \mathcal{B}.
 \end{align}
 
 \paragraph{Optimal split.}
@@ -644,15 +650,15 @@ With public fixed-point scale $2^q$, the prover proves by zero-check that
 \begin{align}
     \boldsymbol{\chi}\odot
     \bigl(
-    (\mathbf{V}_{\leq})^2\cdot 2^q
-    -\boldsymbol{\Gamma}_{\leq}\odot\mathbf{C}_{\leq}
+    (\mathbf{V}_{\leq})^2
+    -\boldsymbol{\Gamma}_{\leq}\odot\mathbf{C}_{\leq}\cdot 2^q
     -\mathbf{R}_{\leq}
     \bigr)
     &=\mathbf{0},\\
     \boldsymbol{\chi}\odot
     \bigl(
-    (\mathbf{V}_{>})^2\cdot 2^q
-    -\boldsymbol{\Gamma}_{>}\odot\mathbf{C}_{>}
+    (\mathbf{V}_{>})^2
+    -\boldsymbol{\Gamma}_{>}\odot\mathbf{C}_{>}\cdot 2^q
     -\mathbf{R}_{>}
     \bigr)
     &=\mathbf{0},\\
@@ -673,19 +679,23 @@ With public fixed-point scale $2^q$, the prover proves by zero-check that
 \end{align}
 It proves the Euclidean-remainder conditions
 \begin{align}
-    0\leq \mathbf{R}_{\leq}[u,j,b] &< \mathbf{C}_{\leq}[u,j,b],\\
-    0\leq \mathbf{R}_{>}[u,j,b] &< \mathbf{C}_{>}[u,j,b],
+    0\leq \mathbf{R}_{\leq}[u,j,b] &< 2^q\mathbf{C}_{\leq}[u,j,b],\\
+    0\leq \mathbf{R}_{>}[u,j,b] &< 2^q\mathbf{C}_{>}[u,j,b],
 \end{align}
-for every valid candidate by range/lookup checks. Thus
+for every valid candidate by range/lookup checks; concretely, the prover checks
+that each remainder and each strict slack
+$2^q\mathbf{C}_{\leq}[u,j,b]-\mathbf{R}_{\leq}[u,j,b]-1$ and
+$2^q\mathbf{C}_{>}[u,j,b]-\mathbf{R}_{>}[u,j,b]-1$ lies in the public
+range table. Thus
 $\boldsymbol{\Gamma}_{\leq}$ and $\boldsymbol{\Gamma}_{>}$ are the quantized
 division results
 \[
     \left\lfloor
-    \frac{(\mathbf{V}_{\leq})^2\cdot 2^q}{\mathbf{C}_{\leq}}
+    \frac{(\mathbf{V}_{\leq})^2}{2^q\mathbf{C}_{\leq}}
     \right\rfloor
     \qquad\text{and}\qquad
     \left\lfloor
-    \frac{(\mathbf{V}_{>})^2\cdot 2^q}{\mathbf{C}_{>}}
+    \frac{(\mathbf{V}_{>})^2}{2^q\mathbf{C}_{>}}
     \right\rfloor,
 \]
 and $\boldsymbol{\Gamma}$ is their sum.
