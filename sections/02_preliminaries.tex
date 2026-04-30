@@ -225,7 +225,9 @@ w_{\ell}^{(t,k)}
 \end{equation}
 Therefore, for every training sample $r$, the tree prediction
 $f^{(t,k)}(\mathbf{D}[r,\cdot])$ is exactly the leaf value associated with the
-leaf reached by sample $r$.
+leaf reached by sample $r$.\footnote{In our later implementation, the stored leaf score is the
+learning-rate-scaled contribution $\mu\cdot w_{\ell}^{(t,k)}$ rather than the
+unscaled mean $w_{\ell}^{(t,k)}$.}
 
 \paragraph{Round update.}
 After training all $K$ regression trees
@@ -245,7 +247,7 @@ rounds, the forest consists of the $TK$ trees trained all rounds.
 At inference time, for a fresh sample $\mathbf{x}\in[B]^d$, the model
 accumulates the per-class scores
 \[
-\sum_{t=0}^{T-1} f^{(t,k)}(\mathbf{x})
+\sum_{t=0}^{T-1} \mu\cdot f^{(t,k)}(\mathbf{x})
 \qquad\text{for each }k\in[K],
 \]
 and predicts from the resulting $K$-dimensional score vector, typically by

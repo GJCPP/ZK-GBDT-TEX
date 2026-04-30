@@ -682,11 +682,14 @@ It proves the Euclidean-remainder conditions
     0\leq \mathbf{R}_{\leq}[u,j,b] &< 2^q\mathbf{C}_{\leq}[u,j,b],\\
     0\leq \mathbf{R}_{>}[u,j,b] &< 2^q\mathbf{C}_{>}[u,j,b],
 \end{align}
-for every valid candidate by range/lookup checks; concretely, the prover checks
-that each remainder and each strict slack
-$2^q\mathbf{C}_{\leq}[u,j,b]-\mathbf{R}_{\leq}[u,j,b]-1$ and
-$2^q\mathbf{C}_{>}[u,j,b]-\mathbf{R}_{>}[u,j,b]-1$ lies in the public
-range table. Thus
+for every valid candidate by range/lookup checks.  Concretely, the prover also
+checks that the strict slacks
+\[
+2^q\mathbf{C}_{\leq}[u,j,b]-\mathbf{R}_{\leq}[u,j,b]-1,
+\qquad
+2^q\mathbf{C}_{>}[u,j,b]-\mathbf{R}_{>}[u,j,b]-1
+\]
+lie in the public range table. Thus
 $\boldsymbol{\Gamma}_{\leq}$ and $\boldsymbol{\Gamma}_{>}$ are the quantized
 division results
 \[

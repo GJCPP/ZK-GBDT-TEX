@@ -42,11 +42,12 @@
       row 1/.style={nodes={font=\bfseries}},
       column 1/.style={nodes={minimum width=7mm}},
       column 2/.style={nodes={minimum width=11mm}},
-      column 3/.style={nodes={minimum width=17mm}},
-      column 4/.style={nodes={minimum width=9mm}},
-      column 5/.style={nodes={minimum width=18mm}},
-      column 6/.style={nodes={minimum width=24mm}},
-      column 7/.style={nodes={minimum width=12mm}}
+      column 3/.style={nodes={minimum width=10mm}},
+      column 4/.style={nodes={minimum width=13mm}},
+      column 5/.style={nodes={minimum width=9mm}},
+      column 6/.style={nodes={minimum width=13mm}},
+      column 7/.style={nodes={minimum width=13mm}},
+      column 8/.style={nodes={minimum width=12mm}}
     },
     colbg/.style={
       draw=gray!70,
@@ -85,8 +86,8 @@
     % =========================
     \node[paneltitle] (ltitle) at (-4.8,3.12) {(a) Tree semantics};
 
-    % Tree t0
-    \node[treelabel] at (-7.55,2.42) {$t_0$};
+    % Tree 1
+    \node[treelabel] at (-7.55,2.42) {tree $1$};
     \node[internal] (t0r) at (-7.55,1.72) {$1$\\[-1mm]\scriptsize$x_1<3$};
     \node[internal] (t0l) at (-9.05,0.38) {$2$\\[-1mm]\scriptsize$x_2<4$};
     \node[leaf]     (t0rleaf) at (-6.00,0.38) {$7$\\[-1mm]\scriptsize$w_2$};
@@ -98,8 +99,8 @@
     \draw[->, line width=.75pt] (t0l) -- (t0w0);
     \draw[->, line width=.75pt] (t0l) -- (t0w1);
 
-    % Tree t1
-    \node[treelabel] at (-2.65,2.42) {$t_1$};
+    % Tree 2
+    \node[treelabel] at (-2.65,2.42) {tree $2$};
     \node[internal] (t1r) at (-2.65,1.72) {$3$\\[-1mm]\scriptsize$x_1<2$};
     \node[leaf]     (t1lleaf) at (-4.15,0.38) {$8$\\[-1mm]\scriptsize$w'_0$};
     \node[internal] (t1rr) at (-1.15,0.38) {$4$\\[-1mm]\scriptsize$x_2<6$};
@@ -117,24 +118,24 @@
     \node[paneltitle] (rtitle) at (7.25,3.12) {(b) Committed row view used by the proof};
 
     \matrix[bigtable, anchor=north west] (tbl) at (1.15,2.55) {
-      $\mathbf{u}$ \& $\mathbf{tree}$ \& $\mathbf{E}$ \& $\boldsymbol{\Theta}$ \& $\mathbf{N}^{\leftarrow}$ \& $\mathbf{N}^{\rightarrow}$ \& $\mathbf{score}$ \\
-      $0$ \& $0$ \& $(0,0)$ \& $0$ \& $(0,0)$ \& $(0,0)$ \& $0$ \\
-      $1$ \& $t_0$ \& $(1,0)$ \& $3$ \& $(0,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
-      $2$ \& $t_0$ \& $(0,1)$ \& $4$ \& $(0,0)$ \& $(3,B{+}1)$ \& $0$ \\
-      $3$ \& $t_1$ \& $(1,0)$ \& $2$ \& $(0,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
-      $4$ \& $t_1$ \& $(0,1)$ \& $6$ \& $(2,0)$ \& $(B{+}1,B{+}1)$ \& $0$ \\
-      $5$ \& $t_0$ \& $(0,0)$ \& $0$ \& $(0,0)$ \& $(3,4)$ \& $w_0$ \\
-      $6$ \& $t_0$ \& $(0,0)$ \& $0$ \& $(0,4)$ \& $(3,B{+}1)$ \& $w_1$ \\
-      |[fetchtxt]| $7$ \& |[fetchtxt]| $t_0$ \& |[fetchtxt]| $(0,0)$ \& |[fetchtxt]| $0$ \& |[fetchtxt]| $(3,0)$ \& |[fetchtxt]| $(B{+}1,B{+}1)$ \& |[fetchtxt]| $w_2$ \\
-      $8$ \& $t_1$ \& $(0,0)$ \& $0$ \& $(0,0)$ \& $(2,B{+}1)$ \& $w'_0$ \\
-      |[fetchtxt]| $9$ \& |[fetchtxt]| $t_1$ \& |[fetchtxt]| $(0,0)$ \& |[fetchtxt]| $0$
-        \& |[fetchtxt]| $(2,0)$ \& |[fetchtxt]| $(B{+}1,6)$ \& |[fetchtxt]| $w'_1$ \\
-      $10$ \& $t_1$ \& $(0,0)$ \& $0$ \& $(2,6)$ \& $(B{+}1,B{+}1)$ \& $w'_2$ \\
+      $\mathbf{u}$ \& $\mathbf{tree}$ \& $\mathbf{is\_leaf}$ \& $\mathbf{E}$ \& $\boldsymbol{\Theta}$ \& $\mathbf{N}^{\leftarrow}$ \& $\mathbf{N}^{\rightarrow}$ \& $\mathbf{score}$ \\
+      $0$ \& $0$ \& $0$ \& $(0,0)$ \& $0$ \& $(0,0)$ \& $(0,0)$ \& $0$ \\
+      $1$ \& $1$ \& $0$ \& $(1,0)$ \& $3$ \& $(0,0)$ \& $(B,B)$ \& $0$ \\
+      $2$ \& $1$ \& $0$ \& $(0,1)$ \& $4$ \& $(0,0)$ \& $(3,B)$ \& $0$ \\
+      $3$ \& $2$ \& $0$ \& $(1,0)$ \& $2$ \& $(0,0)$ \& $(B,B)$ \& $0$ \\
+      $4$ \& $2$ \& $0$ \& $(0,1)$ \& $6$ \& $(2,0)$ \& $(B,B)$ \& $0$ \\
+      $5$ \& $1$ \& $1$ \& $(0,0)$ \& $0$ \& $(0,0)$ \& $(3,4)$ \& $w_0$ \\
+      $6$ \& $1$ \& $1$ \& $(0,0)$ \& $0$ \& $(0,4)$ \& $(3,B)$ \& $w_1$ \\
+      |[fetchtxt]| $7$ \& |[fetchtxt]| $1$ \& |[fetchtxt]| $1$ \& |[fetchtxt]| $(0,0)$ \& |[fetchtxt]| $0$ \& |[fetchtxt]| $(3,0)$ \& |[fetchtxt]| $(B,B)$ \& |[fetchtxt]| $w_2$ \\
+      $8$ \& $2$ \& $1$ \& $(0,0)$ \& $0$ \& $(0,0)$ \& $(2,B)$ \& $w'_0$ \\
+      |[fetchtxt]| $9$ \& |[fetchtxt]| $2$ \& |[fetchtxt]| $1$ \& |[fetchtxt]| $(0,0)$ \& |[fetchtxt]| $0$
+        \& |[fetchtxt]| $(2,0)$ \& |[fetchtxt]| $(B,6)$ \& |[fetchtxt]| $w'_1$ \\
+      $10$ \& $2$ \& $1$ \& $(0,0)$ \& $0$ \& $(2,6)$ \& $(B,B)$ \& $w'_2$ \\
     };
 
     % Column background boxes
     \begin{scope}[on background layer]
-      \foreach \c in {1,...,7}{
+      \foreach \c in {1,...,8}{
         \node[colbg, fit=(tbl-1-\c)(tbl-12-\c)] {};
       }
     \end{scope}
@@ -142,12 +143,12 @@
     % Horizontal separators: after header and after internal rows
     \foreach \r in {1,6}{
       \draw[gray!60, line width=.4pt]
-        ([xshift=-2pt]tbl-\r-1.south west) -- ([xshift=2pt]tbl-\r-7.south east);
+        ([xshift=-2pt]tbl-\r-1.south west) -- ([xshift=2pt]tbl-\r-8.south east);
     }
 
     % Highlight fetched rows (one row per tree)
-    \node[fetchrow, fit=(tbl-9-1)(tbl-9-7)] (fetchA) {};
-    \node[fetchrow, fit=(tbl-11-1)(tbl-11-7)] (fetchB) {};
+    \node[fetchrow, fit=(tbl-9-1)(tbl-9-8)] (fetchA) {};
+    \node[fetchrow, fit=(tbl-11-1)(tbl-11-8)] (fetchB) {};
 
     % Query box
     \node[meta, anchor=north west, text width=3.35cm] (sample)
@@ -182,5 +183,10 @@
   query, one per tree. Batched inference performs this fetch for every
   tree-sample pair in one shot and then aggregates scores across trees for
   each sample-class pair.}
+  \Description{Two example decision trees and their committed table
+  representation. The table includes node identifiers, tree identifiers,
+  leaf indicators, split-feature masks, thresholds, hyper-box bounds, and leaf
+  scores. Two leaf rows are highlighted to show how inference fetches one row
+  per tree and checks interval containment for a query point.}
   \label{fig:forest-encoding-inference}
 \end{figure*}

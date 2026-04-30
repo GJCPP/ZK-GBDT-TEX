@@ -5,7 +5,7 @@
 
 We consider a prover that trains or serves a GBDT model for a verifier. The
 prover may be malicious: it may commit to an arbitrary
-(ill-formed) forest or inference output, and it may try to convince the
+(ill-formed) forest or claim an incorrect inference output, and it may try to convince the
 verifier that these objects arise from the public quantized training and
 inference algorithms. The verifier is probabilistic polynomial time and checks
 only the commitments, public parameters, public inputs, and proof transcript.
@@ -52,7 +52,7 @@ our proof system satisfies:
     inference proof certifies that the claimed output is obtained by evaluating
     the committed forest on the public input batch.
 
-    \item \textbf{(Optional) Witness privacy.} 
+    \item \textbf{(Optional) Zero-knowledge.} 
     The proof system reveals nothing beyond the public statement. In particular, the proof of training hides 
     the training dataset, labels, forest, and auxiliary training trace, and the proof of well-formedness and inference hide the committed forest.
 \end{enumerate}

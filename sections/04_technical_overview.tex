@@ -26,18 +26,20 @@ $\mathbf{v}_1,\ldots,\mathbf{v}_k\in\mathbb{F}^n$ satisfy it when
     \phi(\mathbf{v}_1[i],\ldots,\mathbf{v}_k[i])=0\\
     \iff \forall X\in \mathbb{H}_n.\ \phi(v_1(X),\ldots,v_k(X))=0.
 \end{align}
-If $v_1(X),\ldots,v_k(X)$ encode these vectors over $\mathbb{H}_n$, the polynomial
+If $v_1(X),\ldots,v_k(X)$ encode these vectors over $\mathbb{H}_n$ and are comitted, the polynomial
 $f(X)=\phi(v_1(X),\ldots,v_k(X))$ is virtual: opening $f(t)$ reduces to
-opening the $v_j(t)$ values and evaluating $\phi$ locally. For example,
+opening the $v_j(t)$ values and 
+the verifier evaluating $\phi$ locally. For example,
 $\phi(x,y)=x^2-y$ encodes the relation
 $\mathbf{u}\odot\mathbf{u}=\mathbf{v}$.
 
 Therefore every low-degree algebraic
 constraint becomes a zero-check
+for some possibly virtual $f(X)$:
 \begin{align}
     \forall X\in \mathbb{H}_n.\ f(X)=0.
 \end{align}
-We prove this zero-check through the equivalent divisibility test
+We prove this zero-check through the divisibility test
 \begin{align}
     f(X)=q(X)\nu_n(X),
     \quad
@@ -78,7 +80,7 @@ derive a virtual commitment as above. Examples include table
 membership, range, and fixed-point division.
 
 We batch such constraints by
-interleaving same-form instances. For two vectors
+interleaving same-predicate instances. For two vectors
 $\mathbf{f},\mathbf{g}\in\mathbb{F}^n$ satisfying the same predicate $\phi$,
 \textsc{Terrae} forms the virtual interleaving
 \begin{align}

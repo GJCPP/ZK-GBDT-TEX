@@ -70,7 +70,7 @@ the full training semantics of gradient boosting.
 The closest line of work is zero-knowledge proof of training for tree
 ensembles. Sparrow~\cite{sparrow24} gives a space-efficient zkSNARK for
 data-parallel circuits and applies it to random-forest training and prediction.
-Its key idea is to avoid re-running training inside the proof: instead, the
+Its key idea is to avoid re-running training inside the proof; instead, the
 prover proves that a certification algorithm accepts the committed forest and
 dataset. ZKBoost~\cite{zkboost26} extends this certification approach to XGBoost.
 It defines a deterministic fixed-point version of XGBoost, builds a
@@ -83,7 +83,7 @@ A natural alternative is to avoid proving the certification computation as a
 generic circuit and instead prove the algebraic relations that characterize
 GBDT training directly. However, this approach creates a different bottleneck.
 GBDT training contains many repeated constraints of two different kinds. The
-first kind consists of \emph{low-degree algebraic constraints}: relations that
+first kind consists of \emph{low-degree algebraic constraints}, which are relations that
 can be written as low-degree polynomial identities over the field, such as
 score updates, prefix sums, booleanity checks, and
 zero checks. The second kind consists of
@@ -104,11 +104,10 @@ trainer on a committed dataset.
 The proof of \textsc{Terrae}
 follows the structure of histogram-based tree training verification~\cite{sparrow24,zkboost26}:
 it proves that samples in the dataset
-are routed to the correct leaves, that sample-wise residuals are correctly
-converted into per-node and per-bin histograms, that the selected split at each
-internal node is optimal according to the public splitting rule, that leaf
-values are computed from the committed residuals, and that boosting states are
-updated consistently across rounds.
+are routed to the correct leaves,
+aggregates them into histograms,
+proves that the splits of all nodes are optimal,
+and finally proves the updates of pseudo-residuals are correct.
 However, unlike previous approaches
 that compile these certification procedures into
 large circuits,
@@ -123,7 +122,7 @@ over different domains. \textsc{Terrae} introduces two batching tools to handle
 this heterogeneity. First, \emph{domain-lifting batching} combines low-degree
 algebraic constraints, such as zero-check and sum-check claims, across
 different domains. It
-lifts all residual polynomials to a common domain and then applies a
+lifts all polynomials to a common domain and then applies a
 single random linear combination. Second, \emph{interleaving batching} combines
 same-form non-native predicates, including lookup-style checks, by virtually
 interleaving committed vectors of different lengths. 
@@ -141,7 +140,7 @@ It proves the final histogram by binding each bucket
 to a power of random challenge and checking a weighted-sum identity between the committed
 histogram and the sample-wise update stream. This turns histogram verification
 from a sequence of authenticated memory transitions into a single randomized
-aggregate identity. It avoids proving a general RAM
+weighted sum identity. It avoids proving a general RAM
 computation and gives a proof primitive tailored to the histogram structure
 that appears throughout tree training.
 
@@ -153,6 +152,7 @@ Our main contributions are as follows:
     \textsc{Terrae} avoids compiling each training or inference
     certification procedure into
     separate circuits, and instead proves the algebraic relations directly.
+    \textsc{Terrae} can also be extended to random forests and XGBoost-style training with minor modifications.
 
     \item We introduce domain-lifting batching for low-degree algebraic
     constraints and interleaving batching for non-native predicates. These techniques
@@ -161,15 +161,17 @@ Our main contributions are as follows:
     committing to extra witnesses.
 
     \item We propose a histogram proof that proves the correctness of converting
-    sample-wise training data and residuals into per-node, per-feature, and
+    sample-wise training data and pseudo-residuals into per-node, per-feature, and
     per-bin histograms. The proof exploits the additive structure of histogram
     construction and avoids general RAM consistency checking.
 
     \item We implement \textsc{Terrae} and evaluate it against a
     baseline following the design of prior proof-of-training
     systems for tree ensembles. The results show that directly proving the
-    algebraic structure of GBDT training \textcolor{red}{significantly} reduces proof-generation
-    time, while adding only \textcolor{red}{modest} proof-size overhead.
+    algebraic structure of GBDT training reduces proof-generation time by
+    $4.0\text{--}9.3\times$ for training and $5.2\text{--}23.8\times$ for
+    inference, reduces peak prover memory by up to $13\times$, and adds only
+    modest proof-size overhead.
 \end{itemize}
 
 The rest of the paper is organized as follows. \Cref{sec:background}
