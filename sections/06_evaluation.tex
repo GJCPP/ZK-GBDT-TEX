@@ -2,62 +2,39 @@
 
 \subsection{Evaluation Setup}\label{subsec:eval-setup}
 
-\paragraph{Hardware.} We implement \textsc{Terrae} in C++ and evaluate
-it on Ubuntu 24.04.4 LTS (Linux kernel 6.17.0-14-generic, x86\_64).                                                          
-The evaluation machine is equipped with two Intel Xeon Gold 6326 CPUs at                                                     
-2.90 GHz, providing 32 physical cores and 64 logical cores in total, and                                                     
-188 GB of RAM.     
+\paragraph{Hardware.}
+All experiments run on Ubuntu 24.04.4 LTS with Linux kernel
+6.17.0-14-generic.  The machine has two Intel Xeon Gold 6326 CPUs at
+2.90 GHz, with 32 physical cores, 64 logical threads, and 188 GB of RAM.
 
 \paragraph{Baseline.}
-There are two candidates for the baseline: (1) Sparrow~\cite{sparrow24}, and (2) ZKBoost~\cite{zkboost26}. The first is 
-designed for random forests, and the second is designed for XGBoost,
-a specific implementation of GBDT.
-The two systems share the same design philosophy for
-committing forests and proving training and inference.
-We adopt ZKBoost as our baseline, as it is more closely aligned with our design and can be easily adapted to support GBDT.
-To ensure a fair comparison, we must keep the core design of ZKBoost,
-which includes
-\begin{enumerate}
-    \item The approach to committing forests.
-        In ZKBoost, each tree is padded with
-        dummy nodes to the same depth
-        and to a full binary tree.
-        This makes the proof of routing easier,
-        since the structure of the forest is fixed and public.
-    \item The approach to proving inference.
-        In ZKBoost, the prover commits the paths
-        the samples take
-        from the roots to the leaves,
-        validates that the paths are consistent with the committed forest,
-        and then proves the correctness of the leaf values.
-        This follows the style
-        of \cite{zkdt20} for decision tree inference.
-    \item The approach to proving training.
-        In ZKBoost, the correctness of training is proved
-        in a way similar to \textsc{Terrae},
-        except that it relies on generic ZKPs for arithmetic circuits, which should be less efficient than our custom-designed proof system.
-\end{enumerate}
+We use an adapted version of ZKBoost~\cite{zkboost26} for our baseline.
+Originally, ZKBoost is designed for binary classification and XGBoost~\cite{xgboost16}, so we adapt it to our multiclass setting.
+Our implementation 
+follows the core designs of ZKBoost: trees are padded to a public full binary
+shape; inference commits root-to-leaf paths and proves path consistency and
+leaf values in the style of~\cite{zkdt20}; training is certified with
+generic arithmetic-circuit proofs;
+and histogram is proved by RAM of~\cite{twoshuffleRAM24}.
+To isolate proof-system overhead, our
+ZKBoost implementation uses the same cryptographic and algebraic primitives as
+\textsc{Terrae}.
 
-Our implementation of ZKBoost strictly follows the above design choice of \cite{zkboost26}.
-    We let our implementation of ZKBoost
-    share the same cryptographic and 
-    algebraic primitives as \textsc{Terrae},
-    to ensure a fair comparison of the proof systems.
+\paragraph{Dataset and Training.}
+We use the UCI Dry Bean dataset~\cite{drybeans20}, which has 13,611 samples,
+16 numerical features, and 7 classes.  We quantize each feature into $B=8$
+bins.  The default benchmark uses $M=512$ samples, maximum depth $h=1$, and
+$T=1$ boosting iteration.
+Ee then scale one of $M,h,T$ at a time to observe the scaling behaviors of the systems.  For all
+runs, the learning rate is $\mu=1$, the $\ell_2$ regularization parameter is
+2, and the split penalty is 0.
 
 \paragraph{Implementation.} 
-We implement \textsc{Terrae} and ZKBoost in C++.
-  Cryptographic 
-  operations are based on the mcl library~\cite{mcllib}, and the proof system is instantiated over the BLS12-381 pairing-friendly elliptic curve 
-  with KZG polynomial commitments. This  
-  instantiation targets roughly 128-bit security, following the standard security level of BLS12-381.
-  We use Fiat-Shamir transformation to make 
-  the proof systems non-interactive.
-
-Our code is available at \url{https://anonymous.4open.science/r/ZK-GBDT-F601}.
-
-\textcolor{red}{TODO: introduce the dataset and the benchmark parameters used
-in the experiments, including the Dry Bean dataset, the scaled workload
-dimensions, the bin count, the batch size, and the timeout threshold.}
+Both systems are implemented in C++.  Cryptographic operations use the mcl
+library~\cite{mcllib}; the proof systems are instantiated over BLS12-381 with
+KZG polynomial commitments, targeting the standard 128-bit security level, and
+are made non-interactive with Fiat--Shamir.  Our code is available at
+\url{https://anonymous.4open.science/r/ZK-GBDT-F601}.
 
 
 \subsection{Asymptotic Comparison with Prior Works}\label{subsec:eval-asymptotic}
@@ -71,79 +48,50 @@ One significant phenomenon is that the prover cost of training certification in 
 This is due to the fact that \textsc{Terrae} avoids
 committing the entire root-to-leaf path for proving inference, and thus avoids the need to prove the consistency of the path with the committed forest, which is a major cost in the baseline.
 
-\subsection{Empirical Scaling in Three Dimensions}\label{subsec:eval-three-dim}
+\subsection{GBDT Benchmark}\label{subsec:eval-three-dim}
 
-We next study how proving time scales with three key workload parameters: the
-number of iterations $T$, 
-the maximum tree depth $h$, 
-and the size of training dataset $M$.
-We start with a basic case
-$(T,h,M)=(1,1,512)$ and scale each parameter while keeping the others fixed.
-For proof of training, we set the batch size $b=M$.
 \Cref{tab:three-dim-scaling} reports prover time and peak prover memory for
 both training and inference.
+Our main focus is on the scaling behavior of the two systems.
 
 \input{tables/three_dim_scaling}
 
-\paragraph{Scaling with the number of trees.}
-As expected, prover time in both systems grows roughly linearly with $T$, since
-each additional tree introduces another proof instance of essentially the same
-shape.  Across the entire sweep, \textsc{Terrae} consistently outperforms
-ZKBoost by a stable margin: $4.90\times$--$5.23\times$ for training and
-$5.52\times$--$5.82\times$ for inference.  From $T=1$ to $T=4$,
-\textsc{Terrae}'s proving time increases from $58.79$\,s to $239.96$\,s for
-training and from $15.76$\,s to $69.93$\,s for inference, which is close to
-linear scaling.  Peak memory grows with $T$ as well, but \textsc{Terrae}
-remains consistently lighter: at $T=4$, it uses $16.46$\,GB for training and
-$4.83$\,GB for inference, compared with $39.03$\,GB and $16.36$\,GB for
-ZKBoost.  This suggests that the improvement of \textsc{Terrae} is not tied to
-a narrow parameter regime, but persists as the ensemble grows.
+\paragraph{Proof size and verification time.}
+Both systems produce succinct proofs, and their verifier times remain small
+across the scaling benchmark. \Cref{tab:proof-size-verifier} gives the
+representative proof sizes and verifier times.
+
+\input{tables/proof_size_verifier}
+
+\paragraph{Scaling with the number of iterations.}
+Both systems scale roughly linearly in $T$, as each additional iteration adds a
+similar proof workload.  Across $T=1,2,4$, \textsc{Terrae} is
+$4.90\times$--$5.23\times$ faster for training and
+$5.52\times$--$5.82\times$ faster for inference, while also using less peak
+memory.
 
 \paragraph{Scaling with tree depth.}
-Depth is the dimension where the difference between the two approaches becomes
-most pronounced.  On inference, \textsc{Terrae} is nearly insensitive to depth
-in this range: its proving time changes only from $15.61$\,s at $h=1$ to
-$17.41$\,s at $h=4$.  In contrast, ZKBoost increases from $86.24$\,s to
-$413.98$\,s, leading to speedups of $5.53\times$--$23.78\times$.  A similar,
-though less uniform, trend appears in training, where \textsc{Terrae} achieves
-$5.01\times$--$8.68\times$ speedups.
-This behavior is consistent with the complexity discussion in
-\Cref{tab:complexity-comparison}: ZKBoost pays heavily for depth-sensitive
-route/path-consistency checks, whereas \textsc{Terrae} avoids proving explicit
-root-to-leaf path objects and instead works with aggregated algebraic
-constraints.  As a result, increasing depth has a much weaker effect on
-\textsc{Terrae}, especially for inference.  The same effect appears in memory:
-for inference, \textsc{Terrae} stays near $1.25$--$1.28$\,GB throughout the depth
-sweep, while ZKBoost rises to $16.27$\,GB at $h=4$.
+Depth shows the clearest separation.  \textsc{Terrae}'s inference prover is
+nearly flat, increasing only from $15.61$\,s at $h=1$ to
+$17.41$\,s at $h=4$, while ZKBoost grows from $86.24$\,s to $413.98$\,s.
+This matches the asymptotic comparison: ZKBoost pays for depth-sensitive
+path-consistency checks, whereas \textsc{Terrae} avoids explicit
+root-to-leaf path objects.  The resulting speedups reach $23.78\times$ for
+inference and $9.31\times$ for training.
 
 \paragraph{Scaling with the number of samples.}
-When varying $M$, both systems again scale approximately linearly, reflecting
-the fact that sample-dependent aggregation remains a dominant cost in both
-designs.  Still, \textsc{Terrae} preserves a clear advantage throughout the
-sweep: $4.46\times$--$5.09\times$ for training on completed baseline runs and
-$5.17\times$--$6.05\times$ for inference.  At the largest tested point,
-$M=4096$, ZKBoost times out during training, while \textsc{Terrae} completes in
-$546.71$\,s; for inference, \textsc{Terrae} reduces proving time from
-$876.30$\,s to $144.80$\,s.  This indicates that the gains of
-\textsc{Terrae} are maintained even when the workload is dominated by
-sample-level processing.  Memory usage also increases with $M$, but the gap
-remains visible at the largest tested point: for $M=4096$, \textsc{Terrae} uses
-$54.12$\,GB for training and $9.58$\,GB for inference, while ZKBoost times out
-in training and uses $32.69$\,GB for inference.
+When scaling $M$, sample-dependent aggregation dominates both systems, but
+\textsc{Terrae} keeps a consistent advantage: $3.97\times$--$5.09\times$ on
+training and $5.17\times$--$6.05\times$ on inference.  At $M=4096$,
+\textsc{Terrae} reduces training prover time from $2168.19$\,s to
+$546.71$\,s, and inference prover time from $876.30$\,s to $144.80$\,s.
 
-Overall, \Cref{tab:three-dim-scaling} shows a consistent pattern: \textsc{Terrae}
-tracks the natural linear growth in $T$ and $M$, while substantially reducing
-the constant factors, and it is markedly more robust to increasing depth.  The
-depth sweep is particularly important in practice, since deeper trees are
-exactly the setting in which path-based certification becomes expensive.
-Both verifiers are succinct, and proof size remains constant across these
-experiments.  For training, \textsc{Terrae}'s verifier time is about
-$0.20$--$0.47$\,s, while ZKBoost's is about $0.026$--$0.027$\,s; their proof
-sizes are about $70$\,KB and $12.5$\,KB, respectively.  For inference, the
-verifier times are about $0.056$--$0.134$\,s for \textsc{Terrae} and
-$0.007$--$0.008$\,s for ZKBoost, with proof sizes of $3.7$\,KB and $2.7$\,KB,
-respectively.  The main practical differences are therefore prover time and
-peak prover memory, both of which favor \textsc{Terrae}.
+Overall, \Cref{tab:three-dim-scaling} shows a consistent pattern:
+\textsc{Terrae} is faster and more memory-efficient across all scaling
+dimensions, with the largest separation appearing in the depth sweep,
+especially for inference.  Since proof size and verifier time are small for
+both systems, the main practical differences are prover time and peak memory,
+both of which favor \textsc{Terrae}.
 
 \subsection{Histogram Aggregation Microbenchmark}
 \label{subsec:histogram-microbenchmark}
@@ -176,8 +124,9 @@ same relation through the randomized aggregate identity in
 \Cref{eq:histogram-aggregation-power-sum}, plus the power-table and lookup
 checks needed to bind $\alpha^{\mathbf{ind}[j]}$.
 
-\Cref{tab:histogram-n-scale} fixes $m=2^{15}$ and scales the number of updates
-$n$. \Cref{tab:histogram-m-scale} fixes $n=2^{17}$ and scales the address
+\Cref{tab:histogram-n-scale} presents the benchmark result
+of fixing $m=2^{15}$ and scaling the number of updates
+$n$, and \Cref{tab:histogram-m-scale} fixing $n=2^{17}$ and scaling the address
 space $m$.
 
 \input{tables/histogram_n_scale}
@@ -185,40 +134,25 @@ space $m$.
 \input{tables/histogram_m_scale}
 
 \paragraph{Scaling with the number of updates.}
-When $m$ is fixed, the growth rates of both approaches approximate $2$
-when $n$ becomes large and dominates the proof cost. In
-\Cref{tab:histogram-n-scale}, increasing $n$ from $2^{15}$ to $2^{19}$
-increases the prover time of our protocol from $8.91$\,s to $73.92$\,s, while
-the RAM baseline grows from $56.27$\,s to $428.57$\,s. The specialized
-histogram proof only adds one weighted contribution
-$\mathbf{u}[j]\alpha^{\mathbf{ind}[j]}$ per update, plus a lookup into the
-power table. The RAM baseline must additionally prove read-write consistency
-for the evolving memory state. As a result, our protocol reduces prover time
-by $6.31\times$ at $n=2^{15}$, $5.70\times$ at $n=2^{17}$, and
-$5.80\times$ at $n=2^{19}$.
-The verifier time of our protocol stays between $0.011$\,s and $0.013$\,s
-across this sweep. The RAM verifier also remains small, ranging from
-$0.039$\,s to $0.058$\,s. Our protocol also enjoys a smaller constant proof
-size: the specialized proof is $2.84$\,KB, compared with $5.99$\,KB for the
-RAM baseline.
+With $m$ fixed, both provers grow with the number of updates, but the
+specialized histogram argument has a much smaller constant.  From
+$n=2^{15}$ to $2^{19}$, the prover time of our protocol grows from
+$17.47$\,s to $74.94$\,s, while the RAM baseline grows from $108.66$\,s to
+$828.43$\,s.  This gives $4.96\times$--$11.05\times$ speedups.  The verifier
+time remains essentially constant and below $0.1$\,s for both protocols, and
+our protocol also has the smaller proof, $2.84$\,KB versus $5.99$\,KB.
 
 \paragraph{Scaling with the address space.}
-Both protocols approach a $2\times$ growth rate
-when $m=2^{17}$ and the address space becomes the dominant term. This is
-the expected linear dependence on the number of histogram buckets. The RAM
-baseline also grows with $m$, because the final memory image has more cells and
-the consistency proof must bind a larger address universe. Its dominant cost,
-however, is still the read-write trace over $n$ updates, so the slope in this
-sweep is smaller than in the $n$-scale experiment until the memory image becomes
-large. This leads to a widening prover-time gap: our protocol is
-$5.76\times$ faster at $m=2^{14}$, $5.70\times$ faster at $m=2^{15}$,
-$6.13\times$ faster at $m=2^{16}$, $10.95\times$ faster at $m=2^{17}$, and
-$14.75\times$ faster at $m=2^{18}$.
-The verifier time remains nearly constant for both protocols in this sweep:
-\textsc{Terrae} stays around $0.012$\,s, while the RAM baseline stays around
-$0.05$--$0.06$\,s. The proof size also remains constant: $2.84$\,KB for
-\textsc{Terrae} and $5.99$\,KB for RAM, confirming that the histogram argument
-does not need to expose a growing memory transcript.
+With $n$ fixed, the cost grows slowly for small $m$, where the update count
+still dominates, and then approaches the expected linear dependence on the
+number of buckets.  our protocol remains faster throughout the scaling, with
+speedups from $6.70\times$ to $15.85\times$.
+The gap widens for large address spaces because the RAM baseline pays a
+  generic memory-checking overhead for every bucket that may be addressed,
+  including buckets that receive few or no updates.  In contrast,
+  our protocol uses a histogram-specific reduction that checks the final
+  aggregate relation directly, so it avoids the generic read-write memory
+  consistency machinery.
 
 Overall, the histogram-proof benchmark supports the design choice used in \textsc{Terrae}.
 This also supports and partly explains why the full-system gains in
