@@ -38,7 +38,8 @@ which include
         except that it relies on genric ZKPs for arithmetic circuits, which should be less efficient than our custom-designed proof system.
 \end{enumerate}
 
-Our implementation of ZKBoost strictly follows the above design choice of \cite{zkboost26}.
+Our implementation of ZKBoost strictly follows the above design choice of \cite{zkboost26},
+    and instantiate its proof backend with Plonk-family proof system~\cite{plonk19, plookup20}.
     We let our implementation of ZKBoost
     share the same cryptographic and 
     algebraic primitives as \textsc{Terrae},
