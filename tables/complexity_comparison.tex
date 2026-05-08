@@ -1,0 +1,25 @@
+\begin{table}[t]
+    \centering
+    \small
+    \caption{Asymptotic prover costs for tree-model training and inference
+    certification. Here $h$ is the maximum root-to-leaf depth.
+    The
+    $\tilde{O}(\cdot)$ notation hides logarithmic factors and fixed
+    backend-dependent constants.
+    Both verifiers run in polylogarithmic time.}
+    \label{tab:complexity-comparison}
+    \begin{tabular}{cccc}
+        \toprule
+        System & Proof of training & Proof of inference & Proof size\\
+        \midrule
+        Baseline
+        & $\tilde{O}\bigl(TKMhd+N_{\mathrm{tot}}dB\bigr)$
+        & $\tilde{O}(TKbhd)$
+        & $O(1)$ \\
+        \textsc{Terrae}
+        & $\tilde{O}\bigl(TKMd+N_{\mathrm{tot}}dB\bigr)$
+        & $\tilde{O}(TKbd)$
+        & $O(1)$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}

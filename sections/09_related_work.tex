@@ -40,7 +40,7 @@ state updates.
 
 The closest works to ours are zero-knowledge proofs of training for forest-based
 models. \citet{sparrow24} propose a space-efficient zkSNARK, Sparrow, for
-data-parallel circuits and applies it to 
+data-parallel circuits and apply it to
 zero-knowledge proofs of random forest training
 and prediction.
 More
@@ -62,7 +62,7 @@ GBDT training that directly captures the committed training trace and proves
 that the committed ensemble is obtained by executing the public
 training algorithm on the committed dataset.
 
-\subsection{Batching Lookup Arguments}
+\subsection{Batching Lookup Arguments}\label{subsec:related-lookup-batching}
 As a corollary of \Cref{lem:interleaving},
     we can batch multiple lookup arguments into one,
     even if (1) the contents are of different sizes,
@@ -76,7 +76,7 @@ As a corollary of \Cref{lem:interleaving},
     \]
     where ``$\subseteq$'' denotes that every element in $\mathbf{f}_i$ is also in $\mathbf{t}_i$.
 
-To our best knowledge, this types of batching
+To the best of our knowledge, this type of batching
     is not studied in the literature.
     Existing works on lookup arguments typically fall into one of the following categories:
 
@@ -121,7 +121,7 @@ matrix lookup, and segment lookup~\cite{cq++24,sublonk24}.
 These arguments can prove that a committed vector, row, subvector, or submatrix
 is contained in a larger committed table, often by adding positional labels or
 by reducing the relation to a standard lookup.
-In our construction, we utilize the matrix lookup of~\cite{cq++24},
+In our construction, we use the matrix lookup of~\cite{cq++24},
 which is nevertheless orthogonal to the batching problem.
 
 In summary, prior batching techniques typically batch many queries into one

@@ -1,0 +1,23 @@
+\begin{table}[t]
+    \centering
+    \small
+    \caption{Histogram aggregation microbenchmark when scaling the update
+    length $n$ with fixed address space $m=2^{15}$.}
+    \label{tab:histogram-n-scale}
+    \begin{tabular}{ccccccc}
+        \toprule
+        \multirow{2}{*}{$\log_2 n$}
+        & \multicolumn{2}{c}{Prover time (s)}
+        & \multicolumn{2}{c}{Verifier time (s)}
+        & \multicolumn{2}{c}{Proof size (KB)} \\
+        \cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmidrule(lr){6-7}
+        & Ours & RAM & Ours & RAM & Ours & RAM \\
+        \midrule
+        $15$ & 17.474 & 108.656 & 0.012 & 0.049 & 2.84 & 5.99 \\
+        $16$ & 21.132 & 104.776 & 0.012 & 0.052 & 2.84 & 5.99 \\
+        $17$ & 28.985 & 212.015 & 0.013 & 0.054 & 2.84 & 5.99 \\
+        $18$ & 44.564 & 429.934 & 0.013 & 0.057 & 2.84 & 5.99 \\
+        $19$ & 74.938 & 828.431 & 0.013 & 0.054 & 2.84 & 5.99 \\
+        \bottomrule
+    \end{tabular}
+\end{table}

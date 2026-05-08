@@ -1,0 +1,145 @@
+\section{Soundness Analysis}\label{app:soundness}
+
+In this appendix we analyse the soundness loss of the three
+main proofs, i.e. proof of inference, proof of forest well-formedness, and proof of training. 
+
+\paragraph{Primitive errors.}
+We write $\epsilon_{\mathsf{KZG}}$ for the binding/opening soundness error of
+the KZG backend, including the final batched openings.  We write
+$\epsilon_{\mathsf{lookup}}(Q,T)$ for the soundness error of the imported lookup
+argument on query length $Q$ and table length $T$.  Range checks are direct
+lookups into a table of size $\mathcal{B}$, so they are included in the same
+lookup term.  Maximum, argmax, fixed-point division, and quantization checks are
+implemented by low-degree identities plus lookup checks, so their additional
+loss is accounted for by the same terms.
+
+Domain-lifting batching uses one random linear-combination challenge for each
+batched family.  By \Cref{thm:domain-lifting-batching}, batching $m$ same-form
+zero-check or sum-check claims contributes at most
+\[
+    \epsilon_{\mathsf{dl}}(m) \leq \frac{m-1}{|\mathbb{F}|}.
+\]
+Interleaving itself is deterministic and introduces no soundness loss.  When
+interleaving is used to merge lookup families over distinct tables, the random
+table shift in \Cref{app:interleaving-batching} contributes at most
+\[
+    \epsilon_{\mathsf{sep}}(s,L)
+    \leq
+    \frac{s^2L^2}{|\mathbb{F}|},
+\]
+where $s$ is the number of table families and $L$ upper bounds the table
+lengths in the batch.  Finally, each histogram aggregation identity over an
+address space of size $m$ contributes at most
+\[
+    \epsilon_{\mathsf{hist}}(m) \leq \frac{m-1}{|\mathbb{F}|},
+\]
+as shown in \Cref{subsec:overview-histogram}.
+
+\paragraph{Inference.}
+An accepting inference proof is sound unless one of the following events occurs.
+First, a KZG commitment is opened inconsistently, contributing
+$\epsilon_{\mathsf{KZG}}$.  Second, the leaf-fetch lookup accepts even though a
+claimed row
+\[
+  \mathbf{1}\|\mathbf{ind\_tree}\|\mathbf{U}^{\leftarrow}\|
+  \mathbf{U}^{\rightarrow}\|\mathbf{sc}
+\]
+does not appear in the committed forest table; this is bounded by the lookup
+error plus the table-separation loss if several lookup families are batched.
+Third, an interval containment check or final maximum-selection check accepts
+incorrectly; these are bounded by the lookup errors for the corresponding
+batches.  Fourth, a score aggregation identity fails but passes the batched
+zero-check or sum-check; if $m_{\mathsf{inf},0}$ zero-check claims and
+$m_{\mathsf{inf},\Sigma}$ sum-check claims are batched, this contributes
+\[
+    \epsilon_{\mathsf{dl}}(m_{\mathsf{inf},0})
+    +
+    \epsilon_{\mathsf{dl}}(m_{\mathsf{inf},\Sigma}).
+\]
+Thus the inference soundness error is bounded by
+\[
+\epsilon_{\mathsf{inf}}
+\leq
+\epsilon_{\mathsf{KZG}}
++\epsilon_{\mathsf{lookup}}^{\mathsf{inf}}
++\epsilon_{\mathsf{sep}}^{\mathsf{inf}}
++\epsilon_{\mathsf{dl}}(m_{\mathsf{inf},0})
++\epsilon_{\mathsf{dl}}(m_{\mathsf{inf},\Sigma}),
+\]
+which remains negligible for polynomially bounded batch and forest sizes and a sufficiently large field.
+
+\paragraph{Forest well-formedness.}
+The well-formedness proof consists of local algebraic constraints, lookup
+checks for pointers and bounded fields, and one randomized root-uniqueness
+argument.  The booleanity, no-ghost-node, parent-child, depth, hyper-box, and
+feature-selection constraints are low-degree identities.  If
+$m_{\mathsf{wf},0}$ such identities and $m_{\mathsf{wf},\Sigma}$ sum claims are
+batched, their loss is
+\[
+    \epsilon_{\mathsf{dl}}(m_{\mathsf{wf},0})
+    +
+    \epsilon_{\mathsf{dl}}(m_{\mathsf{wf},\Sigma}).
+\]
+Pointer fetches, tree/depth fetches, and bounded-field checks contribute
+$\epsilon_{\mathsf{lookup}}^{\mathsf{wf}}$,
+and, when applicable, $\epsilon_{\mathsf{sep}}^{\mathsf{wf}}$.  The
+root-uniqueness check is a histogram-style power-sum identity over the $TK+1$
+tree identifiers, where identifier $0$ is the dummy value.  If the committed
+root-count vector is incorrect, it passes with probability at most
+$TK/|\mathbb{F}|$.  Therefore
+\[
+\epsilon_{\mathsf{wf}}
+\leq
+\epsilon_{\mathsf{KZG}}
++\epsilon_{\mathsf{lookup}}^{\mathsf{wf}}
++\epsilon_{\mathsf{sep}}^{\mathsf{wf}}
++\epsilon_{\mathsf{dl}}(m_{\mathsf{wf},0})
++\epsilon_{\mathsf{dl}}(m_{\mathsf{wf},\Sigma})
++\frac{TK}{|\mathbb{F}|}.
+\]
+
+\paragraph{Training.}
+The training proof includes the well-formedness proof for the committed forest
+and then checks that the auxiliary training trace realizes the public
+quantized trainer.  Its additional soundness loss comes from five sources.
+First, routing the training samples to leaves uses the same lookup and
+low-degree checks as batched inference, now over $TKM$ routed rows.  Second,
+the boosting-state updates, score aggregation, prefix sums, leaf-value
+equations, and split-score equations are low-degree or sum-check relations and
+are covered by domain-lifting batching.  Third, fixed-point division,
+quantization, exponential-table, bounded-field, and maximum/argmax checks are
+accounted for by lookup errors.  Fourth, histogram construction uses randomized
+power-sum identities.  If the proof contains histogram checks over address
+spaces $m_1,\ldots,m_H$, their total loss is
+\[
+    \sum_{\ell=1}^{H}\epsilon_{\mathsf{hist}}(m_\ell)
+    \leq
+    \sum_{\ell=1}^{H}\frac{m_\ell-1}{|\mathbb{F}|}.
+\]
+In the main GBDT histogram, the natural address space is
+$N_{\mathrm{tot}}dB$, corresponding to node-feature-bin buckets.  Fifth, all
+batched openings and commitments contribute the backend term
+$\epsilon_{\mathsf{KZG}}$.
+
+Let $m_{\mathsf{tr},0}$ and $m_{\mathsf{tr},\Sigma}$ be the numbers of
+training zero-check and sum-check claims after grouping by same form, and let
+the superscripted $\epsilon$ terms denote the lookup and table-separation losses
+of the training batches.  A union bound gives
+\[
+\begin{aligned}
+\epsilon_{\mathsf{tr}}
+\leq{}&
+\epsilon_{\mathsf{wf}}
++\epsilon_{\mathsf{KZG}}
++\epsilon_{\mathsf{lookup}}^{\mathsf{tr}}
++\epsilon_{\mathsf{sep}}^{\mathsf{tr}} \\
+&+\epsilon_{\mathsf{dl}}(m_{\mathsf{tr},0})
++\epsilon_{\mathsf{dl}}(m_{\mathsf{tr},\Sigma})
++\sum_{\ell=1}^{H}\frac{m_\ell-1}{|\mathbb{F}|}.
+\end{aligned}
+\]
+Consequently, except with this probability, an accepting training proof binds
+the committed dataset, forest, and training trace to a valid execution of the
+public quantized trainer.
+Since all sizes are polynomially bounded,
+the training soundness error is negligible for a sufficiently large field.

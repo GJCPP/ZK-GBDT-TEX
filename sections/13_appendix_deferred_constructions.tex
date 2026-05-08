@@ -63,7 +63,7 @@ Given a vector $\mathbf{f}\in\mathbb{F}^n$ and
   \]
   Unlike \Cref{lem:row-replication}, we do not know if there
   is a closed-form expression for $G(X)$ in terms of $f(X)$.
-  So below we give a direct proof of correctness of $G(X)$.
+  Below we give a direct proof of correctness of $G(X)$.
 
 We prove the following two identities:
 \begin{align}
@@ -82,7 +82,7 @@ i.e. two zero-checks.
 \subsection{Concrete Constructions for Segmented Prefix Sum}\label{app:prefix-sum}
 
 We now give the concrete constructions deferred from
-\Cref{sec:zkgbdt-protocol}. Throughout, we write
+\Cref{subsec:zkgbdt-primitives}. Throughout, we write
 $[t]:=\{0,1,\dots,t-1\}$.
 For a tensor $\mathbf{F}\in\mathbb{F}^{a\times b\times c}$,
 we need the following three relations.
@@ -224,9 +224,7 @@ $\mathbf{F}$, the entries contributing to one fixed $\mathbf{H}[i,k]$ are not
 stored contiguously: they appear once every $\ell$ positions inside the
 $i$-th block of length $m\ell$.
 
-\smallskip
-\noindent
-\textbf{Step 1: construct a mask.}
+\paragraph{Step 1: construct a mask.}
 We first commit to a mask matrix
 \begin{align}
     \mathbf{M}\in\mathbb{F}^{n\times m\times \ell},
@@ -255,9 +253,7 @@ The right-hand side is explicit and can be
 computed by the verifier. This identity uniquely characterizes the desired
 periodic mask.
 
-\smallskip
-\noindent
-\textbf{Step 2: construct an index witness.}
+\paragraph{Step 2: construct an index witness.}
 Next, we commit to an index matrix
 \begin{align}
     \mathbf{I}\in\mathbb{F}^{n\times m\times \ell},
@@ -270,9 +266,7 @@ defined as the (vector) prefix sum of the mask multiplied by the mask:
 $\mathbf{I}$ will be used as an indicator of the positions 
 where the sum should be copied to.
 
-\smallskip
-\noindent
-\textbf{Step 3: lift $\mathbf{H}$ to the shape of $\mathbf{F}$.}
+\paragraph{Step 3: lift $\mathbf{H}$ to the shape of $\mathbf{F}$.}
 We then commit to an aligned tensor
 \[
     \widehat{\mathbf{H}}\in\mathbb{F}^{n\times m\times \ell},
@@ -301,9 +295,7 @@ where $\subseteq$ denotes a lookup. Intuitively, this states that whenever
 $\mathbf{I}$ indicates the $t$-th target location, the value written in
 $\widehat{\mathbf{H}}$ at that location is exactly the $t$-th entry of $\mathbf{H}$.
 
-\smallskip
-\noindent
-\textbf{Step 4: prove the sum by a column-prefix argument.}
+\paragraph{Step 4: prove the sum by a column-prefix argument.}
 Finally, we consider
 \[
     \mathbf{R}:=\mathbf{F}-\widehat{\mathbf{H}}.
@@ -322,12 +314,10 @@ We show that $\mathbf{P}$ vanishes at all positions where $\mathbf{M}$ is nonzer
   \mathbf{P}\odot \mathbf{M} = \mathbf{0}.
 \end{align}
 
-This finishes the proof of the correctness of $\mathbf{H}$.
+This proves the correctness of $\mathbf{H}$.
   To prove the correctness of $\mathbf{G}$, we can simply prove $\mathbf{G} = \mathbf{P} + \widehat{\mathbf{H}}$.
 
-\smallskip
-\noindent
-\textbf{Soundness and completeness.}
+\paragraph{Soundness and completeness.}
 Soundness follows from the soundness of the primitives.
 To see the completeness, note that
 by applying copy constraint (\Cref{eq:copy-constraint-H-Hhat}),

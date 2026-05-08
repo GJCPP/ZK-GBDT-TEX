@@ -1,0 +1,31 @@
+\begin{table*}[t]
+    \centering
+    \small
+    \caption{Main variables and tensor shapes used in the proof.}
+    \label{tab:main-variables}
+    \begin{tabular}{@{}p{0.22\textwidth}p{0.28\textwidth}p{0.42\textwidth}@{}}
+        \toprule
+        Variable & Shape & Meaning \\
+        \midrule
+        $\mathbf{D}$ & $[B]^{M\times d}$ & Quantized training dataset. \\
+        $\mathbf{Y}$ & $\{0,1\}^{K\times M}$ & One-hot label matrix. \\
+        $\mathbf{S},\mathbf{G}$ & $\mathbb{F}^{T\times K\times M}$ & Training scores and pseudo-residuals. \\
+        $\mathbf{lc},\mathbf{rc}$ & $[N_{\mathrm{tot}}]^{N_{\mathrm{tot}}}$ & Left and right child indices of forest nodes. \\
+        $\mathbf{N}^{\leftarrow},\mathbf{N}^{\rightarrow}$ & $[B+1]^{N_{\mathrm{tot}}\times d}$ & Lower and upper hyper-box bounds of nodes. \\
+        $\mathbf{E}$ & $\{0,1\}^{N_{\mathrm{tot}}\times d}$ & One-hot split-feature mask of each node. \\
+        $\boldsymbol{\Theta}$ & $\{0,1,\ldots,B\}^{N_{\mathrm{tot}}}$ & Split threshold index of each node. \\
+        $\mathbf{tree},\mathbf{root},\mathbf{is\_leaf},\mathbf{score}$ & $[TK+1]^{N_{\mathrm{tot}}}$, $\{0,1\}^{N_{\mathrm{tot}}}$, $\{0,1\}^{N_{\mathrm{tot}}}$, $\mathbb{F}^{N_{\mathrm{tot}}}$ & Tree id, root flag, leaf flag, and leaf score. \\
+        % $\mathbf{I}$ & $[B]^{b\times d}$ & Public inference input batch. \\
+        % $\mathbf{U}^{\leftarrow},\mathbf{U}^{\rightarrow}$ & $\mathbb{F}^{TKb\times d}$ & Fetched leaf hyper-box bounds for inference. \\
+        % $\mathbf{sc}$ & $\mathbb{F}^{TKb}$ & Fetched leaf scores for inference. \\
+        % $\mathbf{Ind}$ & $[N_{\mathrm{tot}}]^{T\times K\times M}$ & Training-time leaf index reached by each sample. \\
+        $\mathbf{C}_{\mathrm{leaf}},\mathbf{V}_{\mathrm{leaf}}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ & Leaf count and residual-sum histograms. \\
+        $\mathbf{C},\mathbf{V}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ & Full count and residual-sum histograms after child aggregation. \\
+        $\mathbf{C}_{\leq},\mathbf{V}_{\leq},\mathbf{C}_{>},\mathbf{V}_{>}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$ & Prefix and suffix split statistics. \\
+        % $\mathbf{A},\mathbf{A}'$ & $\mathbb{F}^{T\times K\times M}$ & Histogram addresses and random powers used in the histogram proof. \\
+        % $\mathbf{P}$ & $\mathbb{F}^{N_{\mathrm{tot}}dB}$ & Random-power table for histogram aggregation. \\
+        % $\boldsymbol{\Gamma},\boldsymbol{\chi}$ & $\mathbb{F}^{N_{\mathrm{tot}}\times d\times B}$, $\{0,1\}^{N_{\mathrm{tot}}\times d\times B}$ & Candidate split gains and validity mask. \\
+        % $\boldsymbol{\Gamma}^{*},\mathbf{T}$ & $\mathbb{F}^{N_{\mathrm{tot}}}$, $\{0,1\}^{N_{\mathrm{tot}}\times B}$ & Selected gain and threshold mask for the chosen split. \\
+        \bottomrule
+    \end{tabular}
+\end{table*}

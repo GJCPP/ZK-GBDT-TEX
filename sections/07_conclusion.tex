@@ -1,0 +1,16 @@
+\section{Conclusion}\label{sec:conclusion}
+
+This paper formulates a proof architecture for quantized GBDT in which the
+central training difficulty, namely optimal split selection, is handled through
+a dedicated primitive layer rather than through a monolithic generic circuit.
+By committing the training trace as structured tensors, \textsc{Terrae} proves
+routing, histogram construction, split optimality, leaf-value assignment, and
+boosting-state updates directly over polynomial commitments. Its main technical
+tools, domain-lifting batching and interleaving batching, reduce many
+heterogeneous algebraic and non-native checks to a small number of batched
+claims without introducing extra auxiliary commitments. The histogram
+aggregation argument further avoids a generic RAM proof for the dominant
+sample-to-bucket update pattern in tree training. Together, these components
+give a specialized zero-knowledge proof system for GBDT training and inference,
+and the evaluation shows that exploiting this structure substantially reduces
+prover cost relative to a circuit-style baseline.
