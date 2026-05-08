@@ -16,6 +16,7 @@ shape; inference commits root-to-leaf paths and proves path consistency and
 leaf values in the style of~\cite{zkdt20}; training is certified with
 generic arithmetic-circuit proofs;
 and histogram is proved by RAM of~\cite{twoshuffleRAM24}.
+We instantiate the proof backend of ZKBoost with Plonk-family proof system~\cite{plonk19, plookup20}.
 To isolate proof-system overhead, our
 ZKBoost implementation uses the same cryptographic and algebraic primitives as
 \textsc{Terrae}.
